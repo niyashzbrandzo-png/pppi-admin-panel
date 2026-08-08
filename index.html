@@ -1,0 +1,984 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PPPI Admin Portal - Management & Analytics</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+
+  <!-- FontAwesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Chart.js for analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="/src/style.css" />
+
+<body>
+  <!-- DEDICATED FULL-SCREEN ADMIN LOGIN PAGE -->
+  <div id="admin-login-screen" class="login-page-wrapper">
+    <div class="login-card-glass">
+      <div class="login-header">
+        <div class="brand-logo-large">
+          <i class="fa-solid fa-user-shield"></i>
+        </div>
+        <h1 class="login-title">PPPI ADMIN PORTAL</h1>
+        <p class="login-subtitle">Exclusive Management Sign-In</p>
+      </div>
+
+      <form id="form-admin-login" class="login-form" action="javascript:void(0);">
+        <div class="form-group">
+          <label class="form-label">Mobile Number *</label>
+          <div class="input-with-icon">
+            <i class="fa-solid fa-phone"></i>
+            <input type="text" id="admin-login-phone" placeholder="Enter 10-digit mobile number" required />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Password *</label>
+          <div class="input-with-icon">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" id="admin-login-password" placeholder="Enter admin password" required />
+          </div>
+        </div>
+
+        <div class="login-options-row">
+          <label class="checkbox-container">
+            <input type="checkbox" id="admin-remember-me" />
+            <span class="checkbox-label">Stay Logged In (Keep active session on this device)</span>
+          </label>
+        </div>
+
+        <div id="admin-login-error" class="login-error-msg" style="display: none;"></div>
+
+        <button type="button" id="btn-admin-login-submit" class="btn btn-primary btn-block btn-login-submit">
+          <i class="fa-solid fa-right-to-bracket"></i> Login to Admin Portal
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <span><i class="fa-solid fa-shield-halved"></i> Secure 256-bit Encrypted Portal</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN ADMIN DASHBOARD APPLICATION -->
+  <div id="admin-dashboard-app" class="admin-wrapper" style="display: none;">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+
+      <div class="sidebar-brand">
+        <div class="brand-logo">
+          <i class="fa-solid fa-layer-group"></i>
+        </div>
+        <div class="brand-info">
+          <span class="brand-name">PPPI ADMIN</span>
+          <span class="brand-tag">Portal v1.0</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-menu">
+        <div class="menu-label">Main Core</div>
+        <a href="#" class="nav-item active" data-view="dashboard">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" data-view="users">
+          <i class="fa-solid fa-users"></i>
+          <span>Users Management</span>
+          <span class="badge" id="badge-users-count">0</span>
+        </a>
+        <a href="#" class="nav-item" data-view="posts">
+          <i class="fa-solid fa-images"></i>
+          <span>Community Posts</span>
+          <span class="badge" id="badge-posts-count">0</span>
+        </a>
+
+        <div class="menu-label">Program Management</div>
+        <a href="#" class="nav-item" data-view="events">
+          <i class="fa-solid fa-calendar-check"></i>
+          <span>Events & Campaigns</span>
+        </a>
+        <a href="#" class="nav-item" data-view="plans">
+          <i class="fa-solid fa-award"></i>
+          <span>Membership Plans</span>
+        </a>
+        <a href="#" class="nav-item" data-view="donations">
+          <i class="fa-solid fa-hand-holding-dollar"></i>
+          <span>Donations & Revenue</span>
+        </a>
+        <a href="#" class="nav-item" data-view="livestreams">
+          <i class="fa-solid fa-tower-broadcast"></i>
+          <span>Live Streams</span>
+          <span class="badge" id="badge-livestreams-count" style="background:#ef4444; color:white;">0</span>
+        </a>
+
+        <div class="menu-label">System</div>
+        <a href="#" class="nav-item" data-view="activity">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          <span>Platform Activity Log</span>
+        </a>
+        <a href="#" class="nav-item" data-view="notifications">
+          <i class="fa-solid fa-bell"></i>
+          <span>Notifications & Alerts</span>
+          <span class="badge" id="badge-notif-count">0</span>
+        </a>
+        <a href="#" class="nav-item" data-view="settings">
+          <i class="fa-solid fa-sliders"></i>
+          <span>System Settings</span>
+        </a>
+
+
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="server-status">
+          <span class="status-indicator online" id="server-status-dot"></span>
+          <div class="status-text">
+            <span class="status-title">Backend Status</span>
+            <span class="status-desc" id="server-status-text">Node API Active (5000)</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Navbar -->
+      <header class="top-navbar">
+        <div class="navbar-left">
+          <button id="toggle-sidebar-btn" class="icon-btn">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div class="search-bar">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="global-search-input" placeholder="Global search users, posts, plans..." />
+          </div>
+        </div>
+
+        <div class="navbar-right">
+          <button id="theme-toggle-btn" class="icon-btn" title="Toggle Light/Dark Theme">
+            <i class="fa-solid fa-moon"></i>
+          </button>
+          <div class="notification-dropdown">
+            <button class="icon-btn" id="notif-btn">
+              <i class="fa-solid fa-bell"></i>
+              <span class="notif-badge">3</span>
+            </button>
+          </div>
+          <div class="admin-profile">
+            <div class="profile-avatar">
+              <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <div class="profile-details">
+              <span class="profile-name">Super Admin</span>
+              <span class="profile-role">Administrator</span>
+            </div>
+          </div>
+          <button id="btn-admin-logout" class="icon-btn" title="Logout Administrator" style="color:var(--accent-rose);">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
+        </div>
+
+      </header>
+
+      <!-- View Content Container -->
+      <div class="content-container">
+        <!-- 1. DASHBOARD VIEW -->
+        <section id="view-dashboard" class="content-view active">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Dashboard Overview</h1>
+              <p class="view-subtitle">Real-time statistics and analytics for the PPPI ecosystem.</p>
+            </div>
+            <button class="btn btn-primary" id="btn-refresh-dashboard">
+              <i class="fa-solid fa-rotate"></i> Refresh Data
+            </button>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon icon-primary">
+                <i class="fa-solid fa-users"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-label">Total Registered Users</span>
+                <span class="stat-value" id="stat-total-users">--</span>
+                <span class="stat-trend trend-up"><i class="fa-solid fa-arrow-trend-up"></i> +12% this month</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon icon-purple">
+                <i class="fa-solid fa-images"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-label">Total Community Posts</span>
+                <span class="stat-value" id="stat-total-posts">--</span>
+                <span class="stat-trend trend-up"><i class="fa-solid fa-arrow-trend-up"></i> Active Feed</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon icon-gold">
+                <i class="fa-solid fa-award"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-label">Active Membership Plans</span>
+                <span class="stat-value" id="stat-total-plans">--</span>
+                <span class="stat-trend"><i class="fa-solid fa-circle-check"></i> Standard Tiers</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon icon-emerald">
+                <i class="fa-solid fa-indian-rupee-sign"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-label">Total Revenue & Donations</span>
+                <span class="stat-value" id="stat-total-revenue">₹4,85,000</span>
+                <span class="stat-trend trend-up"><i class="fa-solid fa-arrow-trend-up"></i> +18% growth</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Analytics Charts Section -->
+          <div class="charts-row">
+            <div class="chart-card">
+              <div class="card-header">
+                <h3>User Registrations & Post Activity</h3>
+                <div class="card-actions">
+                  <span class="pill-tag">2026 Trend</span>
+                </div>
+              </div>
+              <div class="chart-wrapper">
+                <canvas id="userGrowthChart"></canvas>
+              </div>
+            </div>
+
+            <div class="chart-card small-chart">
+              <div class="card-header">
+                <h3>Membership Distribution</h3>
+              </div>
+              <div class="chart-wrapper">
+                <canvas id="membershipPieChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Activity & Quick Shortcuts -->
+          <div class="dashboard-bottom-grid">
+            <div class="activity-card">
+              <div class="card-header">
+                <h3>Recent Platform Activity</h3>
+                <button class="btn btn-sm btn-outline" id="btn-view-all-activity">View All</button>
+              </div>
+              <div class="activity-list" id="dashboard-activity-list">
+                <!-- Dynamic activity items -->
+              </div>
+            </div>
+
+            <div class="quick-actions-card">
+              <div class="card-header">
+                <h3>Quick Admin Actions</h3>
+              </div>
+              <div class="quick-actions-grid">
+                <button class="action-tile" id="tile-create-event">
+                  <i class="fa-solid fa-calendar-plus icon-purple"></i>
+                  <span>Create Event</span>
+                </button>
+                <button class="action-tile" id="tile-add-plan">
+                  <i class="fa-solid fa-plus-circle icon-gold"></i>
+                  <span>Add Plan</span>
+                </button>
+                <button class="action-tile" id="tile-manage-users">
+                  <i class="fa-solid fa-user-gear icon-primary"></i>
+                  <span>Manage Users</span>
+                </button>
+                <button class="action-tile" id="tile-view-posts">
+                  <i class="fa-solid fa-shield-halved icon-emerald"></i>
+                  <span>Moderate Posts</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. USERS MANAGEMENT VIEW -->
+        <section id="view-users" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Users Directory</h1>
+              <p class="view-subtitle">Manage member profiles, accounts, verification, and roles.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-outline" id="btn-export-users">
+                <i class="fa-solid fa-file-export"></i> Export CSV
+              </button>
+            </div>
+          </div>
+
+          <!-- Controls & Filters -->
+          <div class="table-controls">
+            <div class="filter-group">
+              <div class="input-with-icon">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="user-search-input" placeholder="Search by name, email, phone..." />
+              </div>
+              <select id="user-role-filter" class="form-select">
+                <option value="ALL">All Roles</option>
+                <option value="USER">User</option>
+                <option value="ADMIN">Admin</option>
+              </select>
+              <select id="user-status-filter" class="form-select">
+                <option value="ALL">All Status</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Users Data Table -->
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table" id="users-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>User Profile</th>
+                    <th>Email & Contact</th>
+                    <th>Role</th>
+                    <th>Membership Status</th>
+                    <th>Account Status</th>
+                    <th>Created Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="users-table-body">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. COMMUNITY POSTS VIEW -->
+        <section id="view-posts" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Community Posts & Content Moderation</h1>
+              <p class="view-subtitle">Inspect user posts, images, comments, and engagement analytics.</p>
+            </div>
+          </div>
+
+          <div class="table-controls">
+            <div class="filter-group">
+              <div class="input-with-icon">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="post-search-input" placeholder="Search post descriptions or author..." />
+              </div>
+            </div>
+          </div>
+
+          <!-- Posts Grid -->
+          <div class="posts-grid" id="posts-grid-container">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- 4. EVENTS & CAMPAIGNS VIEW -->
+        <section id="view-events" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Events & Campaign Management</h1>
+              <p class="view-subtitle">Organize, schedule, and publish events for PPPI members.</p>
+            </div>
+            <button class="btn btn-primary" id="btn-open-create-event-modal">
+              <i class="fa-solid fa-plus"></i> Create New Event
+            </button>
+          </div>
+
+          <!-- Events List Grid -->
+          <div class="events-grid" id="events-grid-container">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- 5. MEMBERSHIP PLANS VIEW -->
+        <section id="view-plans" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Membership Plans Tiers</h1>
+              <p class="view-subtitle">Configure membership tiers, pricing, and associated benefits.</p>
+            </div>
+            <button class="btn btn-primary" id="btn-open-create-plan-modal">
+              <i class="fa-solid fa-plus"></i> Add New Plan
+            </button>
+          </div>
+
+          <div class="plans-grid" id="plans-grid-container">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- 6. DONATIONS & FUNDS MANAGEMENT VIEW -->
+        <section id="view-donations" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title"><i class="fa-solid fa-hand-holding-dollar"
+                  style="color:var(--accent-emerald);"></i> Funds & Donations Management</h1>
+              <p class="view-subtitle">Manage party donation funds, track goal progress, and review live donor
+                transaction logs.</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn btn-primary" id="btn-open-create-fund-modal">
+                <i class="fa-solid fa-plus"></i> Create New Fund
+              </button>
+            </div>
+          </div>
+
+          <!-- Stats Bar -->
+          <div class="livestreams-stats-grid" style="margin-bottom: 24px;">
+            <div class="stat-card">
+              <div class="stat-header">
+                <span class="stat-title">Total Donations Raised</span>
+                <div class="stat-icon" style="background:rgba(16,185,129,0.1); color:#10b981;"><i
+                    class="fa-solid fa-indian-rupee-sign"></i></div>
+              </div>
+              <div class="stat-value" id="stat-total-donations-raised">₹0</div>
+              <div class="stat-footer">Cumulative contributions</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-header">
+                <span class="stat-title">Active Funds</span>
+                <div class="stat-icon" style="background:rgba(99,102,241,0.1); color:#6366f1;"><i
+                    class="fa-solid fa-vault"></i></div>
+              </div>
+              <div class="stat-value" id="stat-active-funds-count">0</div>
+              <div class="stat-footer">Published donation categories</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-header">
+                <span class="stat-title">Total Donors</span>
+                <div class="stat-icon" style="background:rgba(245,158,11,0.1); color:#f59e0b;"><i
+                    class="fa-solid fa-heart"></i></div>
+              </div>
+              <div class="stat-value" id="stat-total-donors-count">0</div>
+              <div class="stat-footer">Verified donor transactions</div>
+            </div>
+          </div>
+
+          <!-- Active Party Funds Grid -->
+          <h3
+            style="font-size:16px; font-weight:700; margin-bottom:14px; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-folder-open" style="color:var(--accent-indigo);"></i> Party Donation Funds & Goals
+          </h3>
+          <div id="funds-cards-grid" class="plans-grid" style="margin-bottom: 30px;">
+            <!-- Dynamically populated funds cards -->
+          </div>
+
+          <!-- Live Donor Transactions Table -->
+          <h3
+            style="font-size:16px; font-weight:700; margin-bottom:12px; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-list-check"></i> Live Donor Transaction Audit Log
+          </h3>
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table" id="donations-table">
+                <thead>
+                  <tr>
+                    <th>Donation ID</th>
+                    <th>Donor Name</th>
+                    <th>Contact (Phone/Email)</th>
+                    <th>Fund Purpose</th>
+                    <th>Amount (₹)</th>
+                    <th>Razorpay Order / Pay ID</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody id="donations-table-body">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 8. NOTIFICATIONS & ALERTS VIEW -->
+        <section id="view-notifications" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Notifications & System Announcements</h1>
+              <p class="view-subtitle">Send push announcements and system alerts to PPPI members.</p>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <button class="btn btn-outline" id="btn-mark-all-notif-read">
+                <i class="fa-solid fa-check-double"></i> Mark All Read
+              </button>
+              <button class="btn btn-primary" id="btn-open-create-notif-modal">
+                <i class="fa-solid fa-paper-plane"></i> Send New Announcement
+              </button>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table" id="notifications-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Announcement Title</th>
+                    <th>Message Body</th>
+                    <th>Target / Recipient</th>
+                    <th>Status</th>
+                    <th>Sent Time</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="notifications-table-body">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- LIVE STREAMS VIEW -->
+        <section id="view-livestreams" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title"><i class="fa-solid fa-tower-broadcast" style="color:#ef4444;"></i> Live Streams
+                Monitoring</h1>
+              <p class="view-subtitle">Monitor ongoing active live broadcasts and view past stream sessions.</p>
+            </div>
+            <button class="btn btn-outline" id="btn-refresh-livestreams">
+              <i class="fa-solid fa-rotate"></i> Refresh
+            </button>
+          </div>
+
+          <!-- Stats Bar -->
+          <div class="livestreams-stats-grid">
+            <div class="stat-card">
+              <div class="stat-header">
+                <span class="stat-title">Active Live Streams</span>
+                <div class="stat-icon" style="background:rgba(239,68,68,0.1); color:#ef4444;"><i
+                    class="fa-solid fa-circle-dot"></i></div>
+              </div>
+              <div class="stat-value" id="stat-active-streams">0</div>
+              <div class="stat-footer">Currently broadcasting live</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-header">
+                <span class="stat-title">Total Live Viewers</span>
+                <div class="stat-icon" style="background:rgba(99,102,241,0.1); color:#6366f1;"><i
+                    class="fa-solid fa-eye"></i></div>
+              </div>
+              <div class="stat-value" id="stat-live-viewers">0</div>
+              <div class="stat-footer">Combined active audience</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-header">
+                <span class="stat-title">Total Stream Sessions</span>
+                <div class="stat-icon" style="background:rgba(16,185,129,0.1); color:#10b981;"><i
+                    class="fa-solid fa-video"></i></div>
+              </div>
+              <div class="stat-value" id="stat-total-streams">0</div>
+              <div class="stat-footer">Recorded stream history</div>
+            </div>
+          </div>
+
+          <!-- Active Live Streams Cards -->
+          <h3
+            style="font-size:16px; font-weight:700; margin-bottom:14px; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-signal" style="color:#ef4444;"></i> Active Live Broadcasts
+          </h3>
+          <div id="active-streams-grid" class="livestreams-grid">
+            <!-- Populated dynamically -->
+          </div>
+
+          <!-- All Streams History Table -->
+          <h3 style="font-size:16px; font-weight:700; margin-bottom:12px; color:var(--text-primary);">
+            <i class="fa-solid fa-clock-rotate-left"></i> Stream Sessions History
+          </h3>
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Stream Title</th>
+                    <th>Host Name</th>
+                    <th>Room ID</th>
+                    <th>Status</th>
+                    <th>Viewers</th>
+                    <th>Started At</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="livestreams-table-body">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 9. PLATFORM ACTIVITY LOG VIEW -->
+        <section id="view-activity" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Platform Activity Log</h1>
+              <p class="view-subtitle">Audit trail of member registrations, posts, events, and transactions.</p>
+            </div>
+          </div>
+
+          <div class="table-controls">
+            <div class="filter-group">
+              <div class="input-with-icon">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="activity-search-input"
+                  placeholder="Search activity title, details, or user..." />
+              </div>
+              <select id="activity-type-filter" class="form-select">
+                <option value="ALL">All Event Types</option>
+                <option value="USER">User Registrations</option>
+                <option value="POST">Community Posts</option>
+                <option value="PAYMENT">Payments & Donations</option>
+                <option value="EVENT">Campaign Events</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table" id="activity-table">
+                <thead>
+                  <tr>
+                    <th>Event Type</th>
+                    <th>Activity Title</th>
+                    <th>Category</th>
+                    <th>Timestamp</th>
+                  </tr>
+                </thead>
+                <tbody id="activity-table-body">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 7. SETTINGS VIEW -->
+        <section id="view-settings" class="content-view">
+
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">System Settings</h1>
+              <p class="view-subtitle">General administration, API keys, and notification triggers.</p>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="form-group">
+              <label class="form-label">Backend Node API Server Base URL</label>
+              <input type="text" class="form-control" id="settings-api-url" value="https://api.pppiconnect.com/api" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Razorpay Mode</label>
+              <input type="text" class="form-control" value="Razorpay Test Mode Active (rzp_test_1DP5AxOIaaFiE5)"
+                readonly />
+            </div>
+            <button class="btn btn-primary" id="btn-save-settings">Save Settings</button>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL 5: Event Attendees Registrations List -->
+  <div class="modal-backdrop" id="modal-event-registrations">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 id="modal-event-reg-title">Event Attendee Registrations</h3>
+          <p style="font-size:12px; color:var(--text-muted);" id="modal-event-reg-subtitle">Registered Members</p>
+        </div>
+        <button class="modal-close" data-close-modal="modal-event-registrations"><i
+            class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>User / Member Name</th>
+                <th>Mobile Number</th>
+                <th>Email Address</th>
+                <th>Registered At</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="modal-event-reg-tbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- MODAL 1: Create/Edit Event Modal -->
+  <div class="modal-backdrop" id="modal-event">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-event-title">Create New Event</h3>
+        <button class="modal-close" data-close-modal="modal-event"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-event">
+          <div class="form-group">
+            <label class="form-label">Event Title *</label>
+            <input type="text" id="event-input-title" class="form-control" required
+              placeholder="e.g. PPPI Annual Leadership Summit 2026" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Event Date *</label>
+              <input type="date" id="event-input-date" class="form-control" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Time *</label>
+              <input type="time" id="event-input-time" class="form-control" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Venue / Location *</label>
+            <input type="text" id="event-input-venue" class="form-control" required
+              placeholder="e.g. Grand Convention Center, Chennai / Online Webinar" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Banner Image URL</label>
+            <input type="url" id="event-input-banner" class="form-control"
+              placeholder="https://images.unsplash.com/photo-..." />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description *</label>
+            <textarea id="event-input-desc" class="form-control" rows="4" required
+              placeholder="Describe the purpose, agenda, and speakers for this event..."></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-event">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save & Publish Event</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Create/Edit Plan Modal -->
+  <div class="modal-backdrop" id="modal-plan">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-plan-title">Add Membership Plan</h3>
+        <button class="modal-close" data-close-modal="modal-plan"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-plan">
+          <div class="form-group">
+            <label class="form-label">Plan Name *</label>
+            <input type="text" id="plan-input-name" class="form-control" required placeholder="e.g. Platinum Plan" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Price (₹) *</label>
+              <input type="number" id="plan-input-price" class="form-control" required placeholder="15000" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Popular Tag</label>
+              <select id="plan-input-popular" class="form-select">
+                <option value="false">No</option>
+                <option value="true">Yes (Featured)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Benefits (Comma separated)</label>
+            <textarea id="plan-input-benefits" class="form-control" rows="3"
+              placeholder="Full Voting Rights, Priority Support, Annual Meet Pass"></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-plan">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Membership Plan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: User Details Drawer/Modal -->
+  <div class="modal-backdrop" id="modal-user-detail">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3>User Profile Details</h3>
+        <button class="modal-close" data-close-modal="modal-user-detail"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" id="modal-user-detail-content" style="max-height: 70vh; overflow-y: auto;">
+        <!-- Dynamically populated user details -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close-modal="modal-user-detail">Close</button>
+      </div>
+    </div>
+  </div>
+  <!-- MODAL: Event Registrations List -->
+  <div class="modal-backdrop" id="modal-event-registrations">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 id="modal-event-reg-title" style="font-size:18px; font-weight:700;">Event Registrations</h3>
+          <p id="modal-event-reg-subtitle" style="font-size:13px; color:var(--text-muted); margin-top:2px;">Loading
+            attendees...</p>
+        </div>
+        <button class="modal-close" data-close-modal="modal-event-registrations"><i
+            class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Member Name</th>
+                <th>Mobile Number</th>
+                <th>Email</th>
+                <th>Registration Date</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="modal-event-reg-tbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close-modal="modal-event-registrations">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Create / Edit Fund Modal -->
+  <div class="modal-backdrop" id="modal-fund">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-fund-title">Create New Party Fund</h3>
+        <button class="modal-close" data-close-modal="modal-fund"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-fund">
+          <input type="hidden" id="fund-input-id" value="" />
+          <div class="form-group">
+            <label class="form-label">Fund Title *</label>
+            <input type="text" id="fund-input-title" class="form-control" required
+              placeholder="e.g. Disaster Relief & Aid Fund" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Target Amount (₹) *</label>
+              <input type="number" id="fund-input-target" class="form-control" required placeholder="1000000" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Already Raised (₹)</label>
+              <input type="number" id="fund-input-raised" class="form-control" placeholder="0" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Icon Identifier</label>
+            <select id="fund-input-icon" class="form-select">
+              <option value="volunteer_activism">Volunteer & Activism (Default)</option>
+              <option value="how_to_vote">Election & Vote</option>
+              <option value="agriculture">Farmer & Rural</option>
+              <option value="school">Youth & Education</option>
+              <option value="medical_services">Disaster & Relief</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description *</label>
+            <textarea id="fund-input-desc" class="form-control" rows="3" required
+              placeholder="Briefly describe the purpose of this party fund..."></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-fund">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-fund">Save Fund</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Broadcast Push Notification Modal -->
+  <div class="modal-backdrop" id="modal-notification">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-notif-title"><i class="fa-solid fa-paper-plane" style="color:var(--primary-color);"></i> Send Push
+          Announcement</h3>
+        <button class="modal-close" data-close-modal="modal-notification"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-notification">
+          <div class="form-group">
+            <label class="form-label">Announcement Title *</label>
+            <input type="text" id="notif-input-title" class="form-control" required
+              placeholder="e.g. Party Rally Update" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Notification Type</label>
+              <select id="notif-input-type" class="form-select">
+                <option value="BROADCAST">BroadCast / General</option>
+                <option value="ANNOUNCEMENT">Official Announcement</option>
+                <option value="ALERT">Urgent Alert</option>
+                <option value="EVENT">Event Invitation</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Select Recipient User</label>
+              <select id="notif-input-target-user" class="form-select">
+                <option value="">All Users (Broadcast)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Message Content *</label>
+            <textarea id="notif-input-body" class="form-control" rows="4" required
+              placeholder="Type the push notification message body here..."></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-notification">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-send-notif">
+              <i class="fa-solid fa-paper-plane"></i> Send Push Notification
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  </div> <!-- END #admin-dashboard-app -->
+
+  <!-- Script loading -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
