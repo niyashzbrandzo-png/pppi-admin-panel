@@ -3,7 +3,7 @@
    Target Server: http://localhost:5000/api
    ========================================================================== */
 
-const DEFAULT_API_URL = "https://api.pppiconnect.com/api";
+const DEFAULT_API_URL = "http://localhost:5000/api";
 
 let API_BASE_URL =
   localStorage.getItem('pppi_api_url') ||
@@ -226,14 +226,15 @@ async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
   try {
     const token = getAdminToken();
+    const { headers: optHeaders, ...restOptions } = options;
     const res = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        ...options.headers
+        ...(optHeaders || {})
       },
-      ...options
+      ...restOptions
     });
     if (!res.ok) {
       throw new Error(`HTTP Error ${res.status}`);
@@ -619,6 +620,27 @@ export async function apiMarkAllNotificationsRead() {
 export async function apiDeleteNotification(id) {
   const token = getAdminToken();
   const res = await fetch(`${API_BASE_URL}/notifications/${id}`, {
+    method: 'DELETE',
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+  });
+  return await res.json();
+}
+
+/* 8. WEBSITE ENQUIRIES MODULE */
+export async function apiGetEnquiries() {
+  const token = getAdminToken();
+  const data = await request('/enquiries', {
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+  });
+  if (data && Array.isArray(data.data)) {
+    return data.data;
+  }
+  return [];
+}
+
+export async function apiDeleteEnquiry(id) {
+  const token = getAdminToken();
+  const res = await fetch(`${API_BASE_URL}/enquiries/${id}`, {
     method: 'DELETE',
     headers: token ? { 'Authorization': `Bearer ${token}` } : {}
   });

@@ -28,6 +28,8 @@ import {
   apiGetLiveStreams,
   apiGetActiveLiveStreams,
   apiEndLiveStream,
+  apiGetEnquiries,
+  apiDeleteEnquiry,
   apiLoginAdmin,
   apiLogoutAdmin,
   getAdminToken,
@@ -43,7 +45,8 @@ let appData = {
   events: [],
   donations: [],
   funds: [],
-  notifications: []
+  notifications: [],
+  enquiries: []
 };
 
 
@@ -90,7 +93,7 @@ function showLoginView() {
 // Load All Data & Populate Views
 async function loadAllData() {
   try {
-    const [users, posts, plans, events, donations, funds, notifResult, liveStreams] = await Promise.all([
+    const [users, posts, plans, events, donations, funds, notifResult, liveStreams, enquiries] = await Promise.all([
       apiGetUsers(),
       apiGetPosts(),
       apiGetPlans(),
@@ -98,7 +101,8 @@ async function loadAllData() {
       apiGetDonations(),
       apiGetFunds(),
       apiGetNotifications(),
-      apiGetLiveStreams()
+      apiGetLiveStreams(),
+      apiGetEnquiries()
     ]);
 
     appData.users = users || [];
@@ -117,6 +121,7 @@ async function loadAllData() {
     }
 
     appData.liveStreams = liveStreams || [];
+    appData.enquiries = enquiries || [];
 
     updateBadges();
     renderDashboard();
@@ -127,6 +132,7 @@ async function loadAllData() {
     renderDonationsTable();
     renderNotificationsTable();
     renderLiveStreamsView();
+    renderEnquiriesTable();
     populateUserNotificationDropdown();
   } catch (err) {
     console.error('Error initializing admin app data:', err);
@@ -150,6 +156,9 @@ function updateBadges() {
   const activeStreamsCount = appData.liveStreams.filter(s => s.status === 'LIVE').length;
   const liveBadge = document.getElementById('badge-livestreams-count');
   if (liveBadge) liveBadge.textContent = activeStreamsCount;
+
+  const enquiryBadge = document.getElementById('badge-enquiries-count');
+  if (enquiryBadge) enquiryBadge.textContent = appData.enquiries.length;
 
   document.getElementById('stat-total-users').textContent = appData.users.length;
   document.getElementById('stat-total-posts').textContent = appData.posts.length;
@@ -1625,4 +1634,61 @@ function renderLiveStreamsView() {
       });
     }
   }
+}
+
+function renderEnquiriesTable() {
+  const tbody = document.getElementById('enquiries-table-body');
+  const btnRefresh = document.getElementById('btn-refresh-enquiries');
+
+  if (btnRefresh && !btnRefresh.dataset.bound) {
+    btnRefresh.dataset.bound = 'true';
+    btnRefresh.addEventListener('click', async () => {
+      appData.enquiries = await apiGetEnquiries();
+      updateBadges();
+      renderEnquiriesTable();
+    });
+  }
+
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (!appData.enquiries || appData.enquiries.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--text-muted);">No website contact enquiries received yet.</td></tr>`;
+    return;
+  }
+
+  appData.enquiries.forEach(item => {
+    const tr = document.createElement('tr');
+    const dateText = item.created_at ? new Date(item.created_at).toLocaleString() : 'Recent';
+
+    tr.innerHTML = `
+      <td><code>#${item.id}</code></td>
+      <td><strong>${item.name}</strong></td>
+      <td>
+        <div style="font-size:13px; color:var(--text-primary);">${item.email}</div>
+        <div style="font-size:12px; color:var(--text-muted);">${item.phone || 'N/A'}</div>
+      </td>
+      <td><span class="pill-tag">${item.subject || 'General'}</span></td>
+      <td style="max-width:300px; font-size:13px; color:var(--text-secondary); line-height:1.4;">${item.message}</td>
+      <td style="font-size:12px; color:var(--text-muted);">${dateText}</td>
+      <td>
+        <button class="btn btn-sm btn-outline btn-delete-enquiry" data-id="${item.id}" style="color:var(--accent-rose);">
+          <i class="fa-solid fa-trash"></i> Delete
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('.btn-delete-enquiry').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id');
+      if (confirm('Are you sure you want to delete this enquiry message?')) {
+        await apiDeleteEnquiry(id);
+        appData.enquiries = await apiGetEnquiries();
+        updateBadges();
+        renderEnquiriesTable();
+      }
+    });
+  });
 }

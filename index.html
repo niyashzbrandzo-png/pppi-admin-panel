@@ -132,6 +132,11 @@
           <span>Notifications & Alerts</span>
           <span class="badge" id="badge-notif-count">0</span>
         </a>
+        <a href="#" class="nav-item" data-view="enquiries">
+          <i class="fa-solid fa-envelope-open-text"></i>
+          <span>Website Enquiries</span>
+          <span class="badge" id="badge-enquiries-count" style="background:#3b82f6; color:white;">0</span>
+        </a>
         <a href="#" class="nav-item" data-view="settings">
           <i class="fa-solid fa-sliders"></i>
           <span>System Settings</span>
@@ -672,6 +677,40 @@
                 </thead>
                 <tbody id="activity-table-body">
                   <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- WEBSITE ENQUIRIES VIEW -->
+        <section id="view-enquiries" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title"><i class="fa-solid fa-envelope-open-text" style="color:var(--accent-indigo);"></i> Website Contact Enquiries</h1>
+              <p class="view-subtitle">Review and respond to messages submitted through the PPPI official portfolio website.</p>
+            </div>
+            <button class="btn btn-outline" id="btn-refresh-enquiries">
+              <i class="fa-solid fa-rotate"></i> Refresh Enquiries
+            </button>
+          </div>
+
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Sender Name</th>
+                    <th>Email & Phone</th>
+                    <th>Subject</th>
+                    <th>Message Body</th>
+                    <th>Submitted Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="enquiries-table-body">
+                  <!-- Populated dynamically -->
                 </tbody>
               </table>
             </div>
