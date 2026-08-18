@@ -30,12 +30,14 @@ import {
   apiEndLiveStream,
   apiGetEnquiries,
   apiDeleteEnquiry,
+  apiUploadMediaFile,
   apiLoginAdmin,
   apiLogoutAdmin,
   getAdminToken,
   getApiBaseUrl,
   setApiBaseUrl
 } from './api.js';
+
 
 // Application State
 let appData = {
@@ -1402,12 +1404,25 @@ function setupModals() {
   // Event Form Submit
   document.getElementById('form-event').addEventListener('submit', async e => {
     e.preventDefault();
+
+    let bannerUrl = document.getElementById('event-input-banner').value.trim();
+    const bannerFileInput = document.getElementById('event-input-banner-file');
+    if (bannerFileInput && bannerFileInput.files && bannerFileInput.files[0]) {
+      try {
+        bannerUrl = await apiUploadMediaFile(bannerFileInput.files[0]);
+      } catch (err) {
+        console.error('Banner image Cloudinary upload error:', err);
+        alert('Failed to upload banner image to Cloudinary: ' + err.message);
+        return;
+      }
+    }
+
     const eventData = {
       title: document.getElementById('event-input-title').value,
       date: document.getElementById('event-input-date').value,
       time: document.getElementById('event-input-time').value,
       venue: document.getElementById('event-input-venue').value,
-      banner: document.getElementById('event-input-banner').value,
+      banner: bannerUrl,
       description: document.getElementById('event-input-desc').value
     };
 
@@ -1418,6 +1433,7 @@ function setupModals() {
     e.target.reset();
     alert('New event published successfully!');
   });
+
 
   // Plan Form Submit
   document.getElementById('form-plan').addEventListener('submit', async e => {

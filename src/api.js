@@ -647,5 +647,28 @@ export async function apiDeleteEnquiry(id) {
   return await res.json();
 }
 
+/* 9. CLOUDINARY FILE UPLOAD API */
+export async function apiUploadMediaFile(file) {
+  const token = getAdminToken();
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${API_BASE_URL}/upload`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    },
+    body: formData
+  });
+
+  const data = await res.json();
+  if (!res.ok || data.status >= 300) {
+    throw new Error(data.message || 'File upload to Cloudinary failed.');
+  }
+
+  return data.data?.url || data.url;
+}
+
+
 
 
