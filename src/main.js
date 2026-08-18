@@ -90,6 +90,76 @@ function showLoginView() {
   if (loginScreen) loginScreen.style.setProperty('display', 'flex', 'important');
 }
 
+function setupAdminAuth() {
+  const loginForm = document.getElementById('form-admin-login');
+  const loginBtn = document.getElementById('btn-admin-login-submit');
+  const logoutBtn = document.getElementById('btn-admin-logout');
+  const loginError = document.getElementById('admin-login-error');
+
+  const handleLoginSubmit = async () => {
+    const phoneInput = document.getElementById('admin-login-phone');
+    const passwordInput = document.getElementById('admin-login-password');
+    const rememberMeInput = document.getElementById('admin-remember-me');
+
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+    const password = passwordInput ? passwordInput.value.trim() : '';
+    const rememberMe = rememberMeInput ? rememberMeInput.checked : false;
+
+    if (!phone || !password) {
+      if (loginError) {
+        loginError.style.display = 'block';
+        loginError.textContent = 'Please enter both mobile number and password.';
+      }
+      return;
+    }
+
+    if (loginBtn) {
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Logging in...';
+    }
+    if (loginError) loginError.style.display = 'none';
+
+    try {
+      await apiLoginAdmin(phone, password, rememberMe);
+      showDashboardView();
+      await loadAllData();
+    } catch (err) {
+      if (loginError) {
+        loginError.style.display = 'block';
+        loginError.textContent = err.message || 'Login failed. Please check admin credentials.';
+      }
+    } finally {
+      if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Login to Admin Portal';
+      }
+    }
+  };
+
+  if (loginForm) {
+    loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      handleLoginSubmit();
+    });
+  }
+
+  if (loginBtn) {
+    loginBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      handleLoginSubmit();
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      apiLogoutAdmin();
+      showLoginView();
+    });
+  }
+}
+
+
 
 
 // Load All Data & Populate Views

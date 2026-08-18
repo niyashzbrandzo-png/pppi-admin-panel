@@ -26,17 +26,38 @@ export function getAdminToken() {
 }
 
 export async function apiLoginAdmin(phone, password, rememberMe = false) {
-  const res = await fetch(`${API_BASE_URL}/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      phone: String(phone).trim(),
-      password: String(password).trim(),
-      client_type: 'admin'
-    })
-  });
+  let targetUrl = API_BASE_URL;
+
+  const tryFetch = async (baseUrl) => {
+    return await fetch(`${baseUrl}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        phone: String(phone).trim(),
+        password: String(password).trim(),
+        client_type: 'admin'
+      })
+    });
+  };
+
+  let res;
+  try {
+    res = await tryFetch(targetUrl);
+  } catch (err) {
+    if (targetUrl !== DEFAULT_API_URL) {
+      console.warn(`Primary API URL (${targetUrl}) failed to fetch. Falling back to ${DEFAULT_API_URL}...`);
+      try {
+        res = await tryFetch(DEFAULT_API_URL);
+        setApiBaseUrl(DEFAULT_API_URL);
+      } catch (fallbackErr) {
+        throw new Error(`Unable to connect to backend server at ${targetUrl} or ${DEFAULT_API_URL}. Please verify the Node server is running.`);
+      }
+    } else {
+      throw new Error(`Unable to connect to backend server at ${DEFAULT_API_URL}. Please verify the Node.js backend server is running on port 5000.`);
+    }
+  }
 
   const data = await res.json();
 
@@ -56,6 +77,7 @@ export async function apiLoginAdmin(phone, password, rememberMe = false) {
 
   return data;
 }
+
 
 export function apiLogoutAdmin() {
   localStorage.removeItem('pppi_admin_token');
