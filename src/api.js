@@ -215,26 +215,8 @@ const MOCK_PLANS = [
   }
 ];
 
-let MOCK_EVENTS = [
-  {
-    id: 1,
-    title: 'PPPI Annual Leadership Conference 2026',
-    date: '2026-08-15',
-    time: '10:00 AM',
-    venue: 'Chennai Trade Center, Chennai',
-    banner: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80',
-    description: 'Join party leaders, policy makers, and active members for our annual strategy conference.'
-  },
-  {
-    id: 2,
-    title: 'Youth Political Engagement Workshop',
-    date: '2026-09-02',
-    time: '02:30 PM',
-    venue: 'Town Hall, Bangalore',
-    banner: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
-    description: 'Interactive session focusing on youth leadership and civic technology.'
-  }
-];
+let MOCK_EVENTS = [];
+
 
 const MOCK_DONATIONS = [
   { id: 'TXN-9021', donor: 'Ravi Kumar', fund: 'Gold Membership Fee', amount: 15000, method: 'Razorpay UPI', status: 'SUCCESS', date: '2026-03-24 14:22' },
@@ -396,7 +378,8 @@ export async function apiGetEvents() {
   if (data && Array.isArray(data.data)) {
     return data.data;
   }
-  return MOCK_EVENTS;
+  return [];
+
 }
 
 export async function apiGetEventRegistrations(eventId) {
