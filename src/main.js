@@ -30,6 +30,8 @@ import {
   apiEndLiveStream,
   apiGetEnquiries,
   apiDeleteEnquiry,
+  apiGetJoinRequests,
+  apiDeleteJoinRequest,
   apiUploadMediaFile,
   apiLoginAdmin,
   apiLogoutAdmin,
@@ -37,6 +39,7 @@ import {
   getApiBaseUrl,
   setApiBaseUrl
 } from './api.js';
+
 
 
 // Application State
@@ -48,9 +51,9 @@ let appData = {
   donations: [],
   funds: [],
   notifications: [],
-  enquiries: []
+  enquiries: [],
+  joinRequests: []
 };
-
 
 let charts = {};
 
@@ -165,7 +168,7 @@ function setupAdminAuth() {
 // Load All Data & Populate Views
 async function loadAllData() {
   try {
-    const [users, posts, plans, events, donations, funds, notifResult, liveStreams, enquiries] = await Promise.all([
+    const [users, posts, plans, events, donations, funds, notifResult, liveStreams, enquiries, joinRequests] = await Promise.all([
       apiGetUsers(),
       apiGetPosts(),
       apiGetPlans(),
@@ -174,7 +177,8 @@ async function loadAllData() {
       apiGetFunds(),
       apiGetNotifications(),
       apiGetLiveStreams(),
-      apiGetEnquiries()
+      apiGetEnquiries(),
+      apiGetJoinRequests()
     ]);
 
     appData.users = users || [];
@@ -194,6 +198,7 @@ async function loadAllData() {
 
     appData.liveStreams = liveStreams || [];
     appData.enquiries = enquiries || [];
+    appData.joinRequests = joinRequests || [];
 
     updateBadges();
     renderDashboard();
@@ -205,6 +210,7 @@ async function loadAllData() {
     renderNotificationsTable();
     renderLiveStreamsView();
     renderEnquiriesTable();
+    renderJoinRequestsTable();
     populateUserNotificationDropdown();
   } catch (err) {
     console.error('Error initializing admin app data:', err);
@@ -232,10 +238,14 @@ function updateBadges() {
   const enquiryBadge = document.getElementById('badge-enquiries-count');
   if (enquiryBadge) enquiryBadge.textContent = appData.enquiries.length;
 
+  const joinReqBadge = document.getElementById('badge-join-requests-count');
+  if (joinReqBadge) joinReqBadge.textContent = appData.joinRequests.length;
+
   document.getElementById('stat-total-users').textContent = appData.users.length;
   document.getElementById('stat-total-posts').textContent = appData.posts.length;
   document.getElementById('stat-total-plans').textContent = appData.plans.length;
 }
+
 
 // 1. Navigation View Switching
 function setupNavigation() {
@@ -1778,3 +1788,69 @@ function renderEnquiriesTable() {
     });
   });
 }
+
+function renderJoinRequestsTable() {
+  const tbody = document.getElementById('join-requests-table-body');
+  const btnRefresh = document.getElementById('btn-refresh-join-requests');
+
+  if (btnRefresh && !btnRefresh.dataset.bound) {
+    btnRefresh.dataset.bound = 'true';
+    btnRefresh.addEventListener('click', async () => {
+      appData.joinRequests = await apiGetJoinRequests();
+      updateBadges();
+      renderJoinRequestsTable();
+    });
+  }
+
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (!appData.joinRequests || appData.joinRequests.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">No website membership join applications received yet.</td></tr>`;
+    return;
+  }
+
+  appData.joinRequests.forEach(item => {
+    const tr = document.createElement('tr');
+    const dateText = item.created_at ? new Date(item.created_at).toLocaleString() : 'Recent';
+    const statusBg = item.status === 'APPROVED' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)';
+    const statusColor = item.status === 'APPROVED' ? '#10B981' : '#F59E0B';
+
+    tr.innerHTML = `
+      <td><code>#${item.id}</code></td>
+      <td><strong>${item.name}</strong></td>
+      <td>
+        <div style="font-size:13px; color:var(--text-primary);"><i class="fa-solid fa-phone" style="font-size:11px; color:var(--accent-indigo);"></i> ${item.phone}</div>
+        <div style="font-size:12px; color:var(--text-muted);">${item.email || 'No email provided'}</div>
+      </td>
+      <td><span class="pill-tag" style="background:rgba(99,102,241,0.12); color:#6366F1; font-weight:600;"><i class="fa-solid fa-award"></i> ${item.plan || 'Free Member'}</span></td>
+      <td>
+        <div style="font-size:13px; font-weight:500;">${item.district || 'N/A'}</div>
+        <div style="font-size:12px; color:var(--text-muted);">${item.state || 'India'}</div>
+      </td>
+      <td style="font-size:12px; color:var(--text-muted);">${dateText}</td>
+      <td><span class="badge" style="background:${statusBg}; color:${statusColor}; font-weight:600;">${item.status || 'PENDING'}</span></td>
+      <td>
+        <div style="display:flex; gap:6px;">
+          <button class="btn btn-sm btn-outline btn-delete-join-req" data-id="${item.id}" style="color:var(--accent-rose);">
+            <i class="fa-solid fa-trash"></i> Delete
+          </button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('.btn-delete-join-req').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id');
+      if (confirm('Are you sure you want to delete this membership join application?')) {
+        await apiDeleteJoinRequest(id);
+        appData.joinRequests = await apiGetJoinRequests();
+        updateBadges();
+        renderJoinRequestsTable();
+      }
+    });
+  });
+}
+

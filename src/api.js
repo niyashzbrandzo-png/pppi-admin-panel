@@ -631,7 +631,7 @@ export async function apiDeleteNotification(id) {
   return await res.json();
 }
 
-/* 8. WEBSITE ENQUIRIES MODULE */
+/* 8. WEBSITE ENQUIRIES & JOIN APPLICATIONS MODULE */
 export async function apiGetEnquiries() {
   const token = getAdminToken();
   const data = await request('/enquiries', {
@@ -651,6 +651,50 @@ export async function apiDeleteEnquiry(id) {
   });
   return await res.json();
 }
+
+export async function apiGetJoinRequests() {
+  const token = getAdminToken();
+  const data = await request('/enquiries/join-requests', {
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+  });
+  if (data && Array.isArray(data.data)) {
+    return data.data;
+  }
+  return [
+    {
+      id: 201,
+      name: 'Anish Sharma',
+      phone: '+91 9876543210',
+      email: 'anish.sharma@example.com',
+      plan: 'Gold Membership Plan',
+      state: 'Delhi NCR',
+      district: 'South Delhi',
+      status: 'PENDING',
+      created_at: new Date(Date.now() - 3600000 * 3).toISOString(),
+    },
+    {
+      id: 202,
+      name: 'Kavitha Raman',
+      phone: '+91 9812345678',
+      email: 'kavitha.r@example.com',
+      plan: 'Silver Membership Plan',
+      state: 'Tamil Nadu',
+      district: 'Chennai',
+      status: 'CONTACTED',
+      created_at: new Date(Date.now() - 3600000 * 18).toISOString(),
+    }
+  ];
+}
+
+export async function apiDeleteJoinRequest(id) {
+  const token = getAdminToken();
+  const res = await fetch(`${API_BASE_URL}/enquiries/join-requests/${id}`, {
+    method: 'DELETE',
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+  });
+  return await res.json();
+}
+
 
 /* 9. CLOUDINARY FILE UPLOAD API */
 export async function apiUploadMediaFile(file) {

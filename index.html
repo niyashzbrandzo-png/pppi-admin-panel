@@ -122,6 +122,18 @@
           <span class="badge" id="badge-livestreams-count" style="background:#ef4444; color:white;">0</span>
         </a>
 
+        <div class="menu-label">Website Portal</div>
+        <a href="#" class="nav-item" data-view="join-requests">
+          <i class="fa-solid fa-address-card"></i>
+          <span>Join Applications</span>
+          <span class="badge" id="badge-join-requests-count" style="background:#10b981; color:white;">0</span>
+        </a>
+        <a href="#" class="nav-item" data-view="enquiries">
+          <i class="fa-solid fa-envelope-open-text"></i>
+          <span>Contact Enquiries</span>
+          <span class="badge" id="badge-enquiries-count" style="background:#3b82f6; color:white;">0</span>
+        </a>
+
         <div class="menu-label">System</div>
         <a href="#" class="nav-item" data-view="activity">
           <i class="fa-solid fa-clock-rotate-left"></i>
@@ -132,15 +144,11 @@
           <span>Notifications & Alerts</span>
           <span class="badge" id="badge-notif-count">0</span>
         </a>
-        <a href="#" class="nav-item" data-view="enquiries">
-          <i class="fa-solid fa-envelope-open-text"></i>
-          <span>Website Enquiries</span>
-          <span class="badge" id="badge-enquiries-count" style="background:#3b82f6; color:white;">0</span>
-        </a>
         <a href="#" class="nav-item" data-view="settings">
           <i class="fa-solid fa-sliders"></i>
           <span>System Settings</span>
         </a>
+
 
 
       </nav>
@@ -683,8 +691,44 @@
           </div>
         </section>
 
+        <!-- WEBSITE JOIN APPLICATIONS VIEW -->
+        <section id="view-join-requests" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title"><i class="fa-solid fa-address-card" style="color:#10b981;"></i> Website Join Applications</h1>
+              <p class="view-subtitle">Review membership registration applications submitted through the "Join Now" option on the official website.</p>
+            </div>
+            <button class="btn btn-outline" id="btn-refresh-join-requests">
+              <i class="fa-solid fa-rotate"></i> Refresh Applications
+            </button>
+          </div>
+
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Applicant Name</th>
+                    <th>Mobile & Email</th>
+                    <th>Selected Tier / Plan</th>
+                    <th>State & District</th>
+                    <th>Submitted Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="join-requests-table-body">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
         <!-- WEBSITE ENQUIRIES VIEW -->
         <section id="view-enquiries" class="content-view">
+
           <div class="view-header">
             <div>
               <h1 class="view-title"><i class="fa-solid fa-envelope-open-text" style="color:var(--accent-indigo);"></i> Website Contact Enquiries</h1>
