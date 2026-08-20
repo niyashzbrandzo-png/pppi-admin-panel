@@ -57,6 +57,58 @@ let appData = {
 
 let charts = {};
 
+/* ==========================================================================
+   Global Loader & Spinner Helper Functions
+   ========================================================================== */
+
+function showTopLoader() {
+  const bar = document.getElementById('top-loader-bar');
+  if (bar) {
+    bar.classList.remove('finish');
+    bar.classList.add('active');
+  }
+}
+
+function hideTopLoader() {
+  const bar = document.getElementById('top-loader-bar');
+  if (bar) {
+    bar.classList.remove('active');
+    bar.classList.add('finish');
+    setTimeout(() => {
+      bar.classList.remove('finish');
+    }, 400);
+  }
+}
+
+function showScreenLoader(text = 'Loading Admin Portal...') {
+  const overlay = document.getElementById('screen-loader-overlay');
+  const label = document.getElementById('screen-loader-text');
+  if (label) label.textContent = text;
+  if (overlay) overlay.classList.add('active');
+}
+
+function hideScreenLoader() {
+  const overlay = document.getElementById('screen-loader-overlay');
+  if (overlay) overlay.classList.remove('active');
+}
+
+function setBtnLoading(btn, isLoading, loadingText = 'Processing...', customIcon = 'fa-spinner fa-spin') {
+  if (!btn) return;
+  if (isLoading) {
+    if (!btn.dataset.origHtml) {
+      btn.dataset.origHtml = btn.innerHTML;
+    }
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fa-solid ${customIcon}"></i> ${loadingText}`;
+  } else {
+    btn.disabled = false;
+    if (btn.dataset.origHtml) {
+      btn.innerHTML = btn.dataset.origHtml;
+      delete btn.dataset.origHtml;
+    }
+  }
+}
+
 // DOM Ready & App Initialization Handler
 async function initApp() {
   setupNavigation();
@@ -67,7 +119,12 @@ async function initApp() {
 
   if (getAdminToken()) {
     showDashboardView();
-    await loadAllData();
+    showScreenLoader('Initializing Admin Portal & Fetching Live Data...');
+    try {
+      await loadAllData();
+    } finally {
+      hideScreenLoader();
+    }
   } else {
     showLoginView();
   }
@@ -116,15 +173,13 @@ function setupAdminAuth() {
       return;
     }
 
-    if (loginBtn) {
-      loginBtn.disabled = true;
-      loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Logging in...';
-    }
+    setBtnLoading(loginBtn, true, 'Logging in to Admin Portal...');
     if (loginError) loginError.style.display = 'none';
 
     try {
       await apiLoginAdmin(phone, password, rememberMe);
       showDashboardView();
+      showScreenLoader('Welcome back Admin! Loading Portal Data...');
       await loadAllData();
     } catch (err) {
       if (loginError) {
@@ -132,10 +187,8 @@ function setupAdminAuth() {
         loginError.textContent = err.message || 'Login failed. Please check admin credentials.';
       }
     } finally {
-      if (loginBtn) {
-        loginBtn.disabled = false;
-        loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Login to Admin Portal';
-      }
+      setBtnLoading(loginBtn, false);
+      hideScreenLoader();
     }
   };
 
@@ -162,11 +215,9 @@ function setupAdminAuth() {
   }
 }
 
-
-
-
 // Load All Data & Populate Views
 async function loadAllData() {
+  showTopLoader();
   try {
     const [users, posts, plans, events, donations, funds, notifResult, liveStreams, enquiries, joinRequests] = await Promise.all([
       apiGetUsers(),
@@ -214,6 +265,8 @@ async function loadAllData() {
     populateUserNotificationDropdown();
   } catch (err) {
     console.error('Error initializing admin app data:', err);
+  } finally {
+    hideTopLoader();
   }
 }
 
@@ -246,7 +299,6 @@ function updateBadges() {
   document.getElementById('stat-total-plans').textContent = appData.plans.length;
 }
 
-
 // 1. Navigation View Switching
 function setupNavigation() {
   const navItems = document.querySelectorAll('.nav-item');
@@ -257,6 +309,9 @@ function setupNavigation() {
     item.addEventListener('click', e => {
       e.preventDefault();
       const targetView = item.getAttribute('data-view');
+
+      showTopLoader();
+      setTimeout(hideTopLoader, 350);
 
       navItems.forEach(n => n.classList.remove('active'));
       item.classList.add('active');
@@ -283,18 +338,27 @@ function setupNavigation() {
     });
   }
 
-
   // Mobile Toggle Sidebar
   document.getElementById('toggle-sidebar-btn').addEventListener('click', () => {
     sidebar.classList.toggle('mobile-open');
   });
 
   // Refresh Dashboard Button
-  document.getElementById('btn-refresh-dashboard').addEventListener('click', async () => {
-    await loadAllData();
-    alert('Dashboard data refreshed successfully!');
-  });
+  const btnDashRefresh = document.getElementById('btn-refresh-dashboard');
+  if (btnDashRefresh) {
+    btnDashRefresh.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      setBtnLoading(btn, true, 'Refreshing...');
+      try {
+        await loadAllData();
+        alert('Dashboard data refreshed successfully!');
+      } finally {
+        setBtnLoading(btn, false);
+      }
+    });
+  }
 }
+
 
 // 2. Theme Toggle (Dark/Light)
 function setupThemeToggle() {
@@ -682,112 +746,47 @@ async function changeUserRole(userId, newRole) {
   const user = appData.users.find(u => u.id === Number(userId));
   if (!user) return;
 
-  await apiUpdateUser(user.id, { role: newRole });
-  user.role = newRole;
-  renderUsersTable();
-  alert(`User ${user.name} role changed to ${newRole} successfully!`);
-}
-
-async function performAdminLogin(e) {
-  if (e) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-  const loginError = document.getElementById('admin-login-error');
-  const loginForm = document.getElementById('form-admin-login');
-  if (loginError) loginError.style.display = 'none';
-
-  const phoneEl = document.getElementById('admin-login-phone');
-  const passwordEl = document.getElementById('admin-login-password');
-  const phone = phoneEl ? phoneEl.value.trim() : '';
-  const password = passwordEl ? passwordEl.value.trim() : '';
-  const rememberMe = document.getElementById('admin-remember-me')
-    ? document.getElementById('admin-remember-me').checked
-    : false;
-
-  if (!phone || !password) {
-    const msg = 'Please enter mobile number and password.';
-    if (loginError) {
-      loginError.textContent = msg;
-      loginError.style.display = 'block';
-    } else {
-      alert(msg);
-    }
-    return false;
-  }
-
-  const submitBtn = document.getElementById('btn-admin-login-submit') || (loginForm ? loginForm.querySelector('button[type="submit"]') : null);
-  const origBtnText = submitBtn ? submitBtn.innerHTML : 'Login';
-  if (submitBtn) {
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...';
-  }
-
-  let loginSuccess = false;
+  showTopLoader();
   try {
-    await apiLoginAdmin(phone, password, rememberMe);
-    loginSuccess = true;
-    showDashboardView();
-    if (loginForm) loginForm.reset();
-  } catch (err) {
-    console.error('Admin Login Error:', err);
-    const msg = err.message || 'Login failed. Please check your credentials.';
-    if (loginError) {
-      loginError.textContent = msg;
-      loginError.style.display = 'block';
-    }
-    alert(msg);
+    await apiUpdateUser(user.id, { role: newRole });
+    user.role = newRole;
+    renderUsersTable();
+    alert(`User ${user.name} role changed to ${newRole} successfully!`);
   } finally {
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = origBtnText;
-    }
+    hideTopLoader();
   }
+}
 
-  if (loginSuccess) {
+async function toggleUserStatus(userId) {
+  const user = appData.users.find(u => u.id === Number(userId));
+  if (!user) return;
+
+  showTopLoader();
+  try {
+    const newStatus = !user.status;
+    await apiUpdateUser(user.id, { status: newStatus });
+    user.status = newStatus;
+    renderUsersTable();
+    alert(`User ${user.name} status updated to ${newStatus ? 'Active' : 'Inactive'}.`);
+  } finally {
+    hideTopLoader();
+  }
+}
+
+async function deleteUser(userId) {
+  if (confirm('Are you sure you want to delete this user profile?')) {
+    showTopLoader();
     try {
-      await loadAllData();
-    } catch (loadErr) {
-      console.warn('Dashboard data loading notice:', loadErr);
+      await apiDeleteUser(userId);
+      appData.users = appData.users.filter(u => u.id !== Number(userId));
+      updateBadges();
+      renderUsersTable();
+    } finally {
+      hideTopLoader();
     }
   }
-  return false;
 }
 
-function setupAdminAuth() {
-  const loginForm = document.getElementById('form-admin-login');
-  const loginBtn = document.getElementById('btn-admin-login-submit');
-  const logoutBtn = document.getElementById('btn-admin-logout');
-
-  if (loginForm) {
-    loginForm.addEventListener('submit', performAdminLogin);
-  }
-  if (loginBtn) {
-    loginBtn.addEventListener('click', performAdminLogin);
-  }
-
-  const phoneEl = document.getElementById('admin-login-phone');
-  const passwordEl = document.getElementById('admin-login-password');
-  [phoneEl, passwordEl].forEach(input => {
-    if (input) {
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          performAdminLogin(e);
-        }
-      });
-    }
-  });
-
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      if (confirm('Are you sure you want to log out of the Admin Portal?')) {
-        apiLogoutAdmin();
-        showLoginView();
-      }
-    });
-  }
-}
 
 
 
@@ -865,30 +864,27 @@ function viewUserDetails(userId) {
   openModal('modal-user-detail');
 }
 
-async function toggleUserStatus(userId) {
-  const user = appData.users.find(u => u.id === Number(userId));
-  if (!user) return;
-
-  const newStatus = !user.status;
-  await apiUpdateUser(user.id, { status: newStatus });
-  user.status = newStatus;
-  renderUsersTable();
-  alert(`User ${user.name} status updated to ${newStatus ? 'Active' : 'Inactive'}.`);
-}
-
-async function deleteUser(userId) {
-  if (confirm('Are you sure you want to delete this user profile?')) {
-    await apiDeleteUser(userId);
-    appData.users = appData.users.filter(u => u.id !== Number(userId));
-    updateBadges();
-    renderUsersTable();
-  }
-}
-
 // 5. Render Community Posts Grid
+
 function renderPostsGrid() {
   const container = document.getElementById('posts-grid-container');
   const searchInput = document.getElementById('post-search-input');
+  const btnRefresh = document.getElementById('btn-refresh-posts');
+
+  if (btnRefresh && !btnRefresh.dataset.bound) {
+    btnRefresh.dataset.bound = 'true';
+    btnRefresh.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      setBtnLoading(btn, true, 'Refreshing...');
+      try {
+        appData.posts = await apiGetPosts();
+        updateBadges();
+        renderPostsGrid();
+      } finally {
+        setBtnLoading(btn, false);
+      }
+    });
+  }
 
   function filterAndRender() {
     const query = searchInput.value.toLowerCase().trim();
@@ -949,13 +945,19 @@ function renderPostsGrid() {
     });
 
     container.querySelectorAll('.btn-delete-post').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.getAttribute('data-id');
+      btn.addEventListener('click', async (e) => {
+        const targetBtn = e.currentTarget;
+        const id = targetBtn.getAttribute('data-id');
         if (confirm('Delete this post permanently?')) {
-          await apiDeletePost(id);
-          appData.posts = appData.posts.filter(p => p.id !== Number(id));
-          updateBadges();
-          renderPostsGrid();
+          setBtnLoading(targetBtn, true, 'Deleting...');
+          try {
+            await apiDeletePost(id);
+            appData.posts = appData.posts.filter(p => p.id !== Number(id));
+            updateBadges();
+            renderPostsGrid();
+          } finally {
+            setBtnLoading(targetBtn, false);
+          }
         }
       });
     });
@@ -968,6 +970,22 @@ function renderPostsGrid() {
 // 6. Render Events & Campaigns
 function renderEventsGrid() {
   const container = document.getElementById('events-grid-container');
+  const btnRefresh = document.getElementById('btn-refresh-events');
+
+  if (btnRefresh && !btnRefresh.dataset.bound) {
+    btnRefresh.dataset.bound = 'true';
+    btnRefresh.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      setBtnLoading(btn, true, 'Refreshing...');
+      try {
+        appData.events = await apiGetEvents();
+        renderEventsGrid();
+      } finally {
+        setBtnLoading(btn, false);
+      }
+    });
+  }
+
   container.innerHTML = '';
 
   appData.events.forEach(evt => {
@@ -1000,25 +1018,37 @@ function renderEventsGrid() {
   });
 
   container.querySelectorAll('.btn-delete-event').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
+    btn.addEventListener('click', async (e) => {
+      const targetBtn = e.currentTarget;
+      const id = targetBtn.getAttribute('data-id');
       if (confirm('Cancel and delete this event?')) {
-        await apiDeleteEvent(id);
-        appData.events = await apiGetEvents();
-        renderEventsGrid();
+        setBtnLoading(targetBtn, true, 'Deleting...');
+        try {
+          await apiDeleteEvent(id);
+          appData.events = await apiGetEvents();
+          renderEventsGrid();
+        } finally {
+          setBtnLoading(targetBtn, false);
+        }
       }
-
     });
   });
 
   container.querySelectorAll('.btn-view-event-regs').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
-      const title = btn.getAttribute('data-title');
-      await viewEventRegistrations(id, title);
+    btn.addEventListener('click', async (e) => {
+      const targetBtn = e.currentTarget;
+      const id = targetBtn.getAttribute('data-id');
+      const title = targetBtn.getAttribute('data-title');
+      setBtnLoading(targetBtn, true, 'Loading...');
+      try {
+        await viewEventRegistrations(id, title);
+      } finally {
+        setBtnLoading(targetBtn, false);
+      }
     });
   });
 }
+
 
 async function viewEventRegistrations(eventId, eventTitle) {
   const modalTitle = document.getElementById('modal-event-reg-title');
@@ -1222,186 +1252,8 @@ function renderPlansGrid() {
 }
 
 
-// 8. Render Donations Log & Funds View
-function renderDonationsTable() {
-  renderFundsView();
 
-  const tbody = document.getElementById('donations-table-body');
-  if (!tbody) return;
-  tbody.innerHTML = '';
 
-  let totalRaised = 0;
-  let successDonorsCount = 0;
-
-  if (appData.donations.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 20px; color: var(--text-muted);">No donation transactions recorded yet.</td></tr>`;
-  } else {
-    appData.donations.forEach(d => {
-      if (d.status === 'SUCCESS') {
-        totalRaised += (Number(d.amount) || 0);
-        successDonorsCount++;
-      }
-
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><strong>${d.id}</strong></td>
-        <td><strong>${d.donor}</strong></td>
-        <td>${d.donorPhone}<br/><span style="font-size:11px; color:var(--text-muted);">${d.donorEmail}</span></td>
-        <td><span class="pill-tag">${d.fund}</span></td>
-        <td><strong style="color:var(--accent-emerald);">₹${(Number(d.amount) || 0).toLocaleString()}</strong></td>
-        <td><span style="font-size:12px; font-family:monospace;">${d.paymentId || d.orderId}</span></td>
-        <td><span class="status-pill ${d.status === 'SUCCESS' ? 'active' : 'inactive'}">${d.status}</span></td>
-        <td>${d.date}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-
-  // Update Stats Cards
-  const raisedElem = document.getElementById('stat-total-donations-raised');
-  if (raisedElem) raisedElem.textContent = `₹${totalRaised.toLocaleString()}`;
-
-  const fundsCountElem = document.getElementById('stat-active-funds-count');
-  if (fundsCountElem) fundsCountElem.textContent = appData.funds.length;
-
-  const donorsCountElem = document.getElementById('stat-total-donors-count');
-  if (donorsCountElem) donorsCountElem.textContent = successDonorsCount;
-}
-
-function renderFundsView() {
-  const container = document.getElementById('funds-cards-grid');
-  if (!container) return;
-  container.innerHTML = '';
-
-  if (appData.funds.length === 0) {
-    container.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding: 30px; background:var(--bg-card); border-radius:12px; color:var(--text-muted);">No funds created yet. Click "Create New Fund" to add one.</div>`;
-    return;
-  }
-
-  appData.funds.forEach(fund => {
-    const target = Number(fund.target_amount) || 0;
-    const raised = Number(fund.raised_amount) || 0;
-    const pct = target > 0 ? Math.min(Math.round((raised / target) * 100), 100) : 0;
-
-    const card = document.createElement('div');
-    card.className = 'plan-card';
-    card.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-        <span class="pill-tag" style="background:rgba(99,102,241,0.1); color:#6366f1; font-weight:700;"><i class="fa-solid fa-vault"></i> ${fund.title}</span>
-        <button class="btn btn-sm btn-outline btn-edit-fund" data-fund-id="${fund.id}"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
-      </div>
-      <p style="font-size:13px; color:var(--text-secondary); margin-bottom:14px; min-height:38px;">${fund.description || 'No description provided.'}</p>
-
-      <div style="margin-bottom:10px;">
-        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; font-weight:600;">
-          <span style="color:var(--accent-emerald);">Raised: ₹${raised.toLocaleString()}</span>
-          <span style="color:var(--text-muted);">Target: ₹${target.toLocaleString()} (${pct}%)</span>
-        </div>
-        <div style="width:100%; height:8px; background:var(--bg-subtle); border-radius:4px; overflow:hidden;">
-          <div style="width:${pct}%; height:100%; background:var(--accent-emerald); border-radius:4px;"></div>
-        </div>
-      </div>
-    `;
-    container.appendChild(card);
-  });
-
-  document.querySelectorAll('.btn-edit-fund').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const fundId = e.currentTarget.getAttribute('data-fund-id');
-      const fund = appData.funds.find(f => f.id == fundId);
-      if (fund) {
-        document.getElementById('fund-input-id').value = fund.id;
-        document.getElementById('fund-input-title').value = fund.title;
-        document.getElementById('fund-input-target').value = fund.target_amount;
-        document.getElementById('fund-input-raised').value = fund.raised_amount;
-        document.getElementById('fund-input-desc').value = fund.description || '';
-        document.getElementById('fund-input-icon').value = fund.icon_name || 'volunteer_activism';
-        document.getElementById('modal-fund-title').textContent = 'Edit Party Fund';
-        openModal('modal-fund');
-      }
-    });
-  });
-}
-
-// 9. Render Notifications Log
-function renderNotificationsTable() {
-  const tbody = document.getElementById('notifications-table-body');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-
-  const btnMarkAll = document.getElementById('btn-mark-all-notif-read');
-  if (btnMarkAll && !btnMarkAll.dataset.listenerBound) {
-    btnMarkAll.dataset.listenerBound = 'true';
-    btnMarkAll.addEventListener('click', async () => {
-      await apiMarkAllNotificationsRead();
-      appData.notifications.forEach(n => n.is_read = true);
-      appData.unreadNotifCount = 0;
-      updateBadges();
-      renderNotificationsTable();
-    });
-  }
-
-  if (appData.notifications.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 20px; color: var(--text-muted);">No system announcements sent.</td></tr>`;
-    return;
-  }
-
-  appData.notifications.forEach(notif => {
-    const tr = document.createElement('tr');
-    const statusHtml = notif.is_read
-      ? '<span class="status-pill active" style="background:rgba(16,185,129,0.15); color:#10B981;"><i class="fa-solid fa-check"></i> Read</span>'
-      : '<span class="status-pill active" style="background:rgba(239,68,68,0.15); color:#ef4444;"><i class="fa-solid fa-circle"></i> Unread</span>';
-
-    const recipientLabel = notif.recipient || notif.target || 'All Members';
-
-    tr.innerHTML = `
-      <td>#${notif.id}</td>
-      <td><strong>${notif.title}</strong></td>
-      <td style="max-width:280px;">${notif.message}</td>
-      <td><span class="pill-tag">${recipientLabel}</span></td>
-      <td>${statusHtml}</td>
-      <td>${notif.created_at}</td>
-      <td>
-        <div style="display:flex; gap:6px;">
-          <button class="btn btn-sm btn-outline btn-toggle-notif-read" data-id="${notif.id}" title="${notif.is_read ? 'Mark as Unread' : 'Mark as Read'}">
-            <i class="fa-solid ${notif.is_read ? 'fa-envelope-open' : 'fa-envelope'}"></i> ${notif.is_read ? 'Unread' : 'Read'}
-          </button>
-          <button class="btn btn-sm btn-outline btn-delete-notif" data-id="${notif.id}" style="color:var(--accent-rose);">
-            <i class="fa-solid fa-trash"></i>
-          </button>
-        </div>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  tbody.querySelectorAll('.btn-toggle-notif-read').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
-      const targetNotif = appData.notifications.find(n => n.id === Number(id));
-      if (targetNotif) {
-        await apiToggleNotificationRead(id);
-        targetNotif.is_read = !targetNotif.is_read;
-        appData.unreadNotifCount = appData.notifications.filter(n => !n.is_read).length;
-        updateBadges();
-        renderNotificationsTable();
-      }
-    });
-  });
-
-  tbody.querySelectorAll('.btn-delete-notif').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
-      if (confirm('Delete this announcement log?')) {
-        await apiDeleteNotification(id);
-        appData.notifications = appData.notifications.filter(n => n.id !== Number(id));
-        appData.unreadNotifCount = appData.notifications.filter(n => !n.is_read).length;
-        updateBadges();
-        renderNotificationsTable();
-      }
-    });
-  });
-}
 
 function populateUserNotificationDropdown() {
   const targetSelect = document.getElementById('notif-input-target-user');
@@ -1450,88 +1302,111 @@ function setupModals() {
   if (formNotif) {
     formNotif.addEventListener('submit', async e => {
       e.preventDefault();
-      const titleEl = document.getElementById('notif-input-title');
-      const bodyEl = document.getElementById('notif-input-body') || document.getElementById('notif-input-message');
-      const typeEl = document.getElementById('notif-input-type');
-      const targetUserEl = document.getElementById('notif-input-target-user');
+      const submitBtn = document.getElementById('btn-send-notif');
+      setBtnLoading(submitBtn, true, 'Broadcasting Notification...');
 
-      const title = titleEl ? titleEl.value.trim() : '';
-      const body = bodyEl ? bodyEl.value.trim() : '';
-      const type = typeEl ? typeEl.value : 'BROADCAST';
-      const targetUser = targetUserEl ? targetUserEl.value.trim() : '';
+      try {
+        const titleEl = document.getElementById('notif-input-title');
+        const bodyEl = document.getElementById('notif-input-body') || document.getElementById('notif-input-message');
+        const typeEl = document.getElementById('notif-input-type');
+        const targetUserEl = document.getElementById('notif-input-target-user');
 
-      const notifData = {
-        title,
-        body,
-        type,
-        ...(targetUser ? { target_user_id: Number(targetUser) } : {})
-      };
+        const title = titleEl ? titleEl.value.trim() : '';
+        const body = bodyEl ? bodyEl.value.trim() : '';
+        const type = typeEl ? typeEl.value : 'BROADCAST';
+        const targetUser = targetUserEl ? targetUserEl.value.trim() : '';
 
-      const res = await apiSendNotification(notifData);
-      if (res && res.status === 201 || res && res.status === 200) {
-        alert('Broadcast Push Notification sent successfully!');
-      } else {
-        alert(res?.message || 'Notification broadcast completed.');
+        const notifData = {
+          title,
+          body,
+          type,
+          ...(targetUser ? { target_user_id: Number(targetUser) } : {})
+        };
+
+        const res = await apiSendNotification(notifData);
+        if (res && res.status === 201 || res && res.status === 200) {
+          alert('Broadcast Push Notification sent successfully!');
+        } else {
+          alert(res?.message || 'Notification broadcast completed.');
+        }
+        appData.notifications = await apiGetNotifications();
+        updateBadges();
+        renderNotificationsTable();
+        closeModal('modal-notification');
+        formNotif.reset();
+      } finally {
+        setBtnLoading(submitBtn, false);
       }
-      appData.notifications = await apiGetNotifications();
-      updateBadges();
-      renderNotificationsTable();
-      closeModal('modal-notification');
-      formNotif.reset();
     });
   }
 
   // Event Form Submit
   document.getElementById('form-event').addEventListener('submit', async e => {
     e.preventDefault();
+    const submitBtn = document.getElementById('btn-save-event');
+    setBtnLoading(submitBtn, true, 'Publishing Event...');
 
-    let bannerUrl = document.getElementById('event-input-banner').value.trim();
-    const bannerFileInput = document.getElementById('event-input-banner-file');
-    if (bannerFileInput && bannerFileInput.files && bannerFileInput.files[0]) {
-      try {
-        bannerUrl = await apiUploadMediaFile(bannerFileInput.files[0]);
-      } catch (err) {
-        console.error('Banner image Cloudinary upload error:', err);
-        alert('Failed to upload banner image to Cloudinary: ' + err.message);
-        return;
+    try {
+      let bannerUrl = document.getElementById('event-input-banner').value.trim();
+      const bannerFileInput = document.getElementById('event-input-banner-file');
+      if (bannerFileInput && bannerFileInput.files && bannerFileInput.files[0]) {
+        showScreenLoader('Uploading Banner Image to Cloudinary...');
+        try {
+          bannerUrl = await apiUploadMediaFile(bannerFileInput.files[0]);
+        } catch (err) {
+          console.error('Banner image Cloudinary upload error:', err);
+          alert('Failed to upload banner image to Cloudinary: ' + err.message);
+          return;
+        } finally {
+          hideScreenLoader();
+        }
       }
+
+      const eventData = {
+        title: document.getElementById('event-input-title').value,
+        date: document.getElementById('event-input-date').value,
+        time: document.getElementById('event-input-time').value,
+        venue: document.getElementById('event-input-venue').value,
+        banner: bannerUrl,
+        description: document.getElementById('event-input-desc').value
+      };
+
+      await apiCreateEvent(eventData);
+      appData.events = await apiGetEvents();
+      renderEventsGrid();
+      closeModal('modal-event');
+      e.target.reset();
+      alert('New event published successfully!');
+    } finally {
+      setBtnLoading(submitBtn, false);
     }
-
-    const eventData = {
-      title: document.getElementById('event-input-title').value,
-      date: document.getElementById('event-input-date').value,
-      time: document.getElementById('event-input-time').value,
-      venue: document.getElementById('event-input-venue').value,
-      banner: bannerUrl,
-      description: document.getElementById('event-input-desc').value
-    };
-
-    await apiCreateEvent(eventData);
-    appData.events = await apiGetEvents();
-    renderEventsGrid();
-    closeModal('modal-event');
-    e.target.reset();
-    alert('New event published successfully!');
   });
 
 
   // Plan Form Submit
   document.getElementById('form-plan').addEventListener('submit', async e => {
     e.preventDefault();
-    const planData = {
-      plan_name: document.getElementById('plan-input-name').value,
-      price: document.getElementById('plan-input-price').value,
-      is_popular: document.getElementById('plan-input-popular').value,
-      benefits: document.getElementById('plan-input-benefits').value
-    };
+    const submitBtn = document.getElementById('btn-save-plan');
+    setBtnLoading(submitBtn, true, 'Creating Plan...');
 
-    await apiCreatePlan(planData);
-    appData.plans = await apiGetPlans();
-    updateBadges();
-    renderPlansGrid();
-    closeModal('modal-plan');
-    e.target.reset();
-    alert('New Membership plan created!');
+    try {
+      const planData = {
+        plan_name: document.getElementById('plan-input-name').value,
+        price: document.getElementById('plan-input-price').value,
+        is_popular: document.getElementById('plan-input-popular').value,
+        benefits: document.getElementById('plan-input-benefits').value
+      };
+
+      await apiCreatePlan(planData);
+      appData.plans = await apiGetPlans();
+      updateBadges();
+      renderPlansGrid();
+      closeModal('modal-plan');
+      e.target.reset();
+      alert('New Membership plan created!');
+    } finally {
+      setBtnLoading(submitBtn, false);
+    }
   });
 
   // Fund Form Submit
@@ -1551,24 +1426,31 @@ function setupModals() {
     formFund.dataset.bound = 'true';
     formFund.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const id = document.getElementById('fund-input-id').value;
-      const data = {
-        title: document.getElementById('fund-input-title').value,
-        target_amount: parseFloat(document.getElementById('fund-input-target').value || 0),
-        raised_amount: parseFloat(document.getElementById('fund-input-raised').value || 0),
-        description: document.getElementById('fund-input-desc').value,
-        icon_name: document.getElementById('fund-input-icon').value,
-      };
+      const submitBtn = document.getElementById('btn-save-fund');
+      setBtnLoading(submitBtn, true, 'Saving Fund...');
 
-      if (id) {
-        await apiUpdateFund(id, data);
-      } else {
-        await apiCreateFund(data);
+      try {
+        const id = document.getElementById('fund-input-id').value;
+        const data = {
+          title: document.getElementById('fund-input-title').value,
+          target_amount: parseFloat(document.getElementById('fund-input-target').value || 0),
+          raised_amount: parseFloat(document.getElementById('fund-input-raised').value || 0),
+          description: document.getElementById('fund-input-desc').value,
+          icon_name: document.getElementById('fund-input-icon').value,
+        };
+
+        if (id) {
+          await apiUpdateFund(id, data);
+        } else {
+          await apiCreateFund(data);
+        }
+        closeModal('modal-fund');
+        appData.funds = await apiGetFunds();
+        renderDonationsTable();
+        alert('Party Fund saved successfully!');
+      } finally {
+        setBtnLoading(submitBtn, false);
       }
-      closeModal('modal-fund');
-      appData.funds = await apiGetFunds();
-      renderDonationsTable();
-      alert('Party Fund saved successfully!');
     });
   }
 }
@@ -1588,11 +1470,204 @@ function closeModal(id) {
 function setupSettingsForm() {
   document.getElementById('settings-api-url').value = getApiBaseUrl();
 
-  document.getElementById('btn-save-settings').addEventListener('click', () => {
-    const newUrl = document.getElementById('settings-api-url').value.trim();
-    setApiBaseUrl(newUrl);
-    alert(`Backend API URL updated to: ${newUrl}`);
-    loadAllData();
+  document.getElementById('btn-save-settings').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    setBtnLoading(btn, true, 'Saving Settings...');
+    try {
+      const newUrl = document.getElementById('settings-api-url').value.trim();
+      setApiBaseUrl(newUrl);
+      alert(`Backend API URL updated to: ${newUrl}`);
+      showScreenLoader('Reloading with updated API configuration...');
+      await loadAllData();
+    } finally {
+      setBtnLoading(btn, false);
+      hideScreenLoader();
+    }
+  });
+}
+
+
+// 8. Render Donations Log & Funds View
+function renderDonationsTable() {
+  renderFundsView();
+
+  const tbody = document.getElementById('donations-table-body');
+  const btnRefresh = document.getElementById('btn-refresh-donations');
+
+  if (btnRefresh && !btnRefresh.dataset.bound) {
+    btnRefresh.dataset.bound = 'true';
+    btnRefresh.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      setBtnLoading(btn, true, 'Refreshing...');
+      try {
+        appData.donations = await apiGetDonations();
+        appData.funds = await apiGetFunds();
+        renderDonationsTable();
+      } finally {
+        setBtnLoading(btn, false);
+      }
+    });
+  }
+
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  let totalRaised = 0;
+  let successDonorsCount = 0;
+
+  if (appData.donations.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 20px; color: var(--text-muted);">No donation transactions recorded yet.</td></tr>`;
+  } else {
+    appData.donations.forEach(d => {
+      if (d.status === 'SUCCESS') {
+        totalRaised += (Number(d.amount) || 0);
+        successDonorsCount++;
+      }
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${d.id}</strong></td>
+        <td><strong>${d.donor}</strong></td>
+        <td>${d.donorPhone}<br/><span style="font-size:11px; color:var(--text-muted);">${d.donorEmail}</span></td>
+        <td><span class="pill-tag">${d.fund}</span></td>
+        <td><strong style="color:var(--accent-emerald);">₹${(Number(d.amount) || 0).toLocaleString()}</strong></td>
+        <td><span style="font-size:12px; font-family:monospace;">${d.paymentId || d.orderId}</span></td>
+        <td><span class="status-pill ${d.status === 'SUCCESS' ? 'active' : 'inactive'}">${d.status}</span></td>
+        <td>${d.date}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Update Stats Cards
+  const raisedElem = document.getElementById('stat-total-donations-raised');
+  if (raisedElem) raisedElem.textContent = `₹${totalRaised.toLocaleString()}`;
+
+  const fundsCountElem = document.getElementById('stat-active-funds-count');
+  if (fundsCountElem) fundsCountElem.textContent = appData.funds.length;
+
+  const donorsCountElem = document.getElementById('stat-total-donors-count');
+  if (donorsCountElem) donorsCountElem.textContent = successDonorsCount;
+}
+
+function renderFundsView() {
+  const container = document.getElementById('funds-grid-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  appData.funds.forEach(fund => {
+    const card = document.createElement('div');
+    card.className = 'fund-card';
+    const targetNum = Number(fund.target_amount) || 1;
+    const raisedNum = Number(fund.raised_amount) || 0;
+    const percent = Math.min(Math.round((raisedNum / targetNum) * 100), 100);
+
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+        <div>
+          <h3 style="font-size:16px; font-weight:700;">${fund.title}</h3>
+          <span style="font-size:12px; color:var(--text-muted);">${fund.description || ''}</span>
+        </div>
+        <button class="btn btn-sm btn-outline btn-delete-fund" data-id="${fund.id}" style="color:var(--accent-rose);" title="Delete Fund">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </div>
+
+      <div style="margin:12px 0;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+          <span>Raised: <strong style="color:var(--accent-emerald);">₹${raisedNum.toLocaleString()}</strong></span>
+          <span>Target: <strong>₹${targetNum.toLocaleString()}</strong></span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width: ${percent}%;"></div>
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  container.querySelectorAll('.btn-delete-fund').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const targetBtn = e.currentTarget;
+      const id = targetBtn.getAttribute('data-id');
+      if (confirm('Delete this party fund category?')) {
+        setBtnLoading(targetBtn, true, 'Deleting...');
+        try {
+          await apiDeleteFund(id);
+          appData.funds = await apiGetFunds();
+          renderDonationsTable();
+        } finally {
+          setBtnLoading(targetBtn, false);
+        }
+      }
+    });
+  });
+}
+
+function renderNotificationsTable() {
+  const tbody = document.getElementById('notifications-table-body');
+  const btnRefresh = document.getElementById('btn-refresh-notifs');
+
+  if (btnRefresh && !btnRefresh.dataset.bound) {
+    btnRefresh.dataset.bound = 'true';
+    btnRefresh.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      setBtnLoading(btn, true, 'Refreshing...');
+      try {
+        appData.notifications = await apiGetNotifications();
+        updateBadges();
+        renderNotificationsTable();
+      } finally {
+        setBtnLoading(btn, false);
+      }
+    });
+  }
+
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (!appData.notifications || appData.notifications.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--text-muted);">No system push announcements broadcasted yet.</td></tr>`;
+    return;
+  }
+
+  appData.notifications.forEach(notif => {
+    const tr = document.createElement('tr');
+    const dateText = notif.created_at ? new Date(notif.created_at).toLocaleString() : 'Recent';
+    const recipientText = notif.user ? `${notif.user.name} (#${notif.user_id})` : 'All Users (Broadcast)';
+
+    tr.innerHTML = `
+      <td><code>#${notif.id}</code></td>
+      <td><strong>${notif.title}</strong></td>
+      <td style="max-width:240px; font-size:12px; color:var(--text-secondary);">${notif.body}</td>
+      <td><span class="pill-tag">${notif.type || 'BROADCAST'}</span></td>
+      <td><span style="font-size:12px; color:var(--text-primary);">${recipientText}</span></td>
+      <td>${dateText}</td>
+      <td>
+        <button class="btn btn-sm btn-outline btn-delete-notif" data-id="${notif.id}" style="color:var(--accent-rose);">
+          <i class="fa-solid fa-trash"></i> Delete
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('.btn-delete-notif').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const targetBtn = e.currentTarget;
+      const id = targetBtn.getAttribute('data-id');
+      if (confirm('Delete this notification entry?')) {
+        setBtnLoading(targetBtn, true, 'Deleting...');
+        try {
+          await apiDeleteNotification(id);
+          appData.notifications = await apiGetNotifications();
+          updateBadges();
+          renderNotificationsTable();
+        } finally {
+          setBtnLoading(targetBtn, false);
+        }
+      }
+    });
   });
 }
 
@@ -1604,10 +1679,16 @@ function renderLiveStreamsView() {
 
   if (btnRefresh && !btnRefresh.dataset.bound) {
     btnRefresh.dataset.bound = 'true';
-    btnRefresh.addEventListener('click', async () => {
-      appData.liveStreams = await apiGetLiveStreams();
-      updateBadges();
-      renderLiveStreamsView();
+    btnRefresh.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      setBtnLoading(btn, true, 'Refreshing...');
+      try {
+        appData.liveStreams = await apiGetLiveStreams();
+        updateBadges();
+        renderLiveStreamsView();
+      } finally {
+        setBtnLoading(btn, false);
+      }
     });
   }
 
@@ -1674,14 +1755,20 @@ function renderLiveStreamsView() {
       });
 
       activeGrid.querySelectorAll('.btn-end-stream').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const id = btn.getAttribute('data-id');
+        btn.addEventListener('click', async (e) => {
+          const targetBtn = e.currentTarget;
+          const id = targetBtn.getAttribute('data-id');
           if (confirm('End this live stream immediately as Admin moderator?')) {
-            await apiEndLiveStream(id);
-            appData.liveStreams = await apiGetLiveStreams();
-            updateBadges();
-            renderLiveStreamsView();
-            alert('Live stream ended successfully.');
+            setBtnLoading(targetBtn, true, 'Ending...');
+            try {
+              await apiEndLiveStream(id);
+              appData.liveStreams = await apiGetLiveStreams();
+              updateBadges();
+              renderLiveStreamsView();
+              alert('Live stream ended successfully.');
+            } finally {
+              setBtnLoading(targetBtn, false);
+            }
           }
         });
       });
@@ -1718,13 +1805,19 @@ function renderLiveStreamsView() {
       });
 
       tbody.querySelectorAll('.btn-end-stream-table').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const id = btn.getAttribute('data-id');
+        btn.addEventListener('click', async (e) => {
+          const targetBtn = e.currentTarget;
+          const id = targetBtn.getAttribute('data-id');
           if (confirm('End this active stream session?')) {
-            await apiEndLiveStream(id);
-            appData.liveStreams = await apiGetLiveStreams();
-            updateBadges();
-            renderLiveStreamsView();
+            setBtnLoading(targetBtn, true, 'Ending...');
+            try {
+              await apiEndLiveStream(id);
+              appData.liveStreams = await apiGetLiveStreams();
+              updateBadges();
+              renderLiveStreamsView();
+            } finally {
+              setBtnLoading(targetBtn, false);
+            }
           }
         });
       });
@@ -1738,10 +1831,16 @@ function renderEnquiriesTable() {
 
   if (btnRefresh && !btnRefresh.dataset.bound) {
     btnRefresh.dataset.bound = 'true';
-    btnRefresh.addEventListener('click', async () => {
-      appData.enquiries = await apiGetEnquiries();
-      updateBadges();
-      renderEnquiriesTable();
+    btnRefresh.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      setBtnLoading(btn, true, 'Refreshing...');
+      try {
+        appData.enquiries = await apiGetEnquiries();
+        updateBadges();
+        renderEnquiriesTable();
+      } finally {
+        setBtnLoading(btn, false);
+      }
     });
   }
 
@@ -1777,13 +1876,19 @@ function renderEnquiriesTable() {
   });
 
   tbody.querySelectorAll('.btn-delete-enquiry').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
+    btn.addEventListener('click', async (e) => {
+      const targetBtn = e.currentTarget;
+      const id = targetBtn.getAttribute('data-id');
       if (confirm('Are you sure you want to delete this enquiry message?')) {
-        await apiDeleteEnquiry(id);
-        appData.enquiries = await apiGetEnquiries();
-        updateBadges();
-        renderEnquiriesTable();
+        setBtnLoading(targetBtn, true, 'Deleting...');
+        try {
+          await apiDeleteEnquiry(id);
+          appData.enquiries = await apiGetEnquiries();
+          updateBadges();
+          renderEnquiriesTable();
+        } finally {
+          setBtnLoading(targetBtn, false);
+        }
       }
     });
   });
@@ -1795,10 +1900,16 @@ function renderJoinRequestsTable() {
 
   if (btnRefresh && !btnRefresh.dataset.bound) {
     btnRefresh.dataset.bound = 'true';
-    btnRefresh.addEventListener('click', async () => {
-      appData.joinRequests = await apiGetJoinRequests();
-      updateBadges();
-      renderJoinRequestsTable();
+    btnRefresh.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      setBtnLoading(btn, true, 'Refreshing...');
+      try {
+        appData.joinRequests = await apiGetJoinRequests();
+        updateBadges();
+        renderJoinRequestsTable();
+      } finally {
+        setBtnLoading(btn, false);
+      }
     });
   }
 
@@ -1842,15 +1953,20 @@ function renderJoinRequestsTable() {
   });
 
   tbody.querySelectorAll('.btn-delete-join-req').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
+    btn.addEventListener('click', async (e) => {
+      const targetBtn = e.currentTarget;
+      const id = targetBtn.getAttribute('data-id');
       if (confirm('Are you sure you want to delete this membership join application?')) {
-        await apiDeleteJoinRequest(id);
-        appData.joinRequests = await apiGetJoinRequests();
-        updateBadges();
-        renderJoinRequestsTable();
+        setBtnLoading(targetBtn, true, 'Deleting...');
+        try {
+          await apiDeleteJoinRequest(id);
+          appData.joinRequests = await apiGetJoinRequests();
+          updateBadges();
+          renderJoinRequestsTable();
+        } finally {
+          setBtnLoading(targetBtn, false);
+        }
       }
     });
   });
 }
-

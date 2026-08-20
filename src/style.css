@@ -1201,3 +1201,129 @@ body {
   margin-top: 6px;
 }
 
+/* ==========================================================================
+   Global & Component Loader Styles
+   ========================================================================== */
+
+/* Top Loading Progress Bar */
+.top-loader-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent-emerald));
+  z-index: 99999;
+  width: 0%;
+  transition: width 0.3s ease, opacity 0.3s ease;
+  box-shadow: 0 0 10px var(--primary);
+}
+
+.top-loader-bar.active {
+  width: 70%;
+  animation: pulse-loader 1.5s infinite ease-in-out;
+}
+
+.top-loader-bar.finish {
+  width: 100%;
+  opacity: 0;
+}
+
+@keyframes pulse-loader {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+/* Screen / Full Overlay Loader */
+.screen-loader-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 15, 25, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 99990;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.screen-loader-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.screen-loader-spinner {
+  width: 54px;
+  height: 54px;
+  border: 4px solid rgba(99, 102, 241, 0.2);
+  border-top-color: var(--primary);
+  border-right-color: var(--secondary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.screen-loader-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  letter-spacing: 0.5px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Button Loading State */
+button:disabled, .btn:disabled {
+  opacity: 0.75 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+.btn-spinner {
+  display: inline-block;
+  margin-right: 6px;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Table & Section Skeleton / Inline Spinner */
+.table-loader-box {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.table-loader-spinner {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(99, 102, 241, 0.2);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 8px;
+}
+
+/* Cloudinary Uploading Alert Pill */
+.upload-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  margin-top: 6px;
+}
+
+
