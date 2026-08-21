@@ -1,13 +1,17 @@
 /* ==========================================================================
    PPPI Admin Portal - API Integration Layer
-   Target Server: http://localhost:5000/api
+   Target Server: https://api.pppiconnect.com/api
    ========================================================================== */
 
-const DEFAULT_API_URL = "http://localhost:5000/api";
+const DEFAULT_API_URL = "https://api.pppiconnect.com/api";
 
-let API_BASE_URL =
-  localStorage.getItem('pppi_api_url') ||
-  DEFAULT_API_URL;
+let storedApiUrl = localStorage.getItem('pppi_api_url');
+if (storedApiUrl && (storedApiUrl.includes('localhost') || storedApiUrl.includes('127.0.0.1') || storedApiUrl.includes('192.168.'))) {
+  localStorage.removeItem('pppi_api_url');
+  storedApiUrl = null;
+}
+
+let API_BASE_URL = storedApiUrl || DEFAULT_API_URL;
 
 export function getApiBaseUrl() {
   return API_BASE_URL;
