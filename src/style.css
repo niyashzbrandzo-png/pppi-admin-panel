@@ -1048,25 +1048,177 @@ body {
   color: var(--text-muted);
 }
 
-/* Responsive Media Queries */
+/* Sidebar Mobile Overlay */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 15, 25, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 998;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ==========================================================================
+   Responsive Media Queries (Mobile & Tablet Optimization)
+   ========================================================================== */
+
+/* 1. Tablet Viewports (max-width: 1024px) */
 @media (max-width: 1024px) {
   .charts-row, .dashboard-bottom-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .content-container {
+    padding: 20px 16px;
+  }
+
+  .view-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .posts-grid, .events-grid, .plans-grid, .livestreams-grid, .livestreams-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
   }
 }
 
+/* 2. Tablet Small & Mobile Viewports (max-width: 768px) */
 @media (max-width: 768px) {
   .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 999;
     transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-lg);
   }
+  
   .sidebar.mobile-open {
     transform: translateX(0);
   }
+
   .main-content {
     margin-left: 0;
   }
+
+  .top-navbar {
+    padding: 10px 16px;
+    gap: 12px;
+  }
+
   .search-bar {
-    width: 180px;
+    width: 150px;
+    padding: 6px 12px;
+  }
+
+  .profile-details {
+    display: none;
+  }
+
+  .table-controls, .filter-group {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .input-with-icon {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .form-select, .form-control {
+    width: 100%;
+  }
+
+  .posts-grid, .events-grid, .plans-grid, .livestreams-grid, .livestreams-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .modal-dialog {
+    max-width: 95vw;
+    margin: 12px;
+  }
+
+  .modal-body {
+    padding: 16px;
+    max-height: 70vh;
+  }
+
+  .modal-header {
+    padding: 14px 16px;
+  }
+
+  .data-table th, .data-table td {
+    padding: 10px 12px;
+  }
+}
+
+/* 3. Small Mobile Phones (max-width: 576px) */
+@media (max-width: 576px) {
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 14px 10px;
+    gap: 10px;
+  }
+
+  .stat-icon {
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
+  }
+
+  .stat-value {
+    font-size: 18px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+  }
+
+  .search-bar {
+    display: none;
+  }
+
+  .content-container {
+    padding: 16px 10px;
+  }
+
+  .quick-actions-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .login-card-glass {
+    padding: 24px 18px;
   }
 }
 

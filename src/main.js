@@ -304,6 +304,13 @@ function setupNavigation() {
   const navItems = document.querySelectorAll('.nav-item');
   const views = document.querySelectorAll('.content-view');
   const sidebar = document.getElementById('sidebar');
+  const sidebarOverlay = document.getElementById('sidebar-overlay');
+  const toggleBtn = document.getElementById('toggle-sidebar-btn');
+
+  const closeMobileSidebar = () => {
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+  };
 
   navItems.forEach(item => {
     item.addEventListener('click', e => {
@@ -323,9 +330,7 @@ function setupNavigation() {
         }
       });
 
-      if (window.innerWidth <= 768) {
-        sidebar.classList.remove('mobile-open');
-      }
+      closeMobileSidebar();
     });
   });
 
@@ -339,9 +344,16 @@ function setupNavigation() {
   }
 
   // Mobile Toggle Sidebar
-  document.getElementById('toggle-sidebar-btn').addEventListener('click', () => {
-    sidebar.classList.toggle('mobile-open');
-  });
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      if (sidebar) sidebar.classList.toggle('mobile-open');
+      if (sidebarOverlay) sidebarOverlay.classList.toggle('active');
+    });
+  }
+
+  if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', closeMobileSidebar);
+  }
 
   // Refresh Dashboard Button
   const btnDashRefresh = document.getElementById('btn-refresh-dashboard');
