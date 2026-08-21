@@ -133,6 +133,16 @@
         </a>
 
         <div class="menu-label">Website Portal</div>
+        <a href="#" class="nav-item" data-view="manifesto">
+          <i class="fa-solid fa-book-open"></i>
+          <span>Party Manifesto Topics</span>
+          <span class="badge" id="badge-manifesto-count" style="background:#8b5cf6; color:white;">0</span>
+        </a>
+        <a href="#" class="nav-item" data-view="gallery">
+          <i class="fa-solid fa-images"></i>
+          <span>Website Media Gallery</span>
+          <span class="badge" id="badge-gallery-count" style="background:#ec4899; color:white;">0</span>
+        </a>
         <a href="#" class="nav-item" data-view="join-requests">
           <i class="fa-solid fa-address-card"></i>
           <span>Join Applications</span>
@@ -772,6 +782,40 @@
           </div>
         </section>
 
+        <!-- MANIFESTO CMS VIEW -->
+        <section id="view-manifesto" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Party Manifesto Topics</h1>
+              <p class="view-subtitle">Manage political charter pillars, policy proposals, and public vision for the website.</p>
+            </div>
+            <button class="btn btn-primary" id="btn-open-create-manifesto-modal">
+              <i class="fa-solid fa-plus"></i> Add Manifesto Pillar
+            </button>
+          </div>
+
+          <div class="posts-grid" id="manifesto-grid-container">
+            <!-- Manifesto Cards Rendered Dynamically -->
+          </div>
+        </section>
+
+        <!-- GALLERY CMS VIEW -->
+        <section id="view-gallery" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Website Media Gallery</h1>
+              <p class="view-subtitle">Manage high-resolution photo highlights, convention rallies, and community drives.</p>
+            </div>
+            <button class="btn btn-primary" id="btn-open-create-gallery-modal">
+              <i class="fa-solid fa-cloud-arrow-up"></i> Upload Gallery Image
+            </button>
+          </div>
+
+          <div class="posts-grid" id="gallery-grid-container">
+            <!-- Gallery Items Rendered Dynamically -->
+          </div>
+        </section>
+
         <!-- 7. SETTINGS VIEW -->
         <section id="view-settings" class="content-view">
 
@@ -1064,6 +1108,110 @@
             <button type="button" class="btn btn-outline" data-close-modal="modal-notification">Cancel</button>
             <button type="submit" class="btn btn-primary" id="btn-send-notif">
               <i class="fa-solid fa-paper-plane"></i> Send Push Notification
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Add Manifesto Topic Modal -->
+  <div class="modal-backdrop" id="modal-manifesto">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-book-open" style="color:var(--primary);"></i> Add Manifesto Charter Pillar</h3>
+        <button class="modal-close" data-close-modal="modal-manifesto"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-manifesto">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Pillar / Policy Title *</label>
+              <input type="text" id="manifesto-input-title" class="form-control" placeholder="e.g. Free Smart Education" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category Sector</label>
+              <select id="manifesto-input-category" class="form-select">
+                <option value="Education">Education</option>
+                <option value="Healthcare">Healthcare</option>
+                <option value="Employment">Employment & Skill</option>
+                <option value="Women">Women Safety & Rights</option>
+                <option value="Youth">Youth Development</option>
+                <option value="Agriculture">Agriculture & Farming</option>
+                <option value="Digital">Digital Governance</option>
+                <option value="Infrastructure">Infrastructure</option>
+                <option value="Environment">Environment</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Subtitle / Key Promise</label>
+              <input type="text" id="manifesto-input-subtitle" class="form-control" placeholder="e.g. Universal Telemedicine & Free Medicines" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">FontAwesome Icon Class</label>
+              <input type="text" id="manifesto-input-icon" class="form-control" placeholder="e.g. fa-graduation-cap" value="fa-book-open" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Feature Banner Image (Upload or URL)</label>
+            <input type="file" id="manifesto-input-file" class="form-control" accept="image/*" />
+            <input type="text" id="manifesto-input-image" class="form-control" placeholder="Or paste Cloudinary / Direct Image URL..." style="margin-top:6px;" />
+            <div id="manifesto-upload-status"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Full Policy Description & Manifesto Content *</label>
+            <textarea id="manifesto-input-content" class="form-control" rows="5" placeholder="Detailed explanation of the manifesto charter..." required></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-manifesto">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-manifesto">
+              <i class="fa-solid fa-plus"></i> Save Manifesto Topic
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Add Gallery Item Modal -->
+  <div class="modal-backdrop" id="modal-gallery">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-images" style="color:var(--primary);"></i> Add Gallery Highlight</h3>
+        <button class="modal-close" data-close-modal="modal-gallery"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-gallery">
+          <div class="form-group">
+            <label class="form-label">Photo Title *</label>
+            <input type="text" id="gallery-input-title" class="form-control" placeholder="e.g. National Youth Rally 2026" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select id="gallery-input-category" class="form-select">
+              <option value="Events">Political Events</option>
+              <option value="Community Service">Community Service</option>
+              <option value="Meetings">Executive Meetings</option>
+              <option value="Campaigns">Campaigns</option>
+              <option value="Volunteers">Volunteers</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Photo File (Upload to Cloudinary) *</label>
+            <input type="file" id="gallery-input-file" class="form-control" accept="image/*" />
+            <input type="text" id="gallery-input-image" class="form-control" placeholder="Or paste Image URL..." style="margin-top:6px;" required />
+            <div id="gallery-upload-status"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Caption / Description</label>
+            <textarea id="gallery-input-desc" class="form-control" rows="2" placeholder="Brief caption for this photo..."></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-gallery">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-gallery">
+              <i class="fa-solid fa-cloud-arrow-up"></i> Save Gallery Photo
             </button>
           </div>
         </form>

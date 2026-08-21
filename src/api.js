@@ -722,6 +722,66 @@ export async function apiUploadMediaFile(file) {
   return data.data?.url || data.url;
 }
 
+/* 10. MANIFESTO CMS API */
+export async function apiGetManifesto() {
+  const res = await fetch(`${API_BASE_URL}/manifesto`, { headers: getAuthHeaders() });
+  const data = await res.json();
+  return data.data || [];
+}
+
+export async function apiCreateManifesto(payload) {
+  const res = await fetch(`${API_BASE_URL}/manifesto`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (!res.ok || data.status >= 300) {
+    throw new Error(data.message || 'Failed to create manifesto topic');
+  }
+  return data.data;
+}
+
+export async function apiDeleteManifesto(id) {
+  const res = await fetch(`${API_BASE_URL}/manifesto/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Failed to delete manifesto topic');
+  return data;
+}
+
+/* 11. GALLERY CMS API */
+export async function apiGetGallery() {
+  const res = await fetch(`${API_BASE_URL}/gallery`, { headers: getAuthHeaders() });
+  const data = await res.json();
+  return data.data || [];
+}
+
+export async function apiCreateGallery(payload) {
+  const res = await fetch(`${API_BASE_URL}/gallery`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (!res.ok || data.status >= 300) {
+    throw new Error(data.message || 'Failed to create gallery item');
+  }
+  return data.data;
+}
+
+export async function apiDeleteGallery(id) {
+  const res = await fetch(`${API_BASE_URL}/gallery/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Failed to delete gallery item');
+  return data;
+}
+
 
 
 

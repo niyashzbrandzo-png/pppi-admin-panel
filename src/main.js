@@ -32,6 +32,12 @@ import {
   apiDeleteEnquiry,
   apiGetJoinRequests,
   apiDeleteJoinRequest,
+  apiGetManifesto,
+  apiCreateManifesto,
+  apiDeleteManifesto,
+  apiGetGallery,
+  apiCreateGallery,
+  apiDeleteGallery,
   apiUploadMediaFile,
   apiLoginAdmin,
   apiLogoutAdmin,
@@ -39,8 +45,6 @@ import {
   getApiBaseUrl,
   setApiBaseUrl
 } from './api.js';
-
-
 
 // Application State
 let appData = {
@@ -52,7 +56,9 @@ let appData = {
   funds: [],
   notifications: [],
   enquiries: [],
-  joinRequests: []
+  joinRequests: [],
+  manifesto: [],
+  gallery: []
 };
 
 let charts = {};
@@ -219,7 +225,7 @@ function setupAdminAuth() {
 async function loadAllData() {
   showTopLoader();
   try {
-    const [users, posts, plans, events, donations, funds, notifResult, liveStreams, enquiries, joinRequests] = await Promise.all([
+    const [users, posts, plans, events, donations, funds, notifResult, liveStreams, enquiries, joinRequests, manifesto, gallery] = await Promise.all([
       apiGetUsers(),
       apiGetPosts(),
       apiGetPlans(),
@@ -229,7 +235,9 @@ async function loadAllData() {
       apiGetNotifications(),
       apiGetLiveStreams(),
       apiGetEnquiries(),
-      apiGetJoinRequests()
+      apiGetJoinRequests(),
+      apiGetManifesto(),
+      apiGetGallery()
     ]);
 
     appData.users = users || [];
@@ -250,6 +258,8 @@ async function loadAllData() {
     appData.liveStreams = liveStreams || [];
     appData.enquiries = enquiries || [];
     appData.joinRequests = joinRequests || [];
+    appData.manifesto = manifesto || [];
+    appData.gallery = gallery || [];
 
     updateBadges();
     renderDashboard();
@@ -262,6 +272,8 @@ async function loadAllData() {
     renderLiveStreamsView();
     renderEnquiriesTable();
     renderJoinRequestsTable();
+    renderManifestoGrid();
+    renderGalleryGrid();
     populateUserNotificationDropdown();
   } catch (err) {
     console.error('Error initializing admin app data:', err);
@@ -293,6 +305,12 @@ function updateBadges() {
 
   const joinReqBadge = document.getElementById('badge-join-requests-count');
   if (joinReqBadge) joinReqBadge.textContent = appData.joinRequests.length;
+
+  const manifestoBadge = document.getElementById('badge-manifesto-count');
+  if (manifestoBadge) manifestoBadge.textContent = appData.manifesto.length;
+
+  const galleryBadge = document.getElementById('badge-gallery-count');
+  if (galleryBadge) galleryBadge.textContent = appData.gallery.length;
 
   document.getElementById('stat-total-users').textContent = appData.users.length;
   document.getElementById('stat-total-posts').textContent = appData.posts.length;
@@ -1975,6 +1993,227 @@ function renderJoinRequestsTable() {
           appData.joinRequests = await apiGetJoinRequests();
           updateBadges();
           renderJoinRequestsTable();
+        } finally {
+          setBtnLoading(targetBtn, false);
+        }
+      }
+    });
+  });
+}
+
+/* ==========================================================================
+   MANIFESTO & GALLERY CMS RENDERERS
+   ========================================================================== */
+
+function renderManifestoGrid() {
+  const container = document.getElementById('manifesto-grid-container');
+  const btnOpenModal = document.getElementById('btn-open-create-manifesto-modal');
+
+  if (btnOpenModal && !btnOpenModal.dataset.bound) {
+    btnOpenModal.dataset.bound = 'true';
+    btnOpenModal.addEventListener('click', () => {
+      const modal = document.getElementById('modal-manifesto');
+      if (modal) modal.classList.add('active');
+    });
+  }
+
+  // Bind Form Submit
+  const form = document.getElementById('form-manifesto');
+  if (form && !form.dataset.bound) {
+    form.dataset.bound = 'true';
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btnSubmit = document.getElementById('btn-save-manifesto');
+      const fileInput = document.getElementById('manifesto-input-file');
+      const imageInput = document.getElementById('manifesto-input-image');
+      const statusDiv = document.getElementById('manifesto-upload-status');
+
+      let finalImageUrl = imageInput ? imageInput.value.trim() : '';
+
+      setBtnLoading(btnSubmit, true, 'Saving Manifesto...');
+
+      try {
+        if (fileInput && fileInput.files.length > 0) {
+          if (statusDiv) statusDiv.innerHTML = `<span class="upload-status-pill"><i class="fa-solid fa-spinner fa-spin"></i> Uploading Image to Cloudinary...</span>`;
+          finalImageUrl = await apiUploadMediaFile(fileInput.files[0]);
+          if (statusDiv) statusDiv.innerHTML = `<span class="upload-status-pill" style="color:var(--accent-emerald);"><i class="fa-solid fa-circle-check"></i> Image Uploaded!</span>`;
+        }
+
+        const payload = {
+          title: document.getElementById('manifesto-input-title').value,
+          category: document.getElementById('manifesto-input-category').value,
+          subtitle: document.getElementById('manifesto-input-subtitle').value,
+          icon_name: document.getElementById('manifesto-input-icon').value || 'fa-book-open',
+          image_url: finalImageUrl,
+          content: document.getElementById('manifesto-input-content').value
+        };
+
+        await apiCreateManifesto(payload);
+        alert('Manifesto topic added successfully!');
+        form.reset();
+        if (statusDiv) statusDiv.innerHTML = '';
+        document.getElementById('modal-manifesto').classList.remove('active');
+        appData.manifesto = await apiGetManifesto();
+        updateBadges();
+        renderManifestoGrid();
+      } catch (err) {
+        alert('Error creating manifesto item: ' + err.message);
+      } finally {
+        setBtnLoading(btnSubmit, false);
+      }
+    });
+  }
+
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!appData.manifesto || appData.manifesto.length === 0) {
+    container.innerHTML = `<div style="grid-column:1/-1; padding:40px; text-align:center; color:var(--text-muted);">No manifesto charter pillars added yet. Click "Add Manifesto Pillar" above.</div>`;
+    return;
+  }
+
+  appData.manifesto.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'post-admin-card';
+    const fallbackImage = item.image_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80';
+    const iconClass = item.icon_name || 'fa-book-open';
+
+    card.innerHTML = `
+      <div class="post-card-header">
+        <span class="pill-tag" style="background:rgba(139,92,246,0.15); color:#8B5CF6; font-weight:700;">
+          <i class="fa-solid ${iconClass}"></i> ${item.category || 'General'}
+        </span>
+        <button class="btn btn-sm btn-outline btn-delete-manifesto" data-id="${item.id}" style="color:var(--accent-rose);">
+          <i class="fa-solid fa-trash"></i> Delete
+        </button>
+      </div>
+      <img src="${fallbackImage}" class="post-card-image" alt="${item.title}" onError="this.onerror=null;this.src='https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80';" />
+      <h3 style="font-size:16px; font-weight:700; color:var(--text-primary); margin-top:6px;">${item.title}</h3>
+      <p style="font-size:12px; font-weight:600; color:var(--primary); margin-bottom:4px;">${item.subtitle || ''}</p>
+      <p class="post-desc">${item.content || item.summary || ''}</p>
+    `;
+    container.appendChild(card);
+  });
+
+  container.querySelectorAll('.btn-delete-manifesto').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const targetBtn = e.currentTarget;
+      const id = targetBtn.getAttribute('data-id');
+      if (confirm('Are you sure you want to delete this manifesto pillar?')) {
+        setBtnLoading(targetBtn, true, 'Deleting...');
+        try {
+          await apiDeleteManifesto(id);
+          appData.manifesto = await apiGetManifesto();
+          updateBadges();
+          renderManifestoGrid();
+        } finally {
+          setBtnLoading(targetBtn, false);
+        }
+      }
+    });
+  });
+}
+
+function renderGalleryGrid() {
+  const container = document.getElementById('gallery-grid-container');
+  const btnOpenModal = document.getElementById('btn-open-create-gallery-modal');
+
+  if (btnOpenModal && !btnOpenModal.dataset.bound) {
+    btnOpenModal.dataset.bound = 'true';
+    btnOpenModal.addEventListener('click', () => {
+      const modal = document.getElementById('modal-gallery');
+      if (modal) modal.classList.add('active');
+    });
+  }
+
+  // Bind Form Submit
+  const form = document.getElementById('form-gallery');
+  if (form && !form.dataset.bound) {
+    form.dataset.bound = 'true';
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btnSubmit = document.getElementById('btn-save-gallery');
+      const fileInput = document.getElementById('gallery-input-file');
+      const imageInput = document.getElementById('gallery-input-image');
+      const statusDiv = document.getElementById('gallery-upload-status');
+
+      let finalImageUrl = imageInput ? imageInput.value.trim() : '';
+
+      setBtnLoading(btnSubmit, true, 'Saving Gallery Photo...');
+
+      try {
+        if (fileInput && fileInput.files.length > 0) {
+          if (statusDiv) statusDiv.innerHTML = `<span class="upload-status-pill"><i class="fa-solid fa-spinner fa-spin"></i> Uploading Image to Cloudinary...</span>`;
+          finalImageUrl = await apiUploadMediaFile(fileInput.files[0]);
+          if (statusDiv) statusDiv.innerHTML = `<span class="upload-status-pill" style="color:var(--accent-emerald);"><i class="fa-solid fa-circle-check"></i> Image Uploaded!</span>`;
+        }
+
+        if (!finalImageUrl) {
+          throw new Error('Image file upload or Image URL is required');
+        }
+
+        const payload = {
+          title: document.getElementById('gallery-input-title').value,
+          category: document.getElementById('gallery-input-category').value,
+          image_url: finalImageUrl,
+          description: document.getElementById('gallery-input-desc').value
+        };
+
+        await apiCreateGallery(payload);
+        alert('Gallery photo added successfully!');
+        form.reset();
+        if (statusDiv) statusDiv.innerHTML = '';
+        document.getElementById('modal-gallery').classList.remove('active');
+        appData.gallery = await apiGetGallery();
+        updateBadges();
+        renderGalleryGrid();
+      } catch (err) {
+        alert('Error creating gallery item: ' + err.message);
+      } finally {
+        setBtnLoading(btnSubmit, false);
+      }
+    });
+  }
+
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!appData.gallery || appData.gallery.length === 0) {
+    container.innerHTML = `<div style="grid-column:1/-1; padding:40px; text-align:center; color:var(--text-muted);">No gallery highlights uploaded yet. Click "Upload Gallery Image" above.</div>`;
+    return;
+  }
+
+  appData.gallery.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'post-admin-card';
+
+    card.innerHTML = `
+      <div class="post-card-header">
+        <span class="pill-tag" style="background:rgba(236,72,153,0.15); color:#EC4899; font-weight:700;">
+          <i class="fa-solid fa-tag"></i> ${item.category || 'Events'}
+        </span>
+        <button class="btn btn-sm btn-outline btn-delete-gallery" data-id="${item.id}" style="color:var(--accent-rose);">
+          <i class="fa-solid fa-trash"></i> Delete
+        </button>
+      </div>
+      <img src="${item.image_url}" class="post-card-image" alt="${item.title}" onError="this.onerror=null;this.src='https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80';" />
+      <h3 style="font-size:15px; font-weight:700; color:var(--text-primary); margin-top:6px;">${item.title}</h3>
+      <p class="post-desc">${item.description || ''}</p>
+    `;
+    container.appendChild(card);
+  });
+
+  container.querySelectorAll('.btn-delete-gallery').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const targetBtn = e.currentTarget;
+      const id = targetBtn.getAttribute('data-id');
+      if (confirm('Are you sure you want to delete this gallery photo?')) {
+        setBtnLoading(targetBtn, true, 'Deleting...');
+        try {
+          await apiDeleteGallery(id);
+          appData.gallery = await apiGetGallery();
+          updateBadges();
+          renderGalleryGrid();
         } finally {
           setBtnLoading(targetBtn, false);
         }
