@@ -1518,22 +1518,32 @@ function closeModal(id) {
 
 // System Settings Handler
 function setupSettingsForm() {
-  document.getElementById('settings-api-url').value = getApiBaseUrl();
+  const urlInput = document.getElementById('settings-api-url');
+  if (urlInput) {
+    urlInput.value = getApiBaseUrl();
+  }
 
-  document.getElementById('btn-save-settings').addEventListener('click', async (e) => {
-    const btn = e.currentTarget;
-    setBtnLoading(btn, true, 'Saving Settings...');
-    try {
-      const newUrl = document.getElementById('settings-api-url').value.trim();
-      setApiBaseUrl(newUrl);
-      alert(`Backend API URL updated to: ${newUrl}`);
-      showScreenLoader('Reloading with updated API configuration...');
-      await loadAllData();
-    } finally {
-      setBtnLoading(btn, false);
-      hideScreenLoader();
-    }
-  });
+  const btnSave = document.getElementById('btn-save-settings');
+  if (btnSave && !btnSave.dataset.bound) {
+    btnSave.dataset.bound = 'true';
+    btnSave.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const btn = e.currentTarget;
+      setBtnLoading(btn, true, 'Saving Settings...');
+      try {
+        const newUrl = urlInput ? urlInput.value.trim() : '';
+        if (newUrl) {
+          setApiBaseUrl(newUrl);
+          alert(`Backend API URL updated to: ${newUrl}`);
+          showScreenLoader('Reloading with updated API configuration...');
+          await loadAllData();
+        }
+      } finally {
+        setBtnLoading(btn, false);
+        hideScreenLoader();
+      }
+    });
+  }
 }
 
 
@@ -2244,6 +2254,8 @@ function renderGalleryGrid() {
 
 function renderMaintenanceView() {
   const isMaint = Boolean(appData.settings && appData.settings.maintenance_mode);
+  
+  // 1. Elements in Website -> Maintenance Mode view
   const statusCard = document.getElementById('maintenance-status-card');
   const statusPill = document.getElementById('maintenance-status-pill');
   const toggleBtn = document.getElementById('btn-toggle-maintenance');
@@ -2254,6 +2266,12 @@ function renderMaintenanceView() {
   const subtextInput = document.getElementById('maintenance-input-subtext');
   const phoneInput = document.getElementById('maintenance-input-phone');
   const emailInput = document.getElementById('maintenance-input-email');
+
+  // 2. Elements in System -> Settings view
+  const settingsMaintCard = document.getElementById('settings-maintenance-card');
+  const settingsMaintPill = document.getElementById('settings-maintenance-status-pill');
+  const settingsToggleBtn = document.getElementById('btn-toggle-maintenance-settings');
+  const settingsLastUpdated = document.getElementById('settings-maintenance-last-updated');
 
   if (appData.settings) {
     if (headlineInput && appData.settings.maintenance_message) {
@@ -2271,11 +2289,12 @@ function renderMaintenanceView() {
     if (headlinePreview) {
       headlinePreview.textContent = appData.settings.maintenance_message || 'Currently Website & Mobile App Under Development';
     }
-    if (lastUpdated && appData.settings.updated_at) {
-      lastUpdated.textContent = 'Updated: ' + new Date(appData.settings.updated_at).toLocaleTimeString();
-    }
+    const timeStr = appData.settings.updated_at ? new Date(appData.settings.updated_at).toLocaleTimeString() : 'Just now';
+    if (lastUpdated) lastUpdated.textContent = 'Updated: ' + timeStr;
+    if (settingsLastUpdated) settingsLastUpdated.textContent = 'Updated: ' + timeStr;
   }
 
+  // Update Status in Maintenance View
   if (statusCard && statusPill && toggleBtn) {
     if (isMaint) {
       statusCard.style.borderColor = 'rgba(239, 68, 68, 0.6)';
@@ -2300,36 +2319,70 @@ function renderMaintenanceView() {
     }
   }
 
-  // Bind Toggle button
-  if (toggleBtn && !toggleBtn.dataset.bound) {
-    toggleBtn.dataset.bound = 'true';
-    toggleBtn.addEventListener('click', async () => {
-      const currentMaint = Boolean(appData.settings && appData.settings.maintenance_mode);
-      const targetState = !currentMaint;
-      const confirmMsg = targetState
-        ? 'Are you sure you want to ENABLE Maintenance Mode? Visitors will see the under-development screen with both official party banners.'
-        : 'Are you sure you want to DISABLE Maintenance Mode and bring the website LIVE?';
-
-      if (confirm(confirmMsg)) {
-        setBtnLoading(toggleBtn, true, 'Updating Maintenance Mode...');
-        try {
-          const headline = headlineInput ? headlineInput.value.trim() : '';
-          const subtext = subtextInput ? subtextInput.value.trim() : '';
-          const res = await apiToggleMaintenance(targetState, headline, subtext);
-          appData.settings = res;
-          updateBadges();
-          renderMaintenanceView();
-          alert(`Maintenance mode is now ${targetState ? 'ACTIVE' : 'DEACTIVATED'}!`);
-        } catch (err) {
-          alert('Error updating maintenance mode: ' + err.message);
-        } finally {
-          setBtnLoading(toggleBtn, false);
-        }
-      }
-    });
+  // Update Status in System Settings View
+  if (settingsMaintCard && settingsMaintPill && settingsToggleBtn) {
+    if (isMaint) {
+      settingsMaintCard.style.borderColor = 'rgba(239, 68, 68, 0.6)';
+      settingsMaintCard.style.background = 'rgba(239, 68, 68, 0.04)';
+      settingsMaintPill.style.background = 'rgba(239, 68, 68, 0.15)';
+      settingsMaintPill.style.color = '#ef4444';
+      settingsMaintPill.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> MAINTENANCE ACTIVE';
+      settingsToggleBtn.className = 'btn btn-outline';
+      settingsToggleBtn.style.color = '#ef4444';
+      settingsToggleBtn.style.borderColor = '#ef4444';
+      settingsToggleBtn.innerHTML = '<i class="fa-solid fa-power-off"></i> Turn OFF (Go Live)';
+    } else {
+      settingsMaintCard.style.borderColor = 'var(--border-color)';
+      settingsMaintCard.style.background = 'transparent';
+      settingsMaintPill.style.background = 'rgba(16, 185, 129, 0.15)';
+      settingsMaintPill.style.color = '#10b981';
+      settingsMaintPill.innerHTML = '<i class="fa-solid fa-circle-check"></i> WEBSITE IS LIVE';
+      settingsToggleBtn.className = 'btn btn-primary';
+      settingsToggleBtn.style.color = '';
+      settingsToggleBtn.style.borderColor = '';
+      settingsToggleBtn.innerHTML = '<i class="fa-solid fa-power-off"></i> Turn ON Maintenance Mode';
+    }
   }
 
-  // Bind Save form
+  // Central toggle handler
+  const executeToggle = async (triggerBtn) => {
+    const currentMaint = Boolean(appData.settings && appData.settings.maintenance_mode);
+    const targetState = !currentMaint;
+    const confirmMsg = targetState
+      ? 'Are you sure you want to ENABLE Maintenance Mode? Visitors will see the under-development screen with both official party banners.'
+      : 'Are you sure you want to DISABLE Maintenance Mode and bring the website LIVE?';
+
+    if (confirm(confirmMsg)) {
+      if (triggerBtn) setBtnLoading(triggerBtn, true, 'Updating...');
+      try {
+        const headline = headlineInput ? headlineInput.value.trim() : '';
+        const subtext = subtextInput ? subtextInput.value.trim() : '';
+        const res = await apiToggleMaintenance(targetState, headline, subtext);
+        appData.settings = res;
+        updateBadges();
+        renderMaintenanceView();
+        alert(`Maintenance mode is now ${targetState ? 'ACTIVE' : 'DEACTIVATED'}!`);
+      } catch (err) {
+        alert('Error updating maintenance mode: ' + err.message);
+      } finally {
+        if (triggerBtn) setBtnLoading(triggerBtn, false);
+      }
+    }
+  };
+
+  // Bind Toggle button in Maintenance View
+  if (toggleBtn && !toggleBtn.dataset.bound) {
+    toggleBtn.dataset.bound = 'true';
+    toggleBtn.addEventListener('click', () => executeToggle(toggleBtn));
+  }
+
+  // Bind Toggle button in Settings View
+  if (settingsToggleBtn && !settingsToggleBtn.dataset.bound) {
+    settingsToggleBtn.dataset.bound = 'true';
+    settingsToggleBtn.addEventListener('click', () => executeToggle(settingsToggleBtn));
+  }
+
+  // Bind Save form in Maintenance View
   const form = document.getElementById('form-maintenance-settings');
   if (form && !form.dataset.bound) {
     form.dataset.bound = 'true';

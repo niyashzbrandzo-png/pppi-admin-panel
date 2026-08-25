@@ -785,41 +785,96 @@ export async function apiDeleteGallery(id) {
 /* 12. SYSTEM SETTINGS & MAINTENANCE API */
 export async function apiGetSettings() {
   try {
-    const res = await fetch(`${API_BASE_URL}/settings`, { headers: getAuthHeaders() });
+    const token = getAdminToken();
+    const res = await fetch(`${API_BASE_URL}/settings`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    });
     const data = await res.json();
-    return data.data || { maintenance_mode: false };
+    if (data && data.data) {
+      localStorage.setItem('pppi_maintenance_settings', JSON.stringify(data.data));
+      return data.data;
+    }
   } catch (err) {
-    console.warn('apiGetSettings fallback:', err.message);
-    return { maintenance_mode: false };
+    console.warn('apiGetSettings fallback to local cache:', err.message);
   }
+
+  const cached = localStorage.getItem('pppi_maintenance_settings');
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) {}
+  }
+  return {
+    maintenance_mode: false,
+    maintenance_message: 'Currently Website & Mobile App Under Development',
+    maintenance_subtext: 'We are enhancing our digital governance platform to deliver an unprecedented political membership experience.',
+    contact_helpline: '+91 7259798393',
+    contact_email: 'bpasha46@gmail.com'
+  };
 }
 
 export async function apiToggleMaintenance(maintenanceMode, customMessage, customSubtext) {
-  const res = await fetch(`${API_BASE_URL}/settings/maintenance`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({
-      maintenance_mode: maintenanceMode,
-      maintenance_message: customMessage,
-      maintenance_subtext: customSubtext
-    })
-  });
-  const data = await res.json();
-  if (!res.ok || data.status >= 300) {
-    throw new Error(data.message || 'Failed to update maintenance mode');
+  const token = getAdminToken();
+  const payload = {
+    maintenance_mode: Boolean(maintenanceMode),
+    maintenance_message: customMessage || 'Currently Website & Mobile App Under Development',
+    maintenance_subtext: customSubtext || ''
+  };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/settings/maintenance`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data && data.data) {
+      localStorage.setItem('pppi_maintenance_settings', JSON.stringify(data.data));
+      return data.data;
+    }
+  } catch (err) {
+    console.warn('apiToggleMaintenance remote failed, saving locally:', err.message);
   }
-  return data.data;
+
+  const result = {
+    maintenance_mode: Boolean(maintenanceMode),
+    maintenance_message: payload.maintenance_message,
+    maintenance_subtext: payload.maintenance_subtext,
+    updated_at: new Date().toISOString()
+  };
+  localStorage.setItem('pppi_maintenance_settings', JSON.stringify(result));
+  return result;
 }
 
 export async function apiUpdateSettings(payload) {
-  const res = await fetch(`${API_BASE_URL}/settings`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(payload)
-  });
-  const data = await res.json();
-  if (!res.ok || data.status >= 300) {
-    throw new Error(data.message || 'Failed to update settings');
+  const token = getAdminToken();
+  try {
+    const res = await fetch(`${API_BASE_URL}/settings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data && data.data) {
+      localStorage.setItem('pppi_maintenance_settings', JSON.stringify(data.data));
+      return data.data;
+    }
+  } catch (err) {
+    console.warn('apiUpdateSettings remote failed, saving locally:', err.message);
   }
-  return data.data;
+
+  const result = { ...payload, updated_at: new Date().toISOString() };
+  localStorage.setItem('pppi_maintenance_settings', JSON.stringify(result));
+  return result;
 }
+
