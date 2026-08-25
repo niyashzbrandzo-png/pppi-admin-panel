@@ -2348,25 +2348,31 @@ function renderMaintenanceView() {
   const executeToggle = async (triggerBtn) => {
     const currentMaint = Boolean(appData.settings && appData.settings.maintenance_mode);
     const targetState = !currentMaint;
-    const confirmMsg = targetState
-      ? 'Are you sure you want to ENABLE Maintenance Mode? Visitors will see the under-development screen with both official party banners.'
-      : 'Are you sure you want to DISABLE Maintenance Mode and bring the website LIVE?';
 
-    if (confirm(confirmMsg)) {
-      if (triggerBtn) setBtnLoading(triggerBtn, true, 'Updating...');
-      try {
-        const headline = headlineInput ? headlineInput.value.trim() : '';
-        const subtext = subtextInput ? subtextInput.value.trim() : '';
-        const res = await apiToggleMaintenance(targetState, headline, subtext);
+    // Optimistic UI update
+    if (!appData.settings) appData.settings = {};
+    appData.settings.maintenance_mode = targetState;
+    appData.settings.updated_at = new Date().toISOString();
+    updateBadges();
+    renderMaintenanceView();
+
+    if (triggerBtn) setBtnLoading(triggerBtn, true, targetState ? 'Enabling...' : 'Disabling...');
+    try {
+      const headline = headlineInput ? headlineInput.value.trim() : (appData.settings.maintenance_message || 'Currently Website & Mobile App Under Development');
+      const subtext = subtextInput ? subtextInput.value.trim() : (appData.settings.maintenance_subtext || '');
+      const res = await apiToggleMaintenance(targetState, headline, subtext);
+      if (res) {
         appData.settings = res;
-        updateBadges();
-        renderMaintenanceView();
-        alert(`Maintenance mode is now ${targetState ? 'ACTIVE' : 'DEACTIVATED'}!`);
-      } catch (err) {
-        alert('Error updating maintenance mode: ' + err.message);
-      } finally {
-        if (triggerBtn) setBtnLoading(triggerBtn, false);
       }
+      updateBadges();
+      renderMaintenanceView();
+      alert(`✅ Success: Maintenance Mode is now ${targetState ? 'ENABLED (Under Development Active)' : 'DISABLED (Website is LIVE)'}!`);
+    } catch (err) {
+      console.error('Error updating maintenance mode:', err);
+      alert('Note: Maintenance state updated locally. Server status: ' + err.message);
+    } finally {
+      if (triggerBtn) setBtnLoading(triggerBtn, false);
+      renderMaintenanceView();
     }
   };
 
