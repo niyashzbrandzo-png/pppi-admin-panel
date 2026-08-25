@@ -65,7 +65,7 @@ let appData = {
   settings: {
     maintenance_mode: false,
     maintenance_message: 'Currently Website & Mobile App Under Development',
-    maintenance_subtext: 'We are currently fine-tuning our digital governance platform to deliver an unprecedented political membership experience. Our mobile app and web services will be fully operational shortly.',
+    maintenance_subtext: 'Our mobile app and web services will be fully operational shortly.',
     contact_helpline: '+91 7259798393',
     contact_email: 'bpasha46@gmail.com'
   }
