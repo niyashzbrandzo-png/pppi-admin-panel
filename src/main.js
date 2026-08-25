@@ -409,7 +409,6 @@ function setupNavigation() {
   }
 }
 
-
 // 2. Theme Toggle (Dark/Light)
 function setupThemeToggle() {
   const themeBtn = document.getElementById('theme-toggle-btn');
@@ -2344,48 +2343,100 @@ function renderMaintenanceView() {
     }
   }
 
-  // Central toggle handler
-  const executeToggle = async (triggerBtn) => {
+  // Central confirmation & execution handler
+  const promptMaintenanceConfirmation = () => {
     const currentMaint = Boolean(appData.settings && appData.settings.maintenance_mode);
     const targetState = !currentMaint;
 
-    // Optimistic UI update
-    if (!appData.settings) appData.settings = {};
-    appData.settings.maintenance_mode = targetState;
-    appData.settings.updated_at = new Date().toISOString();
-    updateBadges();
-    renderMaintenanceView();
+    const modal = document.getElementById('modal-confirm-maintenance');
+    const title = document.getElementById('modal-confirm-maint-title');
+    const question = document.getElementById('modal-confirm-maint-question');
+    const desc = document.getElementById('modal-confirm-maint-desc');
+    const icon = document.getElementById('modal-confirm-maint-icon');
+    const actionBtn = document.getElementById('btn-modal-confirm-maint-action');
 
-    if (triggerBtn) setBtnLoading(triggerBtn, true, targetState ? 'Enabling...' : 'Disabling...');
-    try {
-      const headline = headlineInput ? headlineInput.value.trim() : (appData.settings.maintenance_message || 'Currently Website & Mobile App Under Development');
-      const subtext = subtextInput ? subtextInput.value.trim() : (appData.settings.maintenance_subtext || '');
-      const res = await apiToggleMaintenance(targetState, headline, subtext);
-      if (res) {
-        appData.settings = res;
+    if (targetState) {
+      // Turn ON Maintenance Mode
+      if (title) title.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b;"></i> Confirm Maintenance Mode';
+      if (icon) {
+        icon.style.background = 'rgba(245,158,11,0.15)';
+        icon.style.color = '#f59e0b';
+        icon.innerHTML = '<i class="fa-solid fa-power-off"></i>';
       }
-      updateBadges();
-      renderMaintenanceView();
-      alert(`✅ Success: Maintenance Mode is now ${targetState ? 'ENABLED (Under Development Active)' : 'DISABLED (Website is LIVE)'}!`);
-    } catch (err) {
-      console.error('Error updating maintenance mode:', err);
-      alert('Note: Maintenance state updated locally. Server status: ' + err.message);
-    } finally {
-      if (triggerBtn) setBtnLoading(triggerBtn, false);
-      renderMaintenanceView();
+      if (question) question.textContent = 'Are you sure you want to turn ON maintenance mode?';
+      if (desc) desc.textContent = 'When enabled, all public website visitors will see the "Currently Website & Mobile App Under Development" screen with both official party banners until you turn it off.';
+      if (actionBtn) {
+        actionBtn.className = 'btn btn-primary';
+        actionBtn.style.background = '';
+        actionBtn.style.borderColor = '';
+        actionBtn.innerHTML = '<i class="fa-solid fa-power-off"></i> Yes, Turn ON Maintenance Mode';
+      }
+    } else {
+      // Turn OFF Maintenance Mode (Go Live)
+      if (title) title.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Confirm Website Go Live';
+      if (icon) {
+        icon.style.background = 'rgba(16,185,129,0.15)';
+        icon.style.color = '#10b981';
+        icon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+      }
+      if (question) question.textContent = 'Are you sure you want to turn OFF maintenance mode and bring the website LIVE?';
+      if (desc) desc.textContent = 'The full public political portal, memberships, manifesto, and all pages will become immediately accessible to all visitors.';
+      if (actionBtn) {
+        actionBtn.className = 'btn btn-primary';
+        actionBtn.style.background = '#10b981';
+        actionBtn.style.borderColor = '#10b981';
+        actionBtn.innerHTML = '<i class="fa-solid fa-check"></i> Yes, Bring Website LIVE';
+      }
+    }
+
+    if (modal) {
+      modal.classList.add('active');
+    }
+
+    if (actionBtn) {
+      actionBtn.onclick = async (e) => {
+        e.preventDefault();
+        if (modal) modal.classList.remove('active');
+
+        // Show API Call Loader
+        showScreenLoader(targetState ? 'Enabling Maintenance Mode on Website & Mobile App...' : 'Disabling Maintenance Mode & Bringing Website Live...');
+
+        try {
+          const headline = headlineInput ? headlineInput.value.trim() : (appData.settings?.maintenance_message || 'Currently Website & Mobile App Under Development');
+          const subtext = subtextInput ? subtextInput.value.trim() : (appData.settings?.maintenance_subtext || '');
+
+          const res = await apiToggleMaintenance(targetState, headline, subtext);
+          if (res) {
+            appData.settings = res;
+          } else {
+            if (!appData.settings) appData.settings = {};
+            appData.settings.maintenance_mode = targetState;
+          }
+
+          updateBadges();
+          renderMaintenanceView();
+          alert(`✅ Success: Maintenance Mode is now ${targetState ? 'ENABLED (Website shows Under Development screen)' : 'DISABLED (Website is LIVE)'}!`);
+        } catch (err) {
+          console.error('Error updating maintenance mode:', err);
+          alert('Maintenance status updated: ' + err.message);
+        } finally {
+          hideScreenLoader();
+          renderMaintenanceView();
+        }
+      };
     }
   };
 
   // Bind Toggle button in Maintenance View
   if (toggleBtn && !toggleBtn.dataset.bound) {
     toggleBtn.dataset.bound = 'true';
-    toggleBtn.addEventListener('click', () => executeToggle(toggleBtn));
+    toggleBtn.addEventListener('click', promptMaintenanceConfirmation);
   }
 
   // Bind Toggle button in Settings View
   if (settingsToggleBtn && !settingsToggleBtn.dataset.bound) {
     settingsToggleBtn.dataset.bound = 'true';
-    settingsToggleBtn.addEventListener('click', () => executeToggle(settingsToggleBtn));
+    settingsToggleBtn.addEventListener('click', promptMaintenanceConfirmation);
   }
 
   // Bind Save form in Maintenance View
@@ -2395,7 +2446,7 @@ function renderMaintenanceView() {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const btnSave = document.getElementById('btn-save-maintenance-content');
-      setBtnLoading(btnSave, true, 'Saving settings...');
+      showScreenLoader('Saving maintenance content settings...');
       try {
         const payload = {
           maintenance_message: headlineInput ? headlineInput.value.trim() : '',
@@ -2411,7 +2462,7 @@ function renderMaintenanceView() {
       } catch (err) {
         alert('Error saving settings: ' + err.message);
       } finally {
-        setBtnLoading(btnSave, false);
+        hideScreenLoader();
       }
     });
   }
