@@ -38,6 +38,9 @@ import {
   apiGetGallery,
   apiCreateGallery,
   apiDeleteGallery,
+  apiGetSettings,
+  apiToggleMaintenance,
+  apiUpdateSettings,
   apiUploadMediaFile,
   apiLoginAdmin,
   apiLogoutAdmin,
@@ -58,7 +61,14 @@ let appData = {
   enquiries: [],
   joinRequests: [],
   manifesto: [],
-  gallery: []
+  gallery: [],
+  settings: {
+    maintenance_mode: false,
+    maintenance_message: 'Currently Website & Mobile App Under Development',
+    maintenance_subtext: 'We are currently fine-tuning our digital governance platform to deliver an unprecedented political membership experience. Our mobile app and web services will be fully operational shortly.',
+    contact_helpline: '+91 7259798393',
+    contact_email: 'bpasha46@gmail.com'
+  }
 };
 
 let charts = {};
@@ -225,7 +235,7 @@ function setupAdminAuth() {
 async function loadAllData() {
   showTopLoader();
   try {
-    const [users, posts, plans, events, donations, funds, notifResult, liveStreams, enquiries, joinRequests, manifesto, gallery] = await Promise.all([
+    const [users, posts, plans, events, donations, funds, notifResult, liveStreams, enquiries, joinRequests, manifesto, gallery, settings] = await Promise.all([
       apiGetUsers(),
       apiGetPosts(),
       apiGetPlans(),
@@ -237,7 +247,8 @@ async function loadAllData() {
       apiGetEnquiries(),
       apiGetJoinRequests(),
       apiGetManifesto(),
-      apiGetGallery()
+      apiGetGallery(),
+      apiGetSettings()
     ]);
 
     appData.users = users || [];
@@ -260,6 +271,7 @@ async function loadAllData() {
     appData.joinRequests = joinRequests || [];
     appData.manifesto = manifesto || [];
     appData.gallery = gallery || [];
+    appData.settings = settings || { maintenance_mode: false };
 
     updateBadges();
     renderDashboard();
@@ -274,6 +286,7 @@ async function loadAllData() {
     renderJoinRequestsTable();
     renderManifestoGrid();
     renderGalleryGrid();
+    renderMaintenanceView();
     populateUserNotificationDropdown();
   } catch (err) {
     console.error('Error initializing admin app data:', err);
@@ -311,6 +324,13 @@ function updateBadges() {
 
   const galleryBadge = document.getElementById('badge-gallery-count');
   if (galleryBadge) galleryBadge.textContent = appData.gallery.length;
+
+  const maintBadge = document.getElementById('badge-maintenance-status');
+  if (maintBadge) {
+    const isMaint = Boolean(appData.settings && appData.settings.maintenance_mode);
+    maintBadge.textContent = isMaint ? 'MAINTENANCE' : 'LIVE';
+    maintBadge.style.background = isMaint ? '#f59e0b' : '#10b981';
+  }
 
   document.getElementById('stat-total-users').textContent = appData.users.length;
   document.getElementById('stat-total-posts').textContent = appData.posts.length;
@@ -2221,3 +2241,130 @@ function renderGalleryGrid() {
     });
   });
 }
+
+function renderMaintenanceView() {
+  const isMaint = Boolean(appData.settings && appData.settings.maintenance_mode);
+  const statusCard = document.getElementById('maintenance-status-card');
+  const statusPill = document.getElementById('maintenance-status-pill');
+  const toggleBtn = document.getElementById('btn-toggle-maintenance');
+  const lastUpdated = document.getElementById('maintenance-last-updated');
+  const headlinePreview = document.getElementById('maintenance-headline-preview');
+
+  const headlineInput = document.getElementById('maintenance-input-headline');
+  const subtextInput = document.getElementById('maintenance-input-subtext');
+  const phoneInput = document.getElementById('maintenance-input-phone');
+  const emailInput = document.getElementById('maintenance-input-email');
+
+  if (appData.settings) {
+    if (headlineInput && appData.settings.maintenance_message) {
+      headlineInput.value = appData.settings.maintenance_message;
+    }
+    if (subtextInput && appData.settings.maintenance_subtext) {
+      subtextInput.value = appData.settings.maintenance_subtext;
+    }
+    if (phoneInput && appData.settings.contact_helpline) {
+      phoneInput.value = appData.settings.contact_helpline;
+    }
+    if (emailInput && appData.settings.contact_email) {
+      emailInput.value = appData.settings.contact_email;
+    }
+    if (headlinePreview) {
+      headlinePreview.textContent = appData.settings.maintenance_message || 'Currently Website & Mobile App Under Development';
+    }
+    if (lastUpdated && appData.settings.updated_at) {
+      lastUpdated.textContent = 'Updated: ' + new Date(appData.settings.updated_at).toLocaleTimeString();
+    }
+  }
+
+  if (statusCard && statusPill && toggleBtn) {
+    if (isMaint) {
+      statusCard.style.borderColor = 'rgba(239, 68, 68, 0.6)';
+      statusCard.style.background = 'rgba(239, 68, 68, 0.04)';
+      statusPill.style.background = 'rgba(239, 68, 68, 0.15)';
+      statusPill.style.color = '#ef4444';
+      statusPill.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> MAINTENANCE MODE ACTIVE';
+      toggleBtn.className = 'btn btn-outline';
+      toggleBtn.style.color = '#ef4444';
+      toggleBtn.style.borderColor = '#ef4444';
+      toggleBtn.innerHTML = '<i class="fa-solid fa-power-off"></i> Disable Maintenance (Go Live)';
+    } else {
+      statusCard.style.borderColor = 'var(--border-color)';
+      statusCard.style.background = 'transparent';
+      statusPill.style.background = 'rgba(16, 185, 129, 0.15)';
+      statusPill.style.color = '#10b981';
+      statusPill.innerHTML = '<i class="fa-solid fa-circle-check"></i> WEBSITE IS LIVE';
+      toggleBtn.className = 'btn btn-primary';
+      toggleBtn.style.color = '';
+      toggleBtn.style.borderColor = '';
+      toggleBtn.innerHTML = '<i class="fa-solid fa-power-off"></i> Enable Maintenance Mode';
+    }
+  }
+
+  // Bind Toggle button
+  if (toggleBtn && !toggleBtn.dataset.bound) {
+    toggleBtn.dataset.bound = 'true';
+    toggleBtn.addEventListener('click', async () => {
+      const currentMaint = Boolean(appData.settings && appData.settings.maintenance_mode);
+      const targetState = !currentMaint;
+      const confirmMsg = targetState
+        ? 'Are you sure you want to ENABLE Maintenance Mode? Visitors will see the under-development screen with both official party banners.'
+        : 'Are you sure you want to DISABLE Maintenance Mode and bring the website LIVE?';
+
+      if (confirm(confirmMsg)) {
+        setBtnLoading(toggleBtn, true, 'Updating Maintenance Mode...');
+        try {
+          const headline = headlineInput ? headlineInput.value.trim() : '';
+          const subtext = subtextInput ? subtextInput.value.trim() : '';
+          const res = await apiToggleMaintenance(targetState, headline, subtext);
+          appData.settings = res;
+          updateBadges();
+          renderMaintenanceView();
+          alert(`Maintenance mode is now ${targetState ? 'ACTIVE' : 'DEACTIVATED'}!`);
+        } catch (err) {
+          alert('Error updating maintenance mode: ' + err.message);
+        } finally {
+          setBtnLoading(toggleBtn, false);
+        }
+      }
+    });
+  }
+
+  // Bind Save form
+  const form = document.getElementById('form-maintenance-settings');
+  if (form && !form.dataset.bound) {
+    form.dataset.bound = 'true';
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btnSave = document.getElementById('btn-save-maintenance-content');
+      setBtnLoading(btnSave, true, 'Saving settings...');
+      try {
+        const payload = {
+          maintenance_message: headlineInput ? headlineInput.value.trim() : '',
+          maintenance_subtext: subtextInput ? subtextInput.value.trim() : '',
+          contact_helpline: phoneInput ? phoneInput.value.trim() : '',
+          contact_email: emailInput ? emailInput.value.trim() : ''
+        };
+        const res = await apiUpdateSettings(payload);
+        appData.settings = res;
+        updateBadges();
+        renderMaintenanceView();
+        alert('Maintenance content settings saved successfully!');
+      } catch (err) {
+        alert('Error saving settings: ' + err.message);
+      } finally {
+        setBtnLoading(btnSave, false);
+      }
+    });
+  }
+
+  // Bind Quick button in settings view
+  const btnGoMaint = document.getElementById('btn-settings-go-maintenance');
+  if (btnGoMaint && !btnGoMaint.dataset.bound) {
+    btnGoMaint.dataset.bound = 'true';
+    btnGoMaint.addEventListener('click', () => {
+      const navItem = document.querySelector('[data-view="maintenance"]');
+      if (navItem) navItem.click();
+    });
+  }
+}
+

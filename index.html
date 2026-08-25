@@ -153,6 +153,11 @@
           <span>Contact Enquiries</span>
           <span class="badge" id="badge-enquiries-count" style="background:#3b82f6; color:white;">0</span>
         </a>
+        <a href="#" class="nav-item" data-view="maintenance">
+          <i class="fa-solid fa-screwdriver-wrench"></i>
+          <span>Maintenance Mode</span>
+          <span class="badge" id="badge-maintenance-status" style="background:#10b981; color:white; font-size:10px; font-weight:700;">LIVE</span>
+        </a>
 
         <div class="menu-label">System</div>
         <a href="#" class="nav-item" data-view="activity">
@@ -816,14 +821,119 @@
           </div>
         </section>
 
+        <!-- MAINTENANCE MODE CMS VIEW -->
+        <section id="view-maintenance" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title"><i class="fa-solid fa-screwdriver-wrench" style="color:#f59e0b;"></i> Website & App Maintenance Mode</h1>
+              <p class="view-subtitle">Enable or disable the public under-development maintenance screen with real-time toggle.</p>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <a href="https://pppiconnect.com" target="_blank" class="btn btn-outline" style="text-decoration:none;">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Preview Website
+              </a>
+            </div>
+          </div>
+
+          <!-- Status Indicator Card -->
+          <div class="settings-card" id="maintenance-status-card" style="border:2px solid var(--border-color); margin-bottom:20px; transition:all 0.3s ease;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
+              <div>
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                  <span id="maintenance-status-pill" class="pill-tag" style="background:rgba(16,185,129,0.15); color:#10b981; font-weight:800; font-size:13px; padding:6px 14px;">
+                    <i class="fa-solid fa-circle-check"></i> WEBSITE IS LIVE
+                  </span>
+                  <span style="font-size:12px; color:var(--text-muted);" id="maintenance-last-updated">Updated: Just now</span>
+                </div>
+                <h3 style="font-size:16px; font-weight:700; color:var(--text-primary); margin:0;" id="maintenance-headline-preview">
+                  Currently Website & Mobile App Under Development
+                </h3>
+                <p style="font-size:13px; color:var(--text-muted); margin:4px 0 0 0;">
+                  When Maintenance Mode is ON, visitors to the portal will see the under-development screen with both official party banners.
+                </p>
+              </div>
+
+              <div>
+                <button type="button" class="btn btn-primary" id="btn-toggle-maintenance" style="padding:10px 24px; font-size:14px; font-weight:700;">
+                  <i class="fa-solid fa-power-off"></i> Enable Maintenance Mode
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Customization Form Card -->
+          <div class="settings-card">
+            <h3 style="font-size:16px; font-weight:700; color:var(--text-primary); margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+              <i class="fa-solid fa-pen-to-square" style="color:var(--primary);"></i> Maintenance Screen Content & Banners
+            </h3>
+            
+            <form id="form-maintenance-settings">
+              <div class="form-group">
+                <label class="form-label">Prominent Headline Text *</label>
+                <input type="text" class="form-control" id="maintenance-input-headline" value="Currently Website & Mobile App Under Development" required />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Subtitle / Notice Text</label>
+                <textarea class="form-control" id="maintenance-input-subtext" rows="3">We are currently fine-tuning our digital governance platform to deliver an unprecedented political membership experience. Our mobile app and web services will be fully operational shortly.</textarea>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Support Helpline</label>
+                  <input type="text" class="form-control" id="maintenance-input-phone" value="+91 7259798393" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Support Email</label>
+                  <input type="email" class="form-control" id="maintenance-input-email" value="bpasha46@gmail.com" />
+                </div>
+              </div>
+
+              <!-- Banner Preview Gallery -->
+              <div class="form-group">
+                <label class="form-label">Official Display Banners Rendered on Screen</label>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; margin-top:8px;">
+                  <div style="background:var(--bg-primary); border:1px solid var(--border-color); border-radius:8px; padding:10px; text-align:center;">
+                    <div style="font-size:12px; font-weight:700; color:var(--text-secondary); margin-bottom:6px;">1. 15-Point Manifesto Poster</div>
+                    <img src="https://pppiconnect.com/images/maintenance/pppi_manifesto_banner.jpg" alt="Manifesto Banner" style="max-height:160px; max-width:100%; border-radius:6px; object-fit:contain;" onError="this.src='/images/maintenance/pppi_manifesto_banner.jpg'" />
+                  </div>
+                  <div style="background:var(--bg-primary); border:1px solid var(--border-color); border-radius:8px; padding:10px; text-align:center;">
+                    <div style="font-size:12px; font-weight:700; color:var(--text-secondary); margin-bottom:6px;">2. Preamble & Headquarters Banner</div>
+                    <img src="https://pppiconnect.com/images/maintenance/pppi_preamble_banner.jpg" alt="Preamble Banner" style="max-height:160px; max-width:100%; border-radius:6px; object-fit:contain;" onError="this.src='/images/maintenance/pppi_preamble_banner.jpg'" />
+                  </div>
+                </div>
+              </div>
+
+              <div style="margin-top:20px; display:flex; gap:10px;">
+                <button type="submit" class="btn btn-primary" id="btn-save-maintenance-content">
+                  <i class="fa-solid fa-floppy-disk"></i> Save Content Settings
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+
         <!-- 7. SETTINGS VIEW -->
         <section id="view-settings" class="content-view">
 
           <div class="view-header">
             <div>
               <h1 class="view-title">System Settings</h1>
-              <p class="view-subtitle">General administration, API keys, and notification triggers.</p>
+              <p class="view-subtitle">General administration, maintenance triggers, and API configurations.</p>
             </div>
+          </div>
+
+          <!-- Quick Maintenance Mode Trigger in Settings -->
+          <div class="settings-card" style="margin-bottom:20px;">
+            <h3 style="font-size:16px; font-weight:700; margin-bottom:8px; color:var(--text-primary);">
+              <i class="fa-solid fa-wrench" style="color:#f59e0b;"></i> Website Maintenance Control
+            </h3>
+            <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">
+              Instantly toggle the public under-development maintenance screen on the main website portal.
+            </p>
+            <button class="btn btn-outline" id="btn-settings-go-maintenance" style="font-weight:700;">
+              <i class="fa-solid fa-sliders"></i> Configure Maintenance Mode
+            </button>
           </div>
 
           <div class="settings-card">

@@ -782,6 +782,44 @@ export async function apiDeleteGallery(id) {
   return data;
 }
 
+/* 12. SYSTEM SETTINGS & MAINTENANCE API */
+export async function apiGetSettings() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/settings`, { headers: getAuthHeaders() });
+    const data = await res.json();
+    return data.data || { maintenance_mode: false };
+  } catch (err) {
+    console.warn('apiGetSettings fallback:', err.message);
+    return { maintenance_mode: false };
+  }
+}
 
+export async function apiToggleMaintenance(maintenanceMode, customMessage, customSubtext) {
+  const res = await fetch(`${API_BASE_URL}/settings/maintenance`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      maintenance_mode: maintenanceMode,
+      maintenance_message: customMessage,
+      maintenance_subtext: customSubtext
+    })
+  });
+  const data = await res.json();
+  if (!res.ok || data.status >= 300) {
+    throw new Error(data.message || 'Failed to update maintenance mode');
+  }
+  return data.data;
+}
 
-
+export async function apiUpdateSettings(payload) {
+  const res = await fetch(`${API_BASE_URL}/settings`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (!res.ok || data.status >= 300) {
+    throw new Error(data.message || 'Failed to update settings');
+  }
+  return data.data;
+}
