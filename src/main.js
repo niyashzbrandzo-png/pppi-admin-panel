@@ -254,7 +254,7 @@ function setupAdminAuth() {
 async function loadAllData() {
   showTopLoader();
   try {
-    const [users, posts, plans, events, donations, funds, notifResult, liveStreams, enquiries, joinRequests, manifesto, gallery, settings] = await Promise.all([
+    const results = await Promise.allSettled([
       apiGetUsers(),
       apiGetPosts(),
       apiGetPlans(),
@@ -269,6 +269,20 @@ async function loadAllData() {
       apiGetGallery(),
       apiGetSettings()
     ]);
+
+    const users = results[0].status === 'fulfilled' ? results[0].value : [];
+    const posts = results[1].status === 'fulfilled' ? results[1].value : [];
+    const plans = results[2].status === 'fulfilled' ? results[2].value : [];
+    const events = results[3].status === 'fulfilled' ? results[3].value : [];
+    const donations = results[4].status === 'fulfilled' ? results[4].value : [];
+    const funds = results[5].status === 'fulfilled' ? results[5].value : [];
+    const notifResult = results[6].status === 'fulfilled' ? results[6].value : null;
+    const liveStreams = results[7].status === 'fulfilled' ? results[7].value : [];
+    const enquiries = results[8].status === 'fulfilled' ? results[8].value : [];
+    const joinRequests = results[9].status === 'fulfilled' ? results[9].value : [];
+    const manifesto = results[10].status === 'fulfilled' ? results[10].value : [];
+    const gallery = results[11].status === 'fulfilled' ? results[11].value : [];
+    const settings = results[12].status === 'fulfilled' ? results[12].value : null;
 
     appData.users = users || [];
     appData.posts = posts || [];

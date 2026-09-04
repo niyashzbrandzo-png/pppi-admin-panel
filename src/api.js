@@ -519,24 +519,61 @@ export async function apiDeleteFund(id) {
 
 export async function apiGetDonations() {
   const token = getAdminToken();
-  const data = await request('/donations', {
-    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-  });
+  const txns = [];
 
-  if (data && data.data && data.data.length > 0) {
-    return data.data.map(d => ({
-      id: d.donation_id || `DON_${d.id}`,
-      donor: d.user ? d.user.name : 'Party Supporter',
-      donorPhone: d.user?.phone || 'N/A',
-      donorEmail: d.user?.email || 'N/A',
-      fund: d.fund?.title || 'General Fund',
-      amount: Number(d.amount),
-      method: d.razorpay_payment_id ? `Razorpay (${d.razorpay_payment_id})` : 'Razorpay Gateway',
-      orderId: d.razorpay_order_id || 'N/A',
-      paymentId: d.razorpay_payment_id || 'N/A',
-      status: d.status,
-      date: d.created_at ? new Date(d.created_at).toLocaleString() : 'Recent'
-    }));
+  // 1. Fetch real platform transactions (Membership fees & payments from Railway)
+  try {
+    const txnData = await request('/payments/admin-transactions', {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    if (txnData && Array.isArray(txnData.data) && txnData.data.length > 0) {
+      txnData.data.forEach(d => {
+        txns.push({
+          id: d.transaction_id || `TXN_${d.id}`,
+          donor: d.user ? d.user.name : 'Party Member',
+          donorPhone: d.user?.phone || 'N/A',
+          donorEmail: d.user?.email || 'N/A',
+          fund: d.fund_category || (d.type === 'MEMBERSHIP' ? 'Membership Fee' : 'General Donation'),
+          amount: Number(d.amount),
+          method: d.razorpay_payment_id ? `Razorpay (${d.razorpay_payment_id})` : 'Razorpay Gateway',
+          orderId: d.razorpay_order_id || 'N/A',
+          paymentId: d.razorpay_payment_id || 'N/A',
+          status: d.status,
+          date: d.created_at ? new Date(d.created_at).toLocaleString() : 'Recent'
+        });
+      });
+    }
+  } catch (err) {
+    console.warn('apiGetDonations transaction fetch warning:', err);
+  }
+
+  // 2. Also fetch from /donations
+  try {
+    const data = await request('/donations', {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+
+    if (data && data.data && data.data.length > 0) {
+      data.data.forEach(d => {
+        txns.push({
+          id: d.donation_id || `DON_${d.id}`,
+          donor: d.user ? d.user.name : 'Party Supporter',
+          donorPhone: d.user?.phone || 'N/A',
+          donorEmail: d.user?.email || 'N/A',
+          fund: d.fund?.title || 'General Fund',
+          amount: Number(d.amount),
+          method: d.razorpay_payment_id ? `Razorpay (${d.razorpay_payment_id})` : 'Razorpay Gateway',
+          orderId: d.razorpay_order_id || 'N/A',
+          paymentId: d.razorpay_payment_id || 'N/A',
+          status: d.status,
+          date: d.created_at ? new Date(d.created_at).toLocaleString() : 'Recent'
+        });
+      });
+    }
+  } catch (_) {}
+
+  if (txns.length > 0) {
+    return txns;
   }
 
   return MOCK_DONATIONS;
@@ -723,62 +760,65 @@ export async function apiUploadMediaFile(file) {
 }
 
 /* 10. MANIFESTO CMS API */
+export function getAuthHeaders() {
+  const token = getAdminToken();
+  return {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+}
+
 export async function apiGetManifesto() {
-  const res = await fetch(`${API_BASE_URL}/manifesto`, { headers: getAuthHeaders() });
-  const data = await res.json();
-  return data.data || [];
+  const data = await request('/manifesto');
+  return (data && data.data) || [];
 }
 
 export async function apiCreateManifesto(payload) {
-  const res = await fetch(`${API_BASE_URL}/manifesto`, {
+  const data = await request('/manifesto', {
     method: 'POST',
-    headers: getAuthHeaders(),
     body: JSON.stringify(payload)
   });
-  const data = await res.json();
-  if (!res.ok || data.status >= 300) {
-    throw new Error(data.message || 'Failed to create manifesto topic');
+  if (!data || data.status >= 300) {
+    throw new Error((data && data.message) || 'Failed to create manifesto topic');
   }
   return data.data;
 }
 
 export async function apiDeleteManifesto(id) {
-  const res = await fetch(`${API_BASE_URL}/manifesto/${id}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders()
+  const data = await request(`/manifesto/${id}`, {
+    method: 'DELETE'
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Failed to delete manifesto topic');
+  if (!data || (data.status && data.status >= 300)) {
+    throw new Error((data && data.message) || 'Failed to delete manifesto topic');
+  }
   return data;
 }
 
 /* 11. GALLERY CMS API */
 export async function apiGetGallery() {
-  const res = await fetch(`${API_BASE_URL}/gallery`, { headers: getAuthHeaders() });
-  const data = await res.json();
-  return data.data || [];
+  const data = await request('/gallery');
+  return (data && data.data) || [];
 }
 
 export async function apiCreateGallery(payload) {
-  const res = await fetch(`${API_BASE_URL}/gallery`, {
+  const data = await request('/gallery', {
     method: 'POST',
-    headers: getAuthHeaders(),
     body: JSON.stringify(payload)
   });
-  const data = await res.json();
-  if (!res.ok || data.status >= 300) {
-    throw new Error(data.message || 'Failed to create gallery item');
+  if (!data || data.status >= 300) {
+    throw new Error((data && data.message) || 'Failed to create gallery item');
   }
   return data.data;
 }
 
 export async function apiDeleteGallery(id) {
-  const res = await fetch(`${API_BASE_URL}/gallery/${id}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders()
+  const data = await request(`/gallery/${id}`, {
+    method: 'DELETE'
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Failed to delete gallery item');
+  if (!data || (data.status && data.status >= 300)) {
+    throw new Error((data && data.message) || 'Failed to delete gallery item');
+  }
   return data;
 }
 
