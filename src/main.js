@@ -41,6 +41,9 @@ import {
   apiGetNewsletters,
   apiCreateNewsletter,
   apiDeleteNewsletter,
+  apiGetPublicities,
+  apiCreatePublicity,
+  apiDeletePublicity,
   apiGetSettings,
   apiToggleMaintenance,
   apiUpdateSettings,
@@ -66,6 +69,7 @@ let appData = {
   manifesto: [],
   gallery: [],
   newsletters: [],
+  publicities: [],
   settings: {
     maintenance_mode: false,
     maintenance_message: 'Currently Website & Mobile App Under Development',
@@ -272,6 +276,7 @@ async function loadAllData() {
       apiGetManifesto(),
       apiGetGallery(),
       apiGetNewsletters(),
+      apiGetPublicities(),
       apiGetSettings()
     ]);
 
@@ -288,7 +293,8 @@ async function loadAllData() {
     const manifesto = results[10].status === 'fulfilled' ? results[10].value : [];
     const gallery = results[11].status === 'fulfilled' ? results[11].value : [];
     const newsletters = results[12].status === 'fulfilled' ? results[12].value : [];
-    const settings = results[13].status === 'fulfilled' ? results[13].value : null;
+    const publicities = results[13].status === 'fulfilled' ? results[13].value : [];
+    const settings = results[14].status === 'fulfilled' ? results[14].value : null;
 
     appData.users = users || [];
     appData.posts = posts || [];
@@ -311,6 +317,7 @@ async function loadAllData() {
     appData.manifesto = manifesto || [];
     appData.gallery = gallery || [];
     appData.newsletters = newsletters || [];
+    appData.publicities = publicities || [];
     appData.settings = settings || { maintenance_mode: false };
 
     updateBadges();
@@ -327,6 +334,7 @@ async function loadAllData() {
     renderManifestoGrid();
     renderGalleryGrid();
     renderNewsletterGrid();
+    renderPublicityGrid();
     renderMaintenanceView();
     populateUserNotificationDropdown();
   } catch (err) {
@@ -368,6 +376,9 @@ function updateBadges() {
 
   const newsletterBadge = document.getElementById('badge-newsletter-count');
   if (newsletterBadge) newsletterBadge.textContent = appData.newsletters.length;
+
+  const publicityBadge = document.getElementById('badge-publicity-count');
+  if (publicityBadge) publicityBadge.textContent = appData.publicities.length;
 
   const maintBadge = document.getElementById('badge-maintenance-status');
   if (maintBadge) {
@@ -2440,6 +2451,160 @@ function renderNewsletterGrid() {
           appData.newsletters = await apiGetNewsletters();
           updateBadges();
           renderNewsletterGrid();
+        } finally {
+          setBtnLoading(targetBtn, false);
+        }
+      }
+    });
+  });
+}
+
+function renderPublicityGrid() {
+  const container = document.getElementById('publicity-grid-container');
+  const btnOpenModal = document.getElementById('btn-open-create-publicity-modal');
+
+  if (btnOpenModal && !btnOpenModal.dataset.bound) {
+    btnOpenModal.dataset.bound = 'true';
+    btnOpenModal.addEventListener('click', () => {
+      const modal = document.getElementById('modal-publicity');
+      if (modal) modal.classList.add('active');
+    });
+  }
+
+  // Bind Form Submit
+  const form = document.getElementById('form-publicity');
+  if (form && !form.dataset.bound) {
+    form.dataset.bound = 'true';
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btnSubmit = document.getElementById('btn-save-publicity');
+      const mediaFileInput = document.getElementById('publicity-input-media-file');
+      const mediaUrlInput = document.getElementById('publicity-input-media-url');
+      const statusDiv = document.getElementById('publicity-upload-status');
+
+      let finalMediaUrl = mediaUrlInput ? mediaUrlInput.value.trim() : '';
+
+      setBtnLoading(btnSubmit, true, 'Uploading & Publishing Poster...');
+
+      try {
+        if (mediaFileInput && mediaFileInput.files.length > 0) {
+          if (statusDiv) statusDiv.innerHTML = `<span class="upload-status-pill"><i class="fa-solid fa-spinner fa-spin"></i> Uploading Asset to Cloudinary...</span>`;
+          finalMediaUrl = await apiUploadMediaFile(mediaFileInput.files[0]);
+        }
+
+        if (statusDiv) statusDiv.innerHTML = `<span class="upload-status-pill" style="color:var(--accent-emerald);"><i class="fa-solid fa-circle-check"></i> Poster File Ready!</span>`;
+
+        const payload = {
+          title: document.getElementById('publicity-input-title').value,
+          category: document.getElementById('publicity-input-category').value,
+          orientation: document.getElementById('publicity-input-orientation').value,
+          media_type: document.getElementById('publicity-input-media-type').value,
+          media_url: finalMediaUrl || '/images/banner.jpg',
+          description: document.getElementById('publicity-input-description').value
+        };
+
+        await apiCreatePublicity(payload);
+        alert('Publicity poster published successfully!');
+        form.reset();
+        if (statusDiv) statusDiv.innerHTML = '';
+        document.getElementById('modal-publicity').classList.remove('active');
+        appData.publicities = await apiGetPublicities();
+        updateBadges();
+        renderPublicityGrid();
+      } catch (err) {
+        alert('Error publishing publicity: ' + err.message);
+      } finally {
+        setBtnLoading(btnSubmit, false);
+      }
+    });
+  }
+
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!appData.publicities || appData.publicities.length === 0) {
+    container.innerHTML = `<div style="grid-column:1/-1; padding:40px; text-align:center; color:var(--text-muted);">No publicity posters or flex banners published yet. Click "Add Poster / Banner" above.</div>`;
+    return;
+  }
+
+  appData.publicities.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'post-admin-card';
+    card.style.display = 'flex';
+    card.style.flexDirection = 'column';
+
+    const isVideo = item.media_type === 'video';
+    const isPdf = item.media_type === 'pdf';
+    const isPortrait = item.orientation === 'portrait';
+    const dateStr = item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent';
+
+    let mediaHtml = '';
+    const mediaHeight = isPortrait ? '300px' : '170px';
+
+    if (isVideo) {
+      mediaHtml = `
+        <div style="position:relative; width:100%; height:${mediaHeight}; background:#0f172a; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+          <video src="${item.media_url}" style="width:100%; height:100%; object-fit:cover;" preload="metadata"></video>
+          <div style="position:absolute; width:48px; height:48px; background:rgba(5,150,105,0.88); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px;">
+            <i class="fa-solid fa-play"></i>
+          </div>
+          <span style="position:absolute; bottom:8px; left:8px; background:rgba(0,0,0,0.7); color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px;">VIDEO REEL</span>
+        </div>
+      `;
+    } else if (isPdf) {
+      mediaHtml = `
+        <div style="position:relative; width:100%; height:${mediaHeight}; background:linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border:1.5px dashed #10b981; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;">
+          <i class="fa-solid fa-file-pdf" style="font-size:48px; color:#059669;"></i>
+          <span style="font-size:12px; font-weight:700; color:#065f46;">PDF Document / Flyer</span>
+        </div>
+      `;
+    } else {
+      mediaHtml = `
+        <div style="position:relative; width:100%; height:${mediaHeight}; background:#0f172a; border-radius:8px; overflow:hidden;">
+          <img src="${item.media_url}" style="width:100%; height:100%; object-fit:${isPortrait ? 'contain' : 'cover'}; background:#1e293b;" alt="${item.title}" onError="this.onerror=null;this.src='/images/banner.jpg';" />
+          <span style="position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.75); color:#fbbf24; font-size:10px; font-weight:800; padding:3px 8px; border-radius:4px; text-transform:uppercase;">
+            ${isPortrait ? 'PORTRAIT POSTER' : 'FLEX BANNER'}
+          </span>
+        </div>
+      `;
+    }
+
+    card.innerHTML = `
+      <div class="post-card-header" style="margin-bottom:8px;">
+        <span class="pill-tag" style="background:rgba(5,150,105,0.15); color:#059669; font-weight:700;">
+          <i class="fa-solid fa-bullhorn"></i> ${item.category || 'Campaign Poster'}
+        </span>
+        <button class="btn btn-sm btn-outline btn-delete-publicity" data-id="${item.id}" style="color:var(--accent-rose);">
+          <i class="fa-solid fa-trash"></i> Delete
+        </button>
+      </div>
+      ${mediaHtml}
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:11px; color:var(--text-muted);">
+        <span><i class="fa-regular fa-calendar"></i> ${dateStr}</span>
+        <span style="color:#059669; font-weight:700;"><i class="fa-solid fa-download"></i> ${item.download_count || 0} Downloads</span>
+      </div>
+      <h3 style="font-size:15px; font-weight:800; color:var(--text-primary); margin-top:6px; line-height:1.35;">${item.title}</h3>
+      <p class="post-desc" style="max-height:60px; overflow:hidden; text-overflow:ellipsis; font-size:12px; margin-top:4px;">${item.description || ''}</p>
+      <div style="margin-top:auto; padding-top:12px; display:flex; gap:8px;">
+        <a href="${item.media_url}" download target="_blank" class="btn btn-sm btn-outline" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; color:#059669; border-color:#059669; font-weight:700; text-decoration:none;">
+          <i class="fa-solid fa-download"></i> Download Asset
+        </a>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  container.querySelectorAll('.btn-delete-publicity').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const targetBtn = e.currentTarget;
+      const id = targetBtn.getAttribute('data-id');
+      if (confirm('Are you sure you want to delete this publicity poster/banner?')) {
+        setBtnLoading(targetBtn, true, 'Deleting...');
+        try {
+          await apiDeletePublicity(id);
+          appData.publicities = await apiGetPublicities();
+          updateBadges();
+          renderPublicityGrid();
         } finally {
           setBtnLoading(targetBtn, false);
         }

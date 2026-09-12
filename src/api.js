@@ -1032,4 +1032,122 @@ export async function apiDeleteNewsletter(id) {
   return { success: true, id };
 }
 
+/* ==========================================================================
+   PUBLICITIES & POSTERS API
+   ========================================================================== */
+const LOCAL_PUBLICITIES_KEY = 'pppi_admin_publicities_cache';
+
+const DEFAULT_PUBLICITIES = [
+  {
+    id: 1,
+    title: 'Official PPPI National Flag & Symbol Proclamation Poster',
+    description: 'High-resolution official election campaign poster featuring Founder President Mr. B S Vahid Pasha, Party Flag (Red, White, Green), and the Pineapple symbol. Optimized for 12x18 and 18x24 wall printing.',
+    media_type: 'image',
+    media_url: '/images/banner.jpg',
+    orientation: 'portrait',
+    category: 'Campaign Poster',
+    download_count: 342,
+    status: true,
+    created_at: new Date('2026-09-02T10:00:00Z').toISOString()
+  },
+  {
+    id: 2,
+    title: 'Kisan Kranti & Agriculture Revolution Flex Banner',
+    description: 'Wide-format high-res flex banner announcing 100% farmer loan waiver and 1.5x MSP guarantee. Designed for stage backdrops and street flex hoardings.',
+    media_type: 'image',
+    media_url: '/images/banner.jpg',
+    orientation: 'landscape',
+    category: 'Flex Banner',
+    download_count: 512,
+    status: true,
+    created_at: new Date('2026-09-05T14:30:00Z').toISOString()
+  },
+  {
+    id: 3,
+    title: 'Sacred Preamble Proclamation Wall Poster',
+    description: 'Official portrait poster displaying the Sacred Preamble of Pasha People Party of India for distribution across taluks, public offices, and volunteer homes.',
+    media_type: 'image',
+    media_url: '/images/founder.jpg',
+    orientation: 'portrait',
+    category: 'Campaign Poster',
+    download_count: 289,
+    status: true,
+    created_at: new Date('2026-09-08T11:00:00Z').toISOString()
+  },
+  {
+    id: 4,
+    title: 'Dalasanur National Convention Official Video Reel',
+    description: 'Dynamic publicity video highlighting the mass turnout, address by Founder President Mr. B S Vahid Pasha, and the Pineapple election emblem launch.',
+    media_type: 'video',
+    media_url: '/images/banner.jpg',
+    orientation: 'portrait',
+    category: 'Videos & Reels',
+    download_count: 678,
+    status: true,
+    created_at: new Date('2026-09-10T09:15:00Z').toISOString()
+  }
+];
+
+export async function apiGetPublicities() {
+  try {
+    const data = await request('/publicities');
+    if (data && Array.isArray(data.data) && data.data.length > 0) {
+      localStorage.setItem(LOCAL_PUBLICITIES_KEY, JSON.stringify(data.data));
+      return data.data;
+    }
+  } catch (err) {
+    console.warn('apiGetPublicities remote fetch error, using local/fallback:', err.message);
+  }
+  const cached = localStorage.getItem(LOCAL_PUBLICITIES_KEY);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) {}
+  }
+  return DEFAULT_PUBLICITIES;
+}
+
+export async function apiCreatePublicity(payload) {
+  let createdItem = null;
+  try {
+    const data = await request('/publicities', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    if (data && data.data) {
+      createdItem = data.data;
+    }
+  } catch (err) {
+    console.warn('apiCreatePublicity remote error, creating locally:', err.message);
+  }
+  if (!createdItem) {
+    createdItem = {
+      id: Date.now(),
+      title: payload.title,
+      description: payload.description,
+      media_type: payload.media_type || 'image',
+      media_url: payload.media_url || '/images/banner.jpg',
+      orientation: payload.orientation || 'portrait',
+      category: payload.category || 'Campaign Poster',
+      download_count: 0,
+      status: true,
+      created_at: new Date().toISOString()
+    };
+  }
+  const current = await apiGetPublicities();
+  const updated = [createdItem, ...current.filter(x => x.id !== createdItem.id)];
+  localStorage.setItem(LOCAL_PUBLICITIES_KEY, JSON.stringify(updated));
+  return createdItem;
+}
+
+export async function apiDeletePublicity(id) {
+  try {
+    await request(`/publicities/${id}`, { method: 'DELETE' });
+  } catch (err) {
+    console.warn('apiDeletePublicity remote error, deleting locally:', err.message);
+  }
+  const current = await apiGetPublicities();
+  const updated = current.filter(item => String(item.id) !== String(id));
+  localStorage.setItem(LOCAL_PUBLICITIES_KEY, JSON.stringify(updated));
+  return { success: true, id };
+}
+
 

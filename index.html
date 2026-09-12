@@ -138,6 +138,11 @@
           <span>News Letter</span>
           <span class="badge" id="badge-newsletter-count" style="background:#0284c7; color:white;">0</span>
         </a>
+        <a href="#" class="nav-item" data-view="publicity">
+          <i class="fa-solid fa-photo-film"></i>
+          <span>Publicities &amp; Posters</span>
+          <span class="badge" id="badge-publicity-count" style="background:#059669; color:white;">0</span>
+        </a>
         <a href="#" class="nav-item" data-view="manifesto">
           <i class="fa-solid fa-book-open"></i>
           <span>Party Manifesto Topics</span>
@@ -843,6 +848,23 @@
           </div>
         </section>
 
+        <!-- PUBLICITY CMS VIEW -->
+        <section id="view-publicity" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title"><i class="fa-solid fa-photo-film" style="color:#059669;"></i> Official Publicities, Campaign Posters &amp; Flex Banners</h1>
+              <p class="view-subtitle">Upload, manage, and distribute high-res portrait posters, wide flex banners, promotional videos, and party publicity materials.</p>
+            </div>
+            <button class="btn btn-primary" id="btn-open-create-publicity-modal" style="background:#059669; border-color:#059669;">
+              <i class="fa-solid fa-plus"></i> Add Poster / Banner
+            </button>
+          </div>
+
+          <div class="posts-grid" id="publicity-grid-container" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:22px;">
+            <!-- Publicity Cards Rendered Dynamically -->
+          </div>
+        </section>
+
         <!-- MAINTENANCE MODE CMS VIEW -->
         <section id="view-maintenance" class="content-view">
           <div class="view-header">
@@ -1431,6 +1453,69 @@
             <button type="button" class="btn btn-outline" data-close-modal="modal-newsletter">Cancel</button>
             <button type="submit" class="btn btn-primary" id="btn-save-newsletter" style="background:#0284c7; border-color:#0284c7;">
               <i class="fa-solid fa-paper-plane"></i> Proceed & Publish News Letter
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Add Publicity / Poster Modal -->
+  <div class="modal-backdrop" id="modal-publicity">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-photo-film" style="color:#059669;"></i> Add Official Poster, Banner or Publicity Asset</h3>
+        <button class="modal-close" data-close-modal="modal-publicity"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-publicity">
+          <div class="form-row">
+            <div class="form-group" style="flex:2;">
+              <label class="form-label">Poster / Banner Title *</label>
+              <input type="text" id="publicity-input-title" class="form-control" placeholder="e.g. Official PPPI Election Campaign Proclamation Poster 2026" required />
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label class="form-label">Category</label>
+              <select id="publicity-input-category" class="form-select">
+                <option value="Campaign Poster">Campaign Poster</option>
+                <option value="Flex Banner">Flex Banner</option>
+                <option value="Event Flyer">Event Flyer</option>
+                <option value="Videos &amp; Reels">Videos &amp; Reels</option>
+                <option value="Official Notice">Official Notice</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Orientation</label>
+              <select id="publicity-input-orientation" class="form-select">
+                <option value="portrait">Portrait (Wall Poster / Social Flyer / Reel)</option>
+                <option value="landscape">Landscape (Wide Flex / Stage Hoarding)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Asset Format (Image, Video, or PDF)</label>
+              <select id="publicity-input-media-type" class="form-select">
+                <option value="image">Image (JPG, PNG, WebP)</option>
+                <option value="video">Video (MP4, Reel)</option>
+                <option value="pdf">Document / PDF</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Upload Poster / Banner File (Image, Video, or PDF) *</label>
+            <input type="file" id="publicity-input-media-file" class="form-control" accept="image/*,video/*,.pdf" />
+            <input type="text" id="publicity-input-media-url" class="form-control" placeholder="Or paste direct image / video / PDF URL..." style="margin-top:6px;" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description &amp; Printing Guidelines *</label>
+            <textarea id="publicity-input-description" class="form-control" rows="4" placeholder="Brief description of the poster, message, dimensions (e.g. 12x18 / 6x3 flex), and usage guidelines..." required></textarea>
+          </div>
+          <div id="publicity-upload-status" style="margin-bottom: 12px;"></div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-publicity">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-publicity" style="background:#059669; border-color:#059669;">
+              <i class="fa-solid fa-cloud-arrow-up"></i> Save &amp; Publish Poster
             </button>
           </div>
         </form>
