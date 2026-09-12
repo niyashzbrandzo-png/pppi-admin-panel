@@ -38,6 +38,9 @@ import {
   apiGetGallery,
   apiCreateGallery,
   apiDeleteGallery,
+  apiGetNewsletters,
+  apiCreateNewsletter,
+  apiDeleteNewsletter,
   apiGetSettings,
   apiToggleMaintenance,
   apiUpdateSettings,
@@ -62,6 +65,7 @@ let appData = {
   joinRequests: [],
   manifesto: [],
   gallery: [],
+  newsletters: [],
   settings: {
     maintenance_mode: false,
     maintenance_message: 'Currently Website & Mobile App Under Development',
@@ -267,6 +271,7 @@ async function loadAllData() {
       apiGetJoinRequests(),
       apiGetManifesto(),
       apiGetGallery(),
+      apiGetNewsletters(),
       apiGetSettings()
     ]);
 
@@ -282,7 +287,8 @@ async function loadAllData() {
     const joinRequests = results[9].status === 'fulfilled' ? results[9].value : [];
     const manifesto = results[10].status === 'fulfilled' ? results[10].value : [];
     const gallery = results[11].status === 'fulfilled' ? results[11].value : [];
-    const settings = results[12].status === 'fulfilled' ? results[12].value : null;
+    const newsletters = results[12].status === 'fulfilled' ? results[12].value : [];
+    const settings = results[13].status === 'fulfilled' ? results[13].value : null;
 
     appData.users = users || [];
     appData.posts = posts || [];
@@ -304,6 +310,7 @@ async function loadAllData() {
     appData.joinRequests = joinRequests || [];
     appData.manifesto = manifesto || [];
     appData.gallery = gallery || [];
+    appData.newsletters = newsletters || [];
     appData.settings = settings || { maintenance_mode: false };
 
     updateBadges();
@@ -319,6 +326,7 @@ async function loadAllData() {
     renderJoinRequestsTable();
     renderManifestoGrid();
     renderGalleryGrid();
+    renderNewsletterGrid();
     renderMaintenanceView();
     populateUserNotificationDropdown();
   } catch (err) {
@@ -357,6 +365,9 @@ function updateBadges() {
 
   const galleryBadge = document.getElementById('badge-gallery-count');
   if (galleryBadge) galleryBadge.textContent = appData.gallery.length;
+
+  const newsletterBadge = document.getElementById('badge-newsletter-count');
+  if (newsletterBadge) newsletterBadge.textContent = appData.newsletters.length;
 
   const maintBadge = document.getElementById('badge-maintenance-status');
   if (maintBadge) {
@@ -2277,6 +2288,158 @@ function renderGalleryGrid() {
           appData.gallery = await apiGetGallery();
           updateBadges();
           renderGalleryGrid();
+        } finally {
+          setBtnLoading(targetBtn, false);
+        }
+      }
+    });
+  });
+}
+
+function renderNewsletterGrid() {
+  const container = document.getElementById('newsletter-grid-container');
+  const btnOpenModal = document.getElementById('btn-open-create-newsletter-modal');
+
+  if (btnOpenModal && !btnOpenModal.dataset.bound) {
+    btnOpenModal.dataset.bound = 'true';
+    btnOpenModal.addEventListener('click', () => {
+      const modal = document.getElementById('modal-newsletter');
+      if (modal) modal.classList.add('active');
+    });
+  }
+
+  // Bind Form Submit
+  const form = document.getElementById('form-newsletter');
+  if (form && !form.dataset.bound) {
+    form.dataset.bound = 'true';
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btnSubmit = document.getElementById('btn-save-newsletter');
+      const mediaFileInput = document.getElementById('newsletter-input-media-file');
+      const mediaUrlInput = document.getElementById('newsletter-input-media-url');
+      const docFileInput = document.getElementById('newsletter-input-doc-file');
+      const docUrlInput = document.getElementById('newsletter-input-doc-url');
+      const statusDiv = document.getElementById('newsletter-upload-status');
+
+      let finalMediaUrl = mediaUrlInput ? mediaUrlInput.value.trim() : '';
+      let finalDocUrl = docUrlInput ? docUrlInput.value.trim() : '';
+      let finalDocName = '';
+
+      setBtnLoading(btnSubmit, true, 'Publishing News Letter...');
+
+      try {
+        if (mediaFileInput && mediaFileInput.files.length > 0) {
+          if (statusDiv) statusDiv.innerHTML = `<span class="upload-status-pill"><i class="fa-solid fa-spinner fa-spin"></i> Uploading Media to Cloudinary...</span>`;
+          finalMediaUrl = await apiUploadMediaFile(mediaFileInput.files[0]);
+        }
+
+        if (docFileInput && docFileInput.files.length > 0) {
+          if (statusDiv) statusDiv.innerHTML = `<span class="upload-status-pill"><i class="fa-solid fa-spinner fa-spin"></i> Uploading Document/PDF...</span>`;
+          finalDocName = docFileInput.files[0].name;
+          finalDocUrl = await apiUploadMediaFile(docFileInput.files[0]);
+        }
+
+        if (statusDiv) statusDiv.innerHTML = `<span class="upload-status-pill" style="color:var(--accent-emerald);"><i class="fa-solid fa-circle-check"></i> Files Uploaded!</span>`;
+
+        const payload = {
+          title: document.getElementById('newsletter-input-title').value,
+          category: document.getElementById('newsletter-input-category').value,
+          subtitle: document.getElementById('newsletter-input-subtitle').value,
+          author: document.getElementById('newsletter-input-author').value,
+          media_type: document.getElementById('newsletter-input-media-type').value,
+          media_url: finalMediaUrl,
+          doc_url: finalDocUrl,
+          doc_name: finalDocName || (finalDocUrl ? 'newsletter_document.pdf' : ''),
+          description: document.getElementById('newsletter-input-description').value
+        };
+
+        await apiCreateNewsletter(payload);
+        alert('News Letter published successfully!');
+        form.reset();
+        if (statusDiv) statusDiv.innerHTML = '';
+        document.getElementById('modal-newsletter').classList.remove('active');
+        appData.newsletters = await apiGetNewsletters();
+        updateBadges();
+        renderNewsletterGrid();
+      } catch (err) {
+        alert('Error publishing newsletter: ' + err.message);
+      } finally {
+        setBtnLoading(btnSubmit, false);
+      }
+    });
+  }
+
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!appData.newsletters || appData.newsletters.length === 0) {
+    container.innerHTML = `<div style="grid-column:1/-1; padding:40px; text-align:center; color:var(--text-muted);">No news letters or press meets published yet. Click "Add News Letter" above.</div>`;
+    return;
+  }
+
+  appData.newsletters.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'post-admin-card';
+
+    const hasMedia = Boolean(item.media_url);
+    const isVideo = item.media_type === 'video';
+    const hasDoc = Boolean(item.doc_url);
+    const publishDate = item.publish_date ? new Date(item.publish_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent';
+
+    let mediaHtml = '';
+    if (hasMedia) {
+      if (isVideo) {
+        mediaHtml = `
+          <div style="position:relative; width:100%; height:180px; background:#000; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+            <video src="${item.media_url}" style="width:100%; height:100%; object-fit:cover;" preload="metadata"></video>
+            <div style="position:absolute; width:44px; height:44px; background:rgba(2,132,199,0.85); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff;">
+              <i class="fa-solid fa-play"></i>
+            </div>
+          </div>
+        `;
+      } else {
+        mediaHtml = `<img src="${item.media_url}" class="post-card-image" alt="${item.title}" onError="this.onerror=null;this.src='/images/banner.jpg';" />`;
+      }
+    }
+
+    card.innerHTML = `
+      <div class="post-card-header">
+        <span class="pill-tag" style="background:rgba(2,132,199,0.15); color:#0284c7; font-weight:700;">
+          <i class="fa-solid fa-microphone-lines"></i> ${item.category || 'Press Meet'}
+        </span>
+        <button class="btn btn-sm btn-outline btn-delete-newsletter" data-id="${item.id}" style="color:var(--accent-rose);">
+          <i class="fa-solid fa-trash"></i> Delete
+        </button>
+      </div>
+      ${mediaHtml}
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:11px; color:var(--text-muted);">
+        <span><i class="fa-regular fa-calendar"></i> ${publishDate}</span>
+        <span><i class="fa-solid fa-user-tie"></i> ${item.author ? item.author.split('-')[0].trim() : 'PPPI President'}</span>
+      </div>
+      <h3 style="font-size:15px; font-weight:700; color:var(--text-primary); margin-top:6px; line-height:1.35;">${item.title}</h3>
+      ${item.subtitle ? `<p style="font-size:12px; font-weight:600; color:#0284c7; margin-bottom:4px;">${item.subtitle}</p>` : ''}
+      <p class="post-desc" style="max-height:80px; overflow:hidden; text-overflow:ellipsis;">${item.description || ''}</p>
+      ${hasDoc ? `
+        <div style="margin-top:10px; padding:6px 12px; background:rgba(16,185,129,0.1); border-radius:6px; display:flex; align-items:center; justify-content:space-between;">
+          <span style="font-size:12px; font-weight:700; color:#059669;"><i class="fa-solid fa-file-pdf"></i> ${item.doc_name || 'Attached Document'}</span>
+          <a href="${item.doc_url}" target="_blank" download class="btn btn-sm btn-outline" style="padding:2px 8px; font-size:11px; color:#059669; border-color:#059669;">Download</a>
+        </div>
+      ` : ''}
+    `;
+    container.appendChild(card);
+  });
+
+  container.querySelectorAll('.btn-delete-newsletter').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const targetBtn = e.currentTarget;
+      const id = targetBtn.getAttribute('data-id');
+      if (confirm('Are you sure you want to delete this News Letter / Press Meet?')) {
+        setBtnLoading(targetBtn, true, 'Deleting...');
+        try {
+          await apiDeleteNewsletter(id);
+          appData.newsletters = await apiGetNewsletters();
+          updateBadges();
+          renderNewsletterGrid();
         } finally {
           setBtnLoading(targetBtn, false);
         }

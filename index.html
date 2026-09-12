@@ -133,6 +133,11 @@
         </a>
 
         <div class="menu-label">Website Portal</div>
+        <a href="#" class="nav-item" data-view="newsletter">
+          <i class="fa-solid fa-newspaper"></i>
+          <span>News Letter</span>
+          <span class="badge" id="badge-newsletter-count" style="background:#0284c7; color:white;">0</span>
+        </a>
         <a href="#" class="nav-item" data-view="manifesto">
           <i class="fa-solid fa-book-open"></i>
           <span>Party Manifesto Topics</span>
@@ -821,6 +826,23 @@
           </div>
         </section>
 
+        <!-- NEWS LETTER CMS VIEW -->
+        <section id="view-newsletter" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Official Newsletters & Founder Press Meets</h1>
+              <p class="view-subtitle">Publish official party communiques, press conference transcripts, media releases, and downloadable documents.</p>
+            </div>
+            <button class="btn btn-primary" id="btn-open-create-newsletter-modal" style="background:#0284c7; border-color:#0284c7;">
+              <i class="fa-solid fa-plus"></i> Add News Letter
+            </button>
+          </div>
+
+          <div class="posts-grid" id="newsletter-grid-container">
+            <!-- Newsletter Cards Rendered Dynamically -->
+          </div>
+        </section>
+
         <!-- MAINTENANCE MODE CMS VIEW -->
         <section id="view-maintenance" class="content-view">
           <div class="view-header">
@@ -1339,6 +1361,76 @@
             <button type="button" class="btn btn-outline" data-close-modal="modal-gallery">Cancel</button>
             <button type="submit" class="btn btn-primary" id="btn-save-gallery">
               <i class="fa-solid fa-cloud-arrow-up"></i> Save Gallery Photo
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Add News Letter Modal -->
+  <div class="modal-backdrop" id="modal-newsletter">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-newspaper" style="color:#0284c7;"></i> Add News Letter / Founder Press Meet</h3>
+        <button class="modal-close" data-close-modal="modal-newsletter"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-newsletter">
+          <div class="form-row">
+            <div class="form-group" style="flex:2;">
+              <label class="form-label">News Letter / Press Meet Title *</label>
+              <input type="text" id="newsletter-input-title" class="form-control" placeholder="e.g. Historic Press Meet of Founder President Mr. B S Vahid Pasha" required />
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label class="form-label">Category</label>
+              <select id="newsletter-input-category" class="form-select">
+                <option value="Press Meet">Press Meet</option>
+                <option value="Official Bulletin">Official Bulletin</option>
+                <option value="Special Address">Special Address</option>
+                <option value="Electoral Vision">Electoral Vision</option>
+                <option value="Press Statement">Press Statement</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Subtitle / Press Venue</label>
+              <input type="text" id="newsletter-input-subtitle" class="form-control" placeholder="e.g. Official Address from DALASANUR Central Secretariat" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Author / Key Spokesperson</label>
+              <input type="text" id="newsletter-input-author" class="form-control" value="Mr. B S Vahid Pasha - Founder & National President" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Media Type (Image or Video)</label>
+              <select id="newsletter-input-media-type" class="form-select">
+                <option value="image">Image / Press Photo</option>
+                <option value="video">Video (MP4 / Direct)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Media File (Upload Image or Video)</label>
+              <input type="file" id="newsletter-input-media-file" class="form-control" accept="image/*,video/*" />
+              <input type="text" id="newsletter-input-media-url" class="form-control" placeholder="Or paste Image / Video direct URL..." style="margin-top:6px;" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Downloadable Document Attachment (PDF, DOC, DOCX)</label>
+            <input type="file" id="newsletter-input-doc-file" class="form-control" accept=".pdf,.doc,.docx,.txt" />
+            <input type="text" id="newsletter-input-doc-url" class="form-control" placeholder="Or paste PDF / Document direct URL..." style="margin-top:6px;" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Full Press Meet Description & Transcript *</label>
+            <textarea id="newsletter-input-description" class="form-control" rows="6" placeholder="Complete statement of the founder, key resolutions, and message for voters..." required></textarea>
+          </div>
+          <div id="newsletter-upload-status" style="margin-bottom: 12px;"></div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-newsletter">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-newsletter" style="background:#0284c7; border-color:#0284c7;">
+              <i class="fa-solid fa-paper-plane"></i> Proceed & Publish News Letter
             </button>
           </div>
         </form>
