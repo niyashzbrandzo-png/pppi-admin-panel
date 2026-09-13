@@ -1444,6 +1444,41 @@ export async function apiUpdateJobApplication(id, payload) {
   return updated.find(a => String(a.id) === String(id));
 }
 
+/* ==========================================================================
+   Agriculture & Farmers Community Forum APIs
+   ========================================================================== */
+export async function apiGetAgriQuestions() {
+  try {
+    const data = await request('/agriculture/questions');
+    if (data && data.data && Array.isArray(data.data)) {
+      return data.data;
+    }
+  } catch (err) {
+    console.warn('apiGetAgriQuestions remote fetch notice:', err.message);
+  }
+  return [];
+}
 
+export async function apiDeleteAgriQuestion(questionId) {
+  try {
+    const res = await request(`/agriculture/questions/${questionId}`, {
+      method: 'DELETE'
+    });
+    return res && res.status === 200;
+  } catch (err) {
+    console.error('apiDeleteAgriQuestion error:', err.message);
+    return false;
+  }
+}
 
-
+export async function apiDeleteAgriAnswer(answerId) {
+  try {
+    const res = await request(`/agriculture/answers/${answerId}`, {
+      method: 'DELETE'
+    });
+    return res && res.status === 200;
+  } catch (err) {
+    console.error('apiDeleteAgriAnswer error:', err.message);
+    return false;
+  }
+}

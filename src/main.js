@@ -54,6 +54,9 @@ import {
   apiDeleteJob,
   apiGetJobApplications,
   apiUpdateJobApplication,
+  apiGetAgriQuestions,
+  apiDeleteAgriQuestion,
+  apiDeleteAgriAnswer,
   apiGetSettings,
   apiToggleMaintenance,
   apiUpdateSettings,
@@ -83,6 +86,7 @@ let appData = {
   complaints: [],
   jobs: [],
   applications: [],
+  agriQuestions: [],
   settings: {
     maintenance_mode: false,
     maintenance_message: 'Currently Website & Mobile App Under Development',
@@ -154,7 +158,9 @@ async function initApp() {
   setupAdminAuth();
   setupSettingsForm();
   renderMaintenanceView();
-      if (targetView === 'employment') renderEmploymentView();
+  setupJobModals();
+  setupAgricultureAdminListeners();
+  applyRoleAccessControl();
 
   // Global Click Event Delegation for Maintenance controls
   document.addEventListener('click', (e) => {
@@ -3898,5 +3904,241 @@ function setupJobModals() {
         alert('Failed to save job: ' + err.message);
       }
     };
+  }
+}
+
+
+/* ==========================================================================
+   AGRICULTURE & FARMERS Q&A COMMUNITY FORUM MANAGEMENT (ADMIN ONLY)
+   ========================================================================== */
+function renderAgricultureView() {
+  const container = document.getElementById('agri-admin-feed-container');
+  if (!container) return;
+
+  const questions = appData.agriQuestions || [];
+
+  // Update KPI counters
+  let totalAnswers = 0;
+  let totalLikes = 0;
+  const categoriesSet = new Set();
+
+  questions.forEach(q => {
+    if (q.category) categoriesSet.add(q.category);
+    if (q.answers && Array.isArray(q.answers)) {
+      totalAnswers += q.answers.length;
+      q.answers.forEach(a => {
+        totalLikes += (a.likes_count || 0);
+      });
+    }
+  });
+
+  const statQ = document.getElementById('stat-agri-questions-total');
+  const statA = document.getElementById('stat-agri-answers-total');
+  const statC = document.getElementById('stat-agri-categories-total');
+  const statL = document.getElementById('stat-agri-likes-total');
+
+  if (statQ) statQ.textContent = questions.length;
+  if (statA) statA.textContent = totalAnswers;
+  if (statC) statC.textContent = categoriesSet.size || 6;
+  if (statL) statL.textContent = totalLikes;
+
+  // Filter and search
+  const catFilter = document.getElementById('agri-admin-filter-category')?.value || 'ALL';
+  const searchVal = (document.getElementById('agri-admin-search')?.value || '').trim().toLowerCase();
+
+  let filtered = questions.filter(q => q.status === 'ACTIVE' || !q.status);
+  if (catFilter !== 'ALL') {
+    filtered = filtered.filter(q => (q.category || '').toLowerCase() === catFilter.toLowerCase());
+  }
+  if (searchVal) {
+    filtered = filtered.filter(q =>
+      (q.question && q.question.toLowerCase().includes(searchVal)) ||
+      (q.description && q.description.toLowerCase().includes(searchVal)) ||
+      (q.user_name && q.user_name.toLowerCase().includes(searchVal)) ||
+      (q.user_mobile && q.user_mobile.includes(searchVal))
+    );
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding: 40px 20px; color: var(--text-muted);">
+        <i class="fa-solid fa-seedling" style="font-size: 36px; color: #16a34a; margin-bottom: 12px; display:block;"></i>
+        <h4 style="font-size:16px; font-weight:700; color:var(--text-primary); margin-bottom:4px;">No Questions Found</h4>
+        <p style="font-size:13px;">No agricultural discussions match your search or category filter.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      ${filtered.map(q => {
+        const answers = (q.answers || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        return `
+          <div class="card" style="border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; background: var(--bg-card); box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+            <!-- Question Header Row -->
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 12px; flex-wrap:wrap; gap:10px;">
+              <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
+                <span class="pill-tag" style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; padding:4px 10px; border-radius:20px;">
+                  <i class="fa-solid fa-tag"></i> ${escapeHtml(q.category || 'Farming')}
+                </span>
+                <span style="font-size:13px; font-weight:800; color:var(--text-primary);">
+                  <i class="fa-solid fa-user-circle"></i> ${escapeHtml(q.user_name || 'Farmer')}
+                </span>
+                <span style="font-size:12px; color:var(--text-muted); background:var(--bg-body, #f1f5f9); padding:2px 8px; border-radius:6px;">
+                  <i class="fa-solid fa-phone"></i> ${escapeHtml(q.user_mobile || 'N/A')}
+                </span>
+                <span style="font-size:11.5px; color:var(--text-muted); margin-left:6px;">
+                  <i class="fa-regular fa-clock"></i> ${q.created_at ? new Date(q.created_at).toLocaleDateString('en-IN') : 'Recent'}
+                </span>
+              </div>
+              <div>
+                <button type="button" class="btn btn-sm btn-outline-danger btn-delete-agri-q" data-qid="${q.id}" style="color:#ef4444; border-color:#fca5a5; font-size:12px; font-weight:700; padding:5px 12px;">
+                  <i class="fa-solid fa-trash"></i> Delete Question
+                </button>
+              </div>
+            </div>
+
+            <!-- Question Title & Description -->
+            <h4 style="font-size:16px; font-weight:800; color:var(--text-primary); margin-bottom:8px; line-height:1.4;">
+              ${escapeHtml(q.question)}
+            </h4>
+            ${q.description ? `
+              <p style="font-size:13.5px; color:var(--text-muted); line-height:1.6; margin-bottom:14px;">
+                ${escapeHtml(q.description)}
+              </p>
+            ` : ''}
+
+            <!-- Answers Sub-Thread -->
+            <div style="background:var(--bg-body, #f8fafc); border:1px dashed var(--border-color); border-radius:10px; padding:14px; margin-top:12px;">
+              <div style="font-size:13px; font-weight:800; color:var(--text-primary); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+                <span><i class="fa-solid fa-comments" style="color:#0284c7;"></i> Community Answers (${answers.length})</span>
+                <span style="font-size:11.5px; color:#15803d; font-weight:700;">Recent answers at top</span>
+              </div>
+
+              ${answers.length === 0 ? `
+                <div style="font-size:12.5px; color:var(--text-muted); font-style:italic; padding:6px 0;">
+                  No answers submitted yet for this question.
+                </div>
+              ` : `
+                <div style="display:flex; flex-direction:column; gap:12px;">
+                  ${answers.map((ans, aIdx) => `
+                    <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; padding:12px 14px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                      <div style="flex:1;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+                          <strong style="font-size:13.5px; color:var(--text-primary);">${escapeHtml(ans.author_name || 'Contributor')}</strong>
+                          <span style="font-size:11.5px; color:#0284c7; background:#e0f2fe; padding:2px 8px; border-radius:6px; font-weight:700;">
+                            <i class="fa-solid fa-certificate"></i> ${escapeHtml(ans.author_profession || 'Agricultural Specialist')}
+                          </span>
+                          <span style="font-size:11px; color:var(--text-muted);">
+                            ${ans.created_at ? new Date(ans.created_at).toLocaleString('en-IN') : ''}
+                          </span>
+                        </div>
+
+                        <div style="font-size:13px; color:var(--text-primary); line-height:1.55; margin-bottom:8px;">
+                          ${escapeHtml(ans.answer_text)}
+                        </div>
+
+                        ${ans.media_url ? `
+                          <div style="margin:8px 0; font-size:12px;">
+                            ${ans.media_type === 'VIDEO' ? `
+                              <a href="${escapeHtml(ans.media_url)}" target="_blank" style="display:inline-flex; align-items:center; gap:6px; color:#0284c7; font-weight:700; background:#f0f9ff; padding:4px 10px; border-radius:6px; text-decoration:none; border:1px solid #bae6fd;">
+                                <i class="fa-solid fa-video"></i> Open Video Demonstration
+                              </a>
+                            ` : `
+                              <a href="${escapeHtml(ans.media_url)}" target="_blank" style="display:inline-flex; align-items:center; gap:6px; color:#15803d; font-weight:700; background:#f0fdf4; padding:4px 10px; border-radius:6px; text-decoration:none; border:1px solid #bbf7d0;">
+                                <i class="fa-solid fa-image"></i> View Demonstration Photo
+                              </a>
+                            `}
+                          </div>
+                        ` : ''}
+
+                        <div style="font-size:12px; color:var(--text-muted); display:flex; gap:16px; align-items:center;">
+                          <span><i class="fa-solid fa-thumbs-up" style="color:#16a34a;"></i> <strong>${ans.likes_count || 0}</strong> Helpful Likes</span>
+                          <span><i class="fa-solid fa-thumbs-down" style="color:#ef4444;"></i> <strong>${ans.dislikes_count || 0}</strong> Dislikes</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-delete-agri-ans" data-ansid="${ans.id}" title="Remove this answer" style="color:#ef4444; border-color:#fca5a5; font-size:11.5px; padding:4px 10px; font-weight:700;">
+                          <i class="fa-solid fa-trash"></i> Delete
+                        </button>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+
+  // Bind Delete Question Buttons
+  container.querySelectorAll('.btn-delete-agri-q').forEach(btn => {
+    btn.onclick = async () => {
+      const qid = parseInt(btn.getAttribute('data-qid'), 10);
+      if (!qid) return;
+      const ok = confirm(`Are you sure you want to permanently delete Question #${qid} and all associated answers?`);
+      if (!ok) return;
+
+      try {
+        await apiDeleteAgriQuestion(qid);
+        alert('Question and associated answers have been removed by administrator.');
+        appData.agriQuestions = await apiGetAgriQuestions();
+        updateBadges();
+        renderAgricultureView();
+      } catch (err) {
+        alert('Failed to delete question: ' + err.message);
+      }
+    };
+  });
+
+  // Bind Delete Answer Buttons
+  container.querySelectorAll('.btn-delete-agri-ans').forEach(btn => {
+    btn.onclick = async () => {
+      const ansId = parseInt(btn.getAttribute('data-ansid'), 10);
+      if (!ansId) return;
+      const ok = confirm('Are you sure you want to permanently delete this answer?');
+      if (!ok) return;
+
+      try {
+        await apiDeleteAgriAnswer(ansId);
+        alert('Answer removed by administrator.');
+        appData.agriQuestions = await apiGetAgriQuestions();
+        updateBadges();
+        renderAgricultureView();
+      } catch (err) {
+        alert('Failed to delete answer: ' + err.message);
+      }
+    };
+  });
+}
+
+function setupAgricultureAdminListeners() {
+  const refreshBtn = document.getElementById('btn-refresh-agriculture');
+  if (refreshBtn) {
+    refreshBtn.onclick = async () => {
+      showTopLoader();
+      try {
+        appData.agriQuestions = await apiGetAgriQuestions();
+        updateBadges();
+        renderAgricultureView();
+        alert('Agriculture & Farmers forum discussions refreshed!');
+      } finally {
+        hideTopLoader();
+      }
+    };
+  }
+
+  const catSelect = document.getElementById('agri-admin-filter-category');
+  if (catSelect) {
+    catSelect.onchange = () => renderAgricultureView();
+  }
+
+  const searchInp = document.getElementById('agri-admin-search');
+  if (searchInp) {
+    searchInp.oninput = () => renderAgricultureView();
   }
 }

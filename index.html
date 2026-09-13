@@ -148,6 +148,16 @@
           <span>Public Complaints</span>
           <span class="badge" id="badge-complaints-count" style="background:#dc2626; color:white;">0</span>
         </a>
+        <a href="#" class="nav-item" data-view="employment" id="nav-employment">
+          <i class="fa-solid fa-briefcase" style="color:#0284c7;"></i>
+          <span>Employment &amp; Jobs</span>
+          <span class="badge" id="badge-employment-count" style="background:#0284c7; color:white;">0</span>
+        </a>
+        <a href="#" class="nav-item" data-view="agriculture" id="nav-agriculture" data-role="admin">
+          <i class="fa-solid fa-seedling" style="color:#16a34a;"></i>
+          <span>Agriculture &amp; Farmers</span>
+          <span class="badge" id="badge-agriculture-count" style="background:#16a34a; color:white;">0</span>
+        </a>
         <a href="#" class="nav-item" data-view="manifesto" data-role="admin">
           <i class="fa-solid fa-book-open"></i>
           <span>Party Manifesto Topics</span>
@@ -1070,11 +1080,104 @@
           </div>
         </section>
 
+        <!-- AGRICULTURE & FARMERS CMS VIEW -->
+        <section id="view-agriculture" class="content-view" data-role="admin">
+          <div class="view-header">
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                <h1 class="view-title">Agriculture &amp; Farmers Q&amp;A Management</h1>
+                <span style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
+                  KISAN MANCH CMS
+                </span>
+              </div>
+              <p class="view-subtitle">Supervise peer-to-peer agricultural discussions, review photo and video solutions, inspect farmer queries, and remove inappropriate submissions.</p>
+            </div>
+            <div class="view-actions">
+              <button class="btn btn-outline" id="btn-refresh-agriculture" title="Reload Discussions">
+                <i class="fa-solid fa-rotate"></i> Refresh
+              </button>
+            </div>
+          </div>
+
+          <!-- Agriculture KPI Metrics Cards -->
+          <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px;">
+            <div class="stat-card" style="border-left: 4px solid #16a34a;">
+              <div class="stat-icon" style="background: #dcfce7; color: #16a34a;">
+                <i class="fa-solid fa-circle-question"></i>
+              </div>
+              <div class="stat-details">
+                <span class="stat-label">Total Questions</span>
+                <h3 class="stat-value" id="stat-agri-questions-total">0</h3>
+                <span class="stat-trend positive"><i class="fa-solid fa-seedling"></i> Farmer Inquiries</span>
+              </div>
+            </div>
+
+            <div class="stat-card" style="border-left: 4px solid #0284c7;">
+              <div class="stat-icon" style="background: #e0f2fe; color: #0284c7;">
+                <i class="fa-solid fa-comments"></i>
+              </div>
+              <div class="stat-details">
+                <span class="stat-label">Total Answers</span>
+                <h3 class="stat-value" id="stat-agri-answers-total">0</h3>
+                <span class="stat-trend positive"><i class="fa-solid fa-user-check"></i> Community Solutions</span>
+              </div>
+            </div>
+
+            <div class="stat-card" style="border-left: 4px solid #f59e0b;">
+              <div class="stat-icon" style="background: #fef3c7; color: #f59e0b;">
+                <i class="fa-solid fa-tags"></i>
+              </div>
+              <div class="stat-details">
+                <span class="stat-label">Active Domains</span>
+                <h3 class="stat-value" id="stat-agri-categories-total">6</h3>
+                <span class="stat-trend"><i class="fa-solid fa-layer-group"></i> Agriculture Topics</span>
+              </div>
+            </div>
+
+            <div class="stat-card" style="border-left: 4px solid #ec4899;">
+              <div class="stat-icon" style="background: #fce7f3; color: #ec4899;">
+                <i class="fa-solid fa-heart"></i>
+              </div>
+              <div class="stat-details">
+                <span class="stat-label">Helpful Likes</span>
+                <h3 class="stat-value" id="stat-agri-likes-total">0</h3>
+                <span class="stat-trend positive"><i class="fa-solid fa-thumbs-up"></i> Positive Feedback</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter & Search Toolbar -->
+          <div class="table-card">
+            <div class="table-card-header" style="flex-wrap: wrap; gap: 14px;">
+              <div style="display: flex; gap: 12px; align-items: center; flex: 1; min-width: 300px;">
+                <div class="search-input" style="flex: 1;">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input type="text" id="agri-admin-search" placeholder="Search by question, author, or keyword..." />
+                </div>
+                <select id="agri-admin-filter-category" class="form-select" style="width: auto; min-width: 180px;">
+                  <option value="ALL">All Categories</option>
+                  <option value="Farming & Crops">Farming &amp; Crops</option>
+                  <option value="Land & Soil Health">Land &amp; Soil Health</option>
+                  <option value="Trees & Horticulture">Trees &amp; Horticulture</option>
+                  <option value="Farmers Welfare & Subsidies">Farmers Welfare &amp; Subsidies</option>
+                  <option value="Water & Irrigation">Water &amp; Irrigation</option>
+                  <option value="Livestock & Dairy">Livestock &amp; Dairy</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Questions Moderation Feed -->
+            <div id="agri-admin-feed-container" style="padding: 16px;">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </section>
+
         <!-- MAINTENANCE MODE CMS VIEW -->
         <section id="view-maintenance" class="content-view">
           <div class="view-header">
             <div>
-              <h1 class="view-title"><i class="fa-solid fa-screwdriver-wrench" style="color:#f59e0b;"></i> Website & App Maintenance Mode</h1>
+              <h1 class="view-title"><i class="fa-solid fa-screwdriver-wrench" style="color:#f59e0b;"></i> Website &amp; App Maintenance Mode</h1>
               <p class="view-subtitle">Enable or disable the public under-development maintenance screen with real-time toggle.</p>
             </div>
             <div style="display:flex; gap:10px; align-items:center;">
