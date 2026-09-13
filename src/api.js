@@ -1482,3 +1482,43 @@ export async function apiDeleteAgriAnswer(answerId) {
     return false;
   }
 }
+
+/* ==========================================================================
+   Law & Judiciary (Pending Court Cases) APIs
+   ========================================================================== */
+export async function apiGetLegalCases() {
+  try {
+    const data = await request('/law/cases');
+    if (data && data.data && Array.isArray(data.data)) {
+      return data.data;
+    }
+  } catch (err) {
+    console.warn('apiGetLegalCases remote fetch notice:', err.message);
+  }
+  return [];
+}
+
+export async function apiUpdateLegalCase(caseId, payload) {
+  try {
+    const res = await request(`/law/cases/${caseId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+    return res && (res.status === 200 || res.success);
+  } catch (err) {
+    console.error('apiUpdateLegalCase error:', err.message);
+    return false;
+  }
+}
+
+export async function apiDeleteLegalCase(caseId) {
+  try {
+    const res = await request(`/law/cases/${caseId}`, {
+      method: 'DELETE'
+    });
+    return res && res.status === 200;
+  } catch (err) {
+    console.error('apiDeleteLegalCase error:', err.message);
+    return false;
+  }
+}

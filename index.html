@@ -158,6 +158,11 @@
           <span>Agriculture &amp; Farmers</span>
           <span class="badge" id="badge-agriculture-count" style="background:#16a34a; color:white;">0</span>
         </a>
+        <a href="#" class="nav-item" data-view="law" id="nav-law" data-role="admin">
+          <i class="fa-solid fa-scale-balanced" style="color:#d97706;"></i>
+          <span>Law &amp; Judiciary</span>
+          <span class="badge" id="badge-law-count" style="background:#d97706; color:white;">0</span>
+        </a>
         <a href="#" class="nav-item" data-view="manifesto" data-role="admin">
           <i class="fa-solid fa-book-open"></i>
           <span>Party Manifesto Topics</span>
@@ -1169,6 +1174,124 @@
             <!-- Questions Moderation Feed -->
             <div id="agri-admin-feed-container" style="padding: 16px;">
               <!-- Dynamically populated -->
+            </div>
+          </div>
+        </section>
+
+        <!-- LAW AND JUDICIARY PENDING COURT CASES MANAGEMENT VIEW (STRICTLY ADMIN ONLY) -->
+        <section id="view-law" class="content-view" data-role="admin">
+          <div class="view-header">
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                <h1 class="view-title">Law &amp; Judiciary - Pending Court Cases</h1>
+                <span style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
+                  <i class="fa-solid fa-lock" style="font-size: 10px; margin-right: 4px;"></i> Strictly Confidential
+                </span>
+                <span style="background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
+                  Legal Aid Taskforce
+                </span>
+              </div>
+              <p class="view-subtitle">Confidential dossier management for citizens with stalled court cases and repeated "vaidas" seeking senior advocate intervention and legal relief.</p>
+            </div>
+          </div>
+
+          <!-- KPI Cards Grid -->
+          <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px;">
+            <div class="kpi-card" style="border-left: 4px solid #d97706;">
+              <div class="kpi-icon" style="background: #fef3c7; color: #d97706;">
+                <i class="fa-solid fa-scale-balanced"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Total Registered Cases</span>
+                <h3 class="kpi-value" id="kpi-law-total">0</h3>
+                <span class="kpi-subtext" style="color:#d97706; font-weight:600;">Court grievances</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" style="border-left: 4px solid #ef4444;">
+              <div class="kpi-icon" style="background: #fee2e2; color: #dc2626;">
+                <i class="fa-solid fa-hourglass-end"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Severe Delays (>25 Vaidas)</span>
+                <h3 class="kpi-value" id="kpi-law-stalled">0</h3>
+                <span class="kpi-subtext" style="color:#dc2626; font-weight:600;">Chronic stalls</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" style="border-left: 4px solid #2563eb;">
+              <div class="kpi-icon" style="background: #dbeafe; color: #2563eb;">
+                <i class="fa-solid fa-user-tie"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Advocate Assigned</span>
+                <h3 class="kpi-value" id="kpi-law-assigned">0</h3>
+                <span class="kpi-subtext" style="color:#2563eb; font-weight:600;">Under active counsel</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" style="border-left: 4px solid #16a34a;">
+              <div class="kpi-icon" style="background: #dcfce7; color: #16a34a;">
+                <i class="fa-solid fa-handshake"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">In Mediation / Lok Adalat</span>
+                <h3 class="kpi-value" id="kpi-law-mediation">0</h3>
+                <span class="kpi-subtext" style="color:#16a34a; font-weight:600;">Fast-track resolution</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Search & Filter Controls -->
+          <div class="card" style="margin-bottom: 20px; padding: 16px;">
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+              <div style="flex: 1; min-width: 260px; position: relative;">
+                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 12px; color: #94a3b8;"></i>
+                <input type="text" id="law-filter-search" class="form-control" placeholder="Search by litigant, case ref, court, or case number..." style="padding-left: 36px;" />
+              </div>
+              <div style="min-width: 180px;">
+                <select id="law-filter-tier" class="form-control">
+                  <option value="ALL">All Court Tiers</option>
+                  <option value="Supreme Court of India">Supreme Court of India</option>
+                  <option value="High Court">High Court</option>
+                  <option value="District &amp; Sessions Court">District &amp; Sessions Court</option>
+                  <option value="Senior Civil Judge Court">Senior Civil Judge Court</option>
+                  <option value="Junior Magistrate (JMFC)">Junior Magistrate (JMFC)</option>
+                  <option value="Family Court">Family Court</option>
+                  <option value="Revenue Court">Revenue / Tahsildar Court</option>
+                </select>
+              </div>
+              <div style="min-width: 160px;">
+                <select id="law-filter-status" class="form-control">
+                  <option value="ALL">All Statuses</option>
+                  <option value="PENDING_REVIEW">Pending Review</option>
+                  <option value="ADVOCATE_ASSIGNED">Advocate Assigned</option>
+                  <option value="IN_MEDIATION">In Mediation</option>
+                  <option value="RESOLVED">Resolved</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pending Legal Cases Table -->
+          <div class="card">
+            <div class="table-responsive">
+              <table class="data-table" id="table-law-cases">
+                <thead>
+                  <tr>
+                    <th>Ref / Litigant</th>
+                    <th>Contact / District</th>
+                    <th>Court &amp; Case No</th>
+                    <th>Vaidas / Hearings</th>
+                    <th>Stage &amp; Status</th>
+                    <th>Assigned Advocate</th>
+                    <th style="text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-law-cases">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
             </div>
           </div>
         </section>

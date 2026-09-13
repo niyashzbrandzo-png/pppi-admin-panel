@@ -57,6 +57,9 @@ import {
   apiGetAgriQuestions,
   apiDeleteAgriQuestion,
   apiDeleteAgriAnswer,
+  apiGetLegalCases,
+  apiUpdateLegalCase,
+  apiDeleteLegalCase,
   apiGetSettings,
   apiToggleMaintenance,
   apiUpdateSettings,
@@ -87,6 +90,7 @@ let appData = {
   jobs: [],
   applications: [],
   agriQuestions: [],
+  legalCases: [],
   settings: {
     maintenance_mode: false,
     maintenance_message: 'Currently Website & Mobile App Under Development',
@@ -160,6 +164,7 @@ async function initApp() {
   renderMaintenanceView();
   setupJobModals();
   setupAgricultureAdminListeners();
+  setupLawAdminListeners();
   applyRoleAccessControl();
 
   // Global Click Event Delegation for Maintenance controls
@@ -4087,8 +4092,14 @@ function renderAgricultureView() {
         await apiDeleteAgriQuestion(qid);
         alert('Question and associated answers have been removed by administrator.');
         appData.agriQuestions = await apiGetAgriQuestions();
+    try {
+      appData.legalCases = await apiGetLegalCases();
+    } catch(e) {
+      console.warn('apiGetLegalCases fallback notice:', e);
+    }
         updateBadges();
         renderAgricultureView();
+    renderLawView();
       } catch (err) {
         alert('Failed to delete question: ' + err.message);
       }
@@ -4140,5 +4151,329 @@ function setupAgricultureAdminListeners() {
   const searchInp = document.getElementById('agri-admin-search');
   if (searchInp) {
     searchInp.oninput = () => renderAgricultureView();
+  }
+}
+
+
+/* ==========================================================================
+   LAW & JUDICIARY (PENDING COURT CASES REDRESSAL) MANAGEMENT - ADMIN ONLY
+   ========================================================================== */
+function renderLawView() {
+  const tbody = document.getElementById('tbody-law-cases');
+  if (!tbody) return;
+
+  const cases = appData.legalCases || [];
+
+  // Update KPI counters
+  let totalCases = cases.length;
+  let severeDelays = 0;
+  let assignedCount = 0;
+  let inMediationCount = 0;
+
+  cases.forEach(c => {
+    const h = String(c.hearings_count || '');
+    if (h.includes('25') || h.includes('28') || h.includes('30') || h.includes('42') || h.includes('50')) {
+      severeDelays++;
+    }
+    if (c.status === 'ADVOCATE_ASSIGNED' || c.assigned_advocate) {
+      assignedCount++;
+    }
+    if (c.status === 'IN_MEDIATION' || (c.legal_aid_required && c.legal_aid_required.includes('Lok Adalat'))) {
+      inMediationCount++;
+    }
+  });
+
+  const kpiTotal = document.getElementById('kpi-law-total');
+  if (kpiTotal) kpiTotal.textContent = totalCases;
+  const kpiStalled = document.getElementById('kpi-law-stalled');
+  if (kpiStalled) kpiStalled.textContent = severeDelays;
+  const kpiAssigned = document.getElementById('kpi-law-assigned');
+  if (kpiAssigned) kpiAssigned.textContent = assignedCount;
+  const kpiMediation = document.getElementById('kpi-law-mediation');
+  if (kpiMediation) kpiMediation.textContent = inMediationCount;
+
+  // Filter logic
+  const searchVal = (document.getElementById('law-filter-search')?.value || '').toLowerCase().trim();
+  const tierVal = document.getElementById('law-filter-tier')?.value || 'ALL';
+  const statusVal = document.getElementById('law-filter-status')?.value || 'ALL';
+
+  const filtered = cases.filter(c => {
+    if (tierVal !== 'ALL' && !String(c.court_tier || '').includes(tierVal)) return false;
+    if (statusVal !== 'ALL' && c.status !== statusVal) return false;
+    if (searchVal) {
+      const q = searchVal;
+      const match = (c.litigant_name && c.litigant_name.toLowerCase().includes(q)) ||
+                    (c.case_ref_no && c.case_ref_no.toLowerCase().includes(q)) ||
+                    (c.court_name && c.court_name.toLowerCase().includes(q)) ||
+                    (c.case_number && c.case_number.toLowerCase().includes(q)) ||
+                    (c.phone && c.phone.includes(q)) ||
+                    (c.district && c.district.toLowerCase().includes(q));
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align: center; padding: 36px 16px; color: #64748b;">
+          <i class="fa-solid fa-scale-unbalanced" style="font-size: 28px; margin-bottom: 8px; display: block; color: #cbd5e1;"></i>
+          No pending court cases matching your search filters.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(c => {
+    const isSevere = String(c.hearings_count || '').includes('25') || String(c.hearings_count || '').includes('42') || String(c.hearings_count || '').includes('50');
+    return `
+      <tr>
+        <td>
+          <div style="font-family: monospace; font-size: 11.5px; font-weight: 800; color: #1e3a5f;">${escapeHtml(c.case_ref_no || '')}</div>
+          <strong style="color: #0f172a; font-size: 13.5px;">${escapeHtml(c.litigant_name || 'Anonymous')}</strong>
+          <div style="font-size: 11px; color: #64748b;">${escapeHtml(c.litigant_role || 'Petitioner')}</div>
+        </td>
+        <td>
+          <div><i class="fa-solid fa-phone" style="font-size: 10px; color: #16a34a; margin-right: 4px;"></i>${escapeHtml(c.phone || 'N/A')}</div>
+          <div style="font-size: 11px; color: #64748b;"><i class="fa-solid fa-location-dot" style="font-size: 10px; margin-right: 3px;"></i>${escapeHtml(c.district || 'Kolar')}, ${escapeHtml(c.state || 'Karnataka')}</div>
+        </td>
+        <td>
+          <strong style="font-size: 12.5px; color: #1e293b;">${escapeHtml(c.case_number || 'N/A')}</strong>
+          <div style="font-size: 11px; color: #0284c7; font-weight: 600;">${escapeHtml(c.case_type || 'Civil Suit')}</div>
+          <div style="font-size: 10.5px; color: #64748b; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${escapeHtml(c.court_name || '')}
+          </div>
+        </td>
+        <td>
+          <span style="display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 800; ${isSevere ? 'background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5;' : 'background: #fef3c7; color: #b45309; border: 1px solid #fde68a;'}">
+            ${isSevere ? '<i class="fa-solid fa-triangle-exclamation" style="font-size: 10px; margin-right: 3px;"></i>' : ''}${escapeHtml(c.hearings_count || '10+ Hearings')}
+          </span>
+        </td>
+        <td>
+          <div style="margin-bottom: 4px;">
+            <span class="badge ${c.status === 'ADVOCATE_ASSIGNED' ? 'badge-primary' : c.status === 'RESOLVED' ? 'badge-success' : 'badge-warning'}">
+              ${(c.status || 'PENDING_REVIEW').replace(/_/g, ' ')}
+            </span>
+          </div>
+          <small style="color: #64748b; font-size: 10.5px; display: block; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${escapeHtml(c.case_stage || '')}
+          </small>
+        </td>
+        <td>
+          ${c.assigned_advocate ? `
+            <div style="font-weight: 700; color: #1d4ed8; font-size: 12px;">
+              <i class="fa-solid fa-user-tie" style="margin-right: 4px;"></i>${escapeHtml(c.assigned_advocate)}
+            </div>
+          ` : `
+            <span style="font-size: 11px; color: #94a3b8; font-style: italic;">Awaiting Assignment</span>
+          `}
+        </td>
+        <td style="text-align: right; white-space: nowrap;">
+          <button type="button" class="btn btn-sm btn-outline-primary btn-view-law-dossier" data-id="${c.id}" title="Review Case Dossier" style="margin-right: 4px;">
+            <i class="fa-solid fa-eye"></i> View
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-danger btn-delete-law-case" data-id="${c.id}" title="Delete Case">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Bind View Dossier buttons
+  document.querySelectorAll('.btn-view-law-dossier').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.getAttribute('data-id');
+      const item = cases.find(x => String(x.id) === String(id));
+      if (item) openLawDossierModal(item);
+    };
+  });
+
+  // Bind Delete buttons
+  document.querySelectorAll('.btn-delete-law-case').forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.getAttribute('data-id');
+      if (!confirm('Are you sure you want to remove this confidential legal case from the registry?')) return;
+      try {
+        await apiDeleteLegalCase(id);
+        alert('Legal case dossier successfully removed.');
+        appData.legalCases = await apiGetLegalCases();
+        updateBadges();
+        renderLawView();
+      } catch (err) {
+        alert('Failed to delete legal case: ' + err.message);
+      }
+    };
+  });
+}
+
+function openLawDossierModal(item) {
+  let modal = document.getElementById('modal-law-dossier');
+  if (!modal) {
+    const modalDiv = document.createElement('div');
+    modalDiv.id = 'modal-law-dossier';
+    modalDiv.className = 'modal';
+    modalDiv.style.display = 'none';
+    modalDiv.innerHTML = `
+      <div class="modal-dialog" style="max-width: 780px;">
+        <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
+          <div class="modal-header" style="background: #1e3a5f; color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="modal-title" style="margin: 0; font-size: 16px;"><i class="fa-solid fa-scale-balanced" style="margin-right: 8px;"></i>Confidential Judicial Dossier Review</h3>
+            <button type="button" id="btn-close-law-dossier-x" style="color: white; background: none; border: none; font-size: 20px; cursor: pointer;">&times;</button>
+          </div>
+          <div class="modal-body" id="law-modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modalDiv);
+    modal = modalDiv;
+
+    document.getElementById('btn-close-law-dossier-x').onclick = () => {
+      modal.style.display = 'none';
+    };
+  }
+
+  const body = document.getElementById('law-modal-body');
+  if (!body) return;
+
+  body.innerHTML = `
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div>
+          <span style="font-family: monospace; font-size: 15px; font-weight: 800; color: #1e3a5f;">${escapeHtml(item.case_ref_no || '')}</span>
+          <span style="background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; margin-left: 8px;">STRICTLY CONFIDENTIAL</span>
+        </div>
+        <span class="badge ${item.status === 'ADVOCATE_ASSIGNED' ? 'badge-primary' : 'badge-warning'}">${(item.status || 'PENDING_REVIEW').replace(/_/g, ' ')}</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
+        <div><strong>Litigant Name:</strong> ${escapeHtml(item.litigant_name || '')} (${escapeHtml(item.litigant_role || 'Petitioner')})</div>
+        <div><strong>Contact Mobile:</strong> <a href="tel:${item.phone}" style="color: #16a34a; font-weight: bold;">${escapeHtml(item.phone || '')}</a></div>
+        <div><strong>Father/Spouse:</strong> ${escapeHtml(item.father_or_spouse || 'Not specified')}</div>
+        <div><strong>Email:</strong> ${escapeHtml(item.email || 'N/A')}</div>
+        <div><strong>Aadhaar / ID:</strong> ${escapeHtml(item.aadhaar_no || 'N/A')}</div>
+        <div><strong>District / State:</strong> ${escapeHtml(item.district || 'Kolar')}, ${escapeHtml(item.state || 'Karnataka')}</div>
+        <div style="grid-column: span 2;"><strong>Residential Address:</strong> ${escapeHtml(item.address || 'N/A')}</div>
+      </div>
+    </div>
+
+    <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
+      <h4 style="margin: 0 0 12px 0; color: #1e3a5f; font-size: 14px;"><i class="fa-solid fa-gavel" style="margin-right: 6px;"></i>Court &amp; Proceedings Particulars</h4>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
+        <div><strong>Court Name:</strong> ${escapeHtml(item.court_name || '')}</div>
+        <div><strong>Court Tier:</strong> ${escapeHtml(item.court_tier || 'District Court')}</div>
+        <div><strong>Case / Suit No:</strong> ${escapeHtml(item.case_number || '')}</div>
+        <div><strong>Year Filed:</strong> ${escapeHtml(item.year_filed || '')}</div>
+        <div><strong>Case Type:</strong> ${escapeHtml(item.case_type || '')}</div>
+        <div><strong>CNR Number:</strong> ${escapeHtml(item.cnr_number || 'N/A')}</div>
+        <div><strong>Opposite Party:</strong> ${escapeHtml(item.opposite_party_name || '')}</div>
+        <div><strong>Opposite Advocate:</strong> ${escapeHtml(item.opposite_advocate || 'N/A')}</div>
+        <div><strong>Hearings / Vaidas Attended:</strong> <span style="color: #dc2626; font-weight: bold;">${escapeHtml(item.hearings_count || '')}</span></div>
+        <div><strong>Current Stage:</strong> ${escapeHtml(item.case_stage || '')}</div>
+        <div><strong>Next Hearing Date:</strong> ${item.next_hearing_date ? new Date(item.next_hearing_date).toLocaleDateString('en-IN') : 'Not scheduled'}</div>
+        <div><strong>Relief Requested:</strong> ${escapeHtml(item.legal_aid_required || '')}</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <h4 style="margin: 0 0 6px 0; color: #1e3a5f; font-size: 14px;">Reasons for Repeated Adjournments / Stall:</h4>
+      <p style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #92400e; margin: 0;">
+        ${escapeHtml(item.delay_reasons || 'Frequent adjournments requested by opposite party.')}
+      </p>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <h4 style="margin: 0 0 6px 0; color: #1e3a5f; font-size: 14px;">Detailed Dispute Summary &amp; Hardship Faced:</h4>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #334155; line-height: 1.5;">
+        ${escapeHtml(item.dispute_summary || '')}
+        ${item.hardship_details ? `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1; color: #b91c1c;"><strong>Specific Hardship:</strong> ${escapeHtml(item.hardship_details)}</div>` : ''}
+      </div>
+    </div>
+
+    ${item.document_urls ? `
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 6px 0; color: #1e3a5f; font-size: 14px;">Attached Court Documents:</h4>
+        <a href="${item.document_urls}" target="_blank" class="btn btn-sm btn-outline-secondary" style="display: inline-flex; align-items: center; gap: 6px;">
+          <i class="fa-solid fa-file-pdf"></i> View Attached Case Document
+        </a>
+      </div>
+    ` : ''}
+
+    <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px; padding: 16px;">
+      <h4 style="margin: 0 0 12px 0; color: #1e1b4b; font-size: 14px;"><i class="fa-solid fa-user-gear" style="margin-right: 6px;"></i>Admin Legal Action &amp; Advocate Assignment</h4>
+      <form id="form-update-law-status">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div>
+            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Legal Case Status:</label>
+            <select id="modal-law-status" class="form-control" style="width: 100%;">
+              <option value="PENDING_REVIEW" ${item.status === 'PENDING_REVIEW' ? 'selected' : ''}>PENDING REVIEW</option>
+              <option value="ADVOCATE_ASSIGNED" ${item.status === 'ADVOCATE_ASSIGNED' ? 'selected' : ''}>ADVOCATE ASSIGNED</option>
+              <option value="IN_MEDIATION" ${item.status === 'IN_MEDIATION' ? 'selected' : ''}>IN MEDIATION / LOK ADALAT</option>
+              <option value="FAST_TRACKED" ${item.status === 'FAST_TRACKED' ? 'selected' : ''}>FAST TRACKED IN COURT</option>
+              <option value="RESOLVED" ${item.status === 'RESOLVED' ? 'selected' : ''}>RESOLVED / DECREED</option>
+              <option value="DISMISSED" ${item.status === 'DISMISSED' ? 'selected' : ''}>DISMISSED / CLOSED</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Assigned PPPI Advocate:</label>
+            <input type="text" id="modal-law-advocate" class="form-control" value="${escapeHtml(item.assigned_advocate || '')}" placeholder="e.g. Adv. B. R. Sreenivasa Murthy" style="width: 100%;" />
+          </div>
+        </div>
+        <div style="margin-bottom: 14px;">
+          <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Advocate / Admin Action Notes:</label>
+          <textarea id="modal-law-notes" class="form-control" rows="3" placeholder="Enter legal notes, next steps, court memo details..." style="width: 100%;">${escapeHtml(item.admin_notes || '')}</textarea>
+        </div>
+        <div style="text-align: right;">
+          <button type="submit" class="btn btn-primary" id="btn-save-law-status" style="background: #1e3a5f; border-color: #1e3a5f;">
+            <i class="fa-solid fa-floppy-disk" style="margin-right: 6px;"></i> Save Legal Actions
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  modal.style.display = 'flex';
+
+  const form = document.getElementById('form-update-law-status');
+  if (form) {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const status = document.getElementById('modal-law-status')?.value;
+      const assigned_advocate = document.getElementById('modal-law-advocate')?.value?.trim();
+      const admin_notes = document.getElementById('modal-law-notes')?.value?.trim();
+
+      try {
+        const ok = await apiUpdateLegalCase(item.id, { status, assigned_advocate, admin_notes });
+        if (ok) {
+          alert('Legal case dossier and advocate assignment updated successfully!');
+          modal.style.display = 'none';
+          appData.legalCases = await apiGetLegalCases();
+          updateBadges();
+          renderLawView();
+        } else {
+          alert('Failed to update legal case.');
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    };
+  }
+}
+
+function setupLawAdminListeners() {
+  const searchInp = document.getElementById('law-filter-search');
+  if (searchInp) {
+    searchInp.oninput = () => renderLawView();
+  }
+
+  const tierSelect = document.getElementById('law-filter-tier');
+  if (tierSelect) {
+    tierSelect.onchange = () => renderLawView();
+  }
+
+  const statusSelect = document.getElementById('law-filter-status');
+  if (statusSelect) {
+    statusSelect.onchange = () => renderLawView();
   }
 }
