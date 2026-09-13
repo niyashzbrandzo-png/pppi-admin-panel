@@ -1150,4 +1150,150 @@ export async function apiDeletePublicity(id) {
   return { success: true, id };
 }
 
+/* ==========================================================================
+   PUBLIC COMPLAINTS & GRIEVANCE CELL API
+   ========================================================================== */
+const LOCAL_COMPLAINTS_KEY = 'pppi_admin_complaints_cache';
+
+const DEFAULT_COMPLAINTS = [
+  {
+    id: 1,
+    complaint_no: 'PPPI-CMP-894102-4521',
+    complainer_name: 'Rajeshwari S. Gowda',
+    father_or_spouse: 'Late Shankarappa Gowda',
+    phone: '9845123456',
+    alternate_phone: '9845123457',
+    email: 'rajeshwari.gowda@gmail.com',
+    gender: 'Female',
+    age: 44,
+    aadhaar_no: '5421-8932-1145',
+    pan_no: 'BQJPG4582K',
+    address: 'Survey No. 42/1, Dalasanur Cross Road, Kolar Rural',
+    state: 'Karnataka',
+    district: 'Kolar',
+    taluk: 'Srinivaspur',
+    pincode: '563126',
+    is_victim: true,
+    victim_name: null,
+    victim_contact: null,
+    victim_relation: null,
+    victim_address: null,
+    category: 'Land Grabbing & Property Encroachment',
+    incident_date: new Date('2026-09-08T09:30:00Z').toISOString(),
+    incident_location: 'Dalasanur Survey No. 42/1, Near Old Gram Panchayat Office',
+    accused_details: 'Local Real Estate Syndicate & Revenue Inspector S. Manjunath',
+    description: 'Our ancestral agricultural land measuring 2.4 acres was illegally fenced and forged documents were registered by local land grabbers with corrupt revenue officials. Despite repeated petitions to the Tahsildar office, no inspection was conducted and we are receiving continuous threats to vacate our farmland.',
+    selfie_url: '/images/founder.jpg',
+    evidence_urls: '/images/banner.jpg',
+    latitude: 13.2678,
+    longitude: 78.2043,
+    gps_address: 'Dalasanur, Srinivaspur Taluk, Kolar District, Karnataka 563126',
+    status: 'UNDER_REVIEW',
+    priority: 'HIGH',
+    admin_notes: 'Initial legal review completed. Advocate team dispatched notice to Assistant Commissioner Kolar Sub-division for spot inspection.',
+    action_taken_by: 'Adv. S. Ramanathan (PPPI Legal Action Cell)',
+    created_at: new Date('2026-09-09T10:15:00Z').toISOString()
+  },
+  {
+    id: 2,
+    complaint_no: 'PPPI-CMP-781423-6319',
+    complainer_name: 'Mohammed Farooq Khan',
+    father_or_spouse: 'Abdul Wahab Khan',
+    phone: '7259798393',
+    alternate_phone: '9448112233',
+    email: 'farooq.k@yahoo.com',
+    gender: 'Male',
+    age: 38,
+    aadhaar_no: '8874-2319-5561',
+    pan_no: 'AFKPK7712M',
+    address: '#14/B, Market Road, Near Town Police Station',
+    state: 'Karnataka',
+    district: 'Chikkaballapur',
+    taluk: 'Chintamani',
+    pincode: '563125',
+    is_victim: false,
+    victim_name: 'Zubair Khan (Son)',
+    victim_contact: '9448112233',
+    victim_relation: 'Son',
+    victim_address: '#14/B, Market Road, Chintamani',
+    category: 'Corruption & Bribery in Public Office',
+    incident_date: new Date('2026-09-10T11:00:00Z').toISOString(),
+    incident_location: 'Town Municipal Council Office, 2nd Floor, Room 14',
+    accused_details: 'Assistant Town Planning Officer & Municipal Broker',
+    description: 'Demand of ₹75,000 cash bribe for issuing building completion certificate and khata transfer for our small residential shop. Officer refused to receive the official application without prior cash payment.',
+    selfie_url: '/images/banner.jpg',
+    evidence_urls: '/images/banner.jpg',
+    latitude: 13.4012,
+    longitude: 78.0567,
+    gps_address: 'Chintamani Town Municipal Council, Chikkaballapur District',
+    status: 'ACTION_TAKEN',
+    priority: 'URGENT',
+    admin_notes: 'Lokayukta complaint drafted and submitted. Party taluk committee staging public demonstration outside TMC office.',
+    action_taken_by: 'Kolar-Chikkaballapur District Convener',
+    created_at: new Date('2026-09-11T12:00:00Z').toISOString()
+  }
+];
+
+export async function apiGetComplaints() {
+  try {
+    const data = await request('/complaints');
+    if (data && Array.isArray(data.data) && data.data.length > 0) {
+      localStorage.setItem(LOCAL_COMPLAINTS_KEY, JSON.stringify(data.data));
+      return data.data;
+    }
+  } catch (err) {
+    console.warn('apiGetComplaints remote fetch error, using local/fallback:', err.message);
+  }
+  const cached = localStorage.getItem(LOCAL_COMPLAINTS_KEY);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) {}
+  }
+  return DEFAULT_COMPLAINTS;
+}
+
+export async function apiGetComplaintById(id) {
+  try {
+    const data = await request(`/complaints/${id}`);
+    if (data && data.data) return data.data;
+  } catch (err) {
+    console.warn('apiGetComplaintById remote error:', err.message);
+  }
+  const all = await apiGetComplaints();
+  return all.find(c => String(c.id) === String(id) || c.complaint_no === id) || null;
+}
+
+export async function apiUpdateComplaint(id, payload) {
+  try {
+    const data = await request(`/complaints/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+    if (data && data.data) return data.data;
+  } catch (err) {
+    console.warn('apiUpdateComplaint remote error, updating locally:', err.message);
+  }
+  const all = await apiGetComplaints();
+  const updated = all.map(c => {
+    if (String(c.id) === String(id) || c.complaint_no === id) {
+      return { ...c, ...payload, updated_at: new Date().toISOString() };
+    }
+    return c;
+  });
+  localStorage.setItem(LOCAL_COMPLAINTS_KEY, JSON.stringify(updated));
+  return updated.find(c => String(c.id) === String(id) || c.complaint_no === id);
+}
+
+export async function apiDeleteComplaint(id) {
+  try {
+    await request(`/complaints/${id}`, { method: 'DELETE' });
+  } catch (err) {
+    console.warn('apiDeleteComplaint remote error, deleting locally:', err.message);
+  }
+  const all = await apiGetComplaints();
+  const updated = all.filter(c => String(c.id) !== String(id) && c.complaint_no !== id);
+  localStorage.setItem(LOCAL_COMPLAINTS_KEY, JSON.stringify(updated));
+  return { success: true, id };
+}
+
+
 

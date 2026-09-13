@@ -44,6 +44,10 @@ import {
   apiGetPublicities,
   apiCreatePublicity,
   apiDeletePublicity,
+  apiGetComplaints,
+  apiGetComplaintById,
+  apiUpdateComplaint,
+  apiDeleteComplaint,
   apiGetSettings,
   apiToggleMaintenance,
   apiUpdateSettings,
@@ -70,6 +74,7 @@ let appData = {
   gallery: [],
   newsletters: [],
   publicities: [],
+  complaints: [],
   settings: {
     maintenance_mode: false,
     maintenance_message: 'Currently Website & Mobile App Under Development',
@@ -277,6 +282,7 @@ async function loadAllData() {
       apiGetGallery(),
       apiGetNewsletters(),
       apiGetPublicities(),
+      apiGetComplaints(),
       apiGetSettings()
     ]);
 
@@ -294,7 +300,8 @@ async function loadAllData() {
     const gallery = results[11].status === 'fulfilled' ? results[11].value : [];
     const newsletters = results[12].status === 'fulfilled' ? results[12].value : [];
     const publicities = results[13].status === 'fulfilled' ? results[13].value : [];
-    const settings = results[14].status === 'fulfilled' ? results[14].value : null;
+    const complaints = results[14].status === 'fulfilled' ? results[14].value : [];
+    const settings = results[15].status === 'fulfilled' ? results[15].value : null;
 
     appData.users = users || [];
     appData.posts = posts || [];
@@ -318,6 +325,7 @@ async function loadAllData() {
     appData.gallery = gallery || [];
     appData.newsletters = newsletters || [];
     appData.publicities = publicities || [];
+    appData.complaints = complaints || [];
     appData.settings = settings || { maintenance_mode: false };
 
     updateBadges();
@@ -335,6 +343,7 @@ async function loadAllData() {
     renderGalleryGrid();
     renderNewsletterGrid();
     renderPublicityGrid();
+    renderComplaintsTable();
     renderMaintenanceView();
     populateUserNotificationDropdown();
   } catch (err) {
@@ -379,6 +388,22 @@ function updateBadges() {
 
   const publicityBadge = document.getElementById('badge-publicity-count');
   if (publicityBadge) publicityBadge.textContent = appData.publicities.length;
+
+  const pendingComplaints = appData.complaints.filter(c => c.status === 'PENDING' || c.status === 'UNDER_REVIEW').length;
+  const complaintsBadge = document.getElementById('badge-complaints-count');
+  if (complaintsBadge) complaintsBadge.textContent = pendingComplaints || appData.complaints.length;
+
+  const statComplaintsTotal = document.getElementById('stat-complaints-total');
+  if (statComplaintsTotal) statComplaintsTotal.textContent = appData.complaints.length;
+
+  const statComplaintsPending = document.getElementById('stat-complaints-pending');
+  if (statComplaintsPending) statComplaintsPending.textContent = appData.complaints.filter(c => c.status === 'PENDING').length;
+
+  const statComplaintsAction = document.getElementById('stat-complaints-action');
+  if (statComplaintsAction) statComplaintsAction.textContent = appData.complaints.filter(c => c.status === 'ACTION_TAKEN' || c.status === 'UNDER_REVIEW').length;
+
+  const statComplaintsResolved = document.getElementById('stat-complaints-resolved');
+  if (statComplaintsResolved) statComplaintsResolved.textContent = appData.complaints.filter(c => c.status === 'RESOLVED').length;
 
   const maintBadge = document.getElementById('badge-maintenance-status');
   if (maintBadge) {
@@ -2613,6 +2638,397 @@ function renderPublicityGrid() {
   });
 }
 
+function renderComplaintsTable() {
+  const container = document.getElementById('complaints-table-container');
+  if (!container) return;
+
+  const searchInput = document.getElementById('input-search-complaints');
+  const statusFilter = document.getElementById('filter-complaints-status');
+
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => renderComplaintsTable());
+  }
+
+  if (statusFilter && !statusFilter.dataset.bound) {
+    statusFilter.dataset.bound = 'true';
+    statusFilter.addEventListener('change', () => renderComplaintsTable());
+  }
+
+  const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+  const selectedStatus = statusFilter ? statusFilter.value : 'ALL';
+
+  let filtered = [...appData.complaints];
+
+  if (selectedStatus !== 'ALL') {
+    filtered = filtered.filter(c => c.status === selectedStatus);
+  }
+
+  if (query) {
+    filtered = filtered.filter(c => 
+      (c.complaint_no && c.complaint_no.toLowerCase().includes(query)) ||
+      (c.complainer_name && c.complainer_name.toLowerCase().includes(query)) ||
+      (c.phone && c.phone.includes(query)) ||
+      (c.district && c.district.toLowerCase().includes(query)) ||
+      (c.category && c.category.toLowerCase().includes(query))
+    );
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="padding: 48px 20px; text-align: center; color: var(--text-muted);">
+        <i class="fa-solid fa-folder-open" style="font-size: 38px; color: #cbd5e1; margin-bottom: 12px;"></i>
+        <h3 style="font-size: 16px; color: var(--text-primary); margin-bottom: 4px;">No Complaints Found</h3>
+        <p style="font-size: 13px;">No citizen grievance dossiers match the current search or status filter.</p>
+      </div>
+    `;
+    return;
+  }
+
+  let tableHtml = `
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Grievance Reference</th>
+          <th>Citizen / Complainer</th>
+          <th>Category &amp; Incident</th>
+          <th>Location &amp; GPS</th>
+          <th>Verification &amp; Selfie</th>
+          <th>Status</th>
+          <th style="text-align: right;">Confidential Dossier</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  filtered.forEach(item => {
+    const dateStr = item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent';
+    const hasGps = Boolean(item.latitude && item.longitude);
+    const mapsLink = hasGps ? `https://maps.google.com/?q=${item.latitude},${item.longitude}` : '#';
+
+    let statusBadgeStyle = 'background: rgba(245, 158, 11, 0.15); color: #b45309;';
+    if (item.status === 'RESOLVED') statusBadgeStyle = 'background: rgba(16, 185, 129, 0.15); color: #059669;';
+    if (item.status === 'ACTION_TAKEN') statusBadgeStyle = 'background: rgba(2, 132, 199, 0.15); color: #0284c7;';
+    if (item.status === 'REJECTED') statusBadgeStyle = 'background: rgba(239, 68, 68, 0.15); color: #dc2626;';
+
+    tableHtml += `
+      <tr>
+        <td>
+          <div style="font-weight: 800; color: var(--text-primary); font-family: monospace; font-size: 12.5px;">${item.complaint_no}</div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;"><i class="fa-regular fa-clock"></i> ${dateStr}</div>
+          <span class="pill-tag" style="background:#fef2f2; color:#b91c1c; font-size:10px; font-weight:800; padding:1px 6px; margin-top:3px;">
+            ${item.priority || 'HIGH'} PRIORITY
+          </span>
+        </td>
+        <td>
+          <div style="font-weight: 700; color: var(--text-primary);">${item.complainer_name}</div>
+          ${item.father_or_spouse ? `<div style="font-size: 11px; color: var(--text-muted);">C/O ${item.father_or_spouse}</div>` : ''}
+          <div style="font-size: 12px; color: #0284c7; font-weight: 600; margin-top: 2px;">
+            <a href="tel:${item.phone}" style="color:inherit; text-decoration:none;"><i class="fa-solid fa-phone"></i> ${item.phone}</a>
+          </div>
+        </td>
+        <td>
+          <div class="pill-tag" style="background: rgba(239, 68, 68, 0.1); color: #b91c1c; font-weight: 700; font-size: 11px; margin-bottom: 3px;">
+            ${item.category}
+          </div>
+          <div style="font-size: 12px; color: var(--text-secondary); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${item.incident_location || 'Location in description'}
+          </div>
+        </td>
+        <td>
+          <div style="font-weight: 600; color: var(--text-primary); font-size: 12.5px;">${item.district || 'Karnataka'}, ${item.taluk || ''}</div>
+          ${hasGps ? `
+            <a href="${mapsLink}" target="_blank" rel="noopener noreferrer" style="font-size: 11px; color: #059669; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-top: 2px;">
+              <i class="fa-solid fa-location-crosshairs"></i> GPS: ${item.latitude.toFixed(4)}, ${item.longitude.toFixed(4)}
+            </a>
+          ` : `<span style="font-size: 11px; color: var(--text-muted);">Manual Address</span>`}
+        </td>
+        <td>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            ${item.selfie_url ? `
+              <img src="${item.selfie_url}" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid #10b981;" alt="Selfie" onError="this.onerror=null;this.src='/images/founder.jpg';" />
+            ` : `
+              <div style="width: 38px; height: 38px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #94a3b8;"><i class="fa-solid fa-user"></i></div>
+            `}
+            <div>
+              <span class="pill-tag" style="background:#ecfdf5; color:#065f46; font-size:10px; font-weight:800; padding:2px 6px;">
+                <i class="fa-solid fa-id-card"></i> AADHAAR VERIFIED
+              </span>
+              ${item.pan_no ? `
+                <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; margin-top: 2px;">PAN: ${item.pan_no}</div>
+              ` : ''}
+            </div>
+          </div>
+        </td>
+        <td>
+          <span class="pill-tag" style="${statusBadgeStyle} font-weight: 800; font-size: 11px;">
+            ${item.status}
+          </span>
+        </td>
+        <td style="text-align: right;">
+          <button type="button" class="btn btn-sm btn-primary btn-open-dossier" data-id="${item.id}" style="background: #1e1b4b; border-color: #1e1b4b; padding: 6px 12px; font-size: 12px; font-weight: 700;">
+            <i class="fa-solid fa-folder-open"></i> View Dossier
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+
+  tableHtml += `
+      </tbody>
+    </table>
+  `;
+
+  container.innerHTML = tableHtml;
+
+  // Bind Open Dossier Modal Click
+  container.querySelectorAll('.btn-open-dossier').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      openComplaintDossierModal(id);
+    });
+  });
+}
+
+function openComplaintDossierModal(id) {
+  const item = appData.complaints.find(c => String(c.id) === String(id) || c.complaint_no === id);
+  if (!item) return;
+
+  const modal = document.getElementById('modal-complaint-dossier');
+  const titleEl = document.getElementById('dossier-modal-title');
+  const bodyEl = document.getElementById('dossier-modal-body');
+
+  if (titleEl) {
+    titleEl.textContent = `Confidential Dossier: ${item.complaint_no}`;
+  }
+
+  const hasGps = Boolean(item.latitude && item.longitude);
+  const mapsLink = hasGps ? `https://maps.google.com/?q=${item.latitude},${item.longitude}` : '#';
+  const dateStr = item.created_at ? new Date(item.created_at).toLocaleString('en-IN') : 'Recent';
+  const incidentDateStr = item.incident_date ? new Date(item.incident_date).toLocaleDateString('en-IN') : 'Not specified';
+
+  if (bodyEl) {
+    bodyEl.innerHTML = `
+      <!-- TOP STATUS & PRIORITY RIBBON -->
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase;">Tracking Ref:</span>
+          <span style="font-family: monospace; font-size: 15px; font-weight: 900; color: #1e1b4b;">${item.complaint_no}</span>
+          <span class="pill-tag" style="background:#fee2e2; color:#b91c1c; font-weight:800; font-size:11px;">${item.priority || 'HIGH'} PRIORITY</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; font-size: 12px; color: #64748b;">
+          <span><i class="fa-regular fa-clock"></i> Filed On: <strong>${dateStr}</strong></span>
+          <span class="pill-tag" style="background:#ecfdf5; color:#065f46; font-weight:800;"><i class="fa-solid fa-shield-halved"></i> LEGALLY SEALED</span>
+        </div>
+      </div>
+
+      <!-- 2-COLUMN DOSSIER GRID -->
+      <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; align-items: start;">
+        
+        <!-- LEFT COLUMN: CITIZEN CREDENTIALS & LOCATION -->
+        <div>
+          <!-- CITIZEN / COMPLAINER CARD -->
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+            <h4 style="font-size: 13px; font-weight: 800; color: #1e1b4b; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 8px;">
+              <i class="fa-solid fa-user-check" style="color: #0284c7;"></i> Complainer / Citizen Credentials
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+              <div style="display: flex; justify-content: space-between;"><span style="color:#64748b; font-weight:600;">Full Name:</span> <strong style="color:#0f172a;">${item.complainer_name}</strong></div>
+              ${item.father_or_spouse ? `<div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">Father/Spouse:</span> <span>${item.father_or_spouse}</span></div>` : ''}
+              <div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">Mobile:</span> <a href="tel:${item.phone}" style="color:#0284c7; font-weight:700; text-decoration:none;">${item.phone}</a></div>
+              ${item.alternate_phone ? `<div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">Alt Contact:</span> <span>${item.alternate_phone}</span></div>` : ''}
+              ${item.email ? `<div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">Email:</span> <span>${item.email}</span></div>` : ''}
+              <div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">Gender / Age:</span> <span>${item.gender || 'N/A'}, ${item.age ? item.age + ' Yrs' : 'N/A'}</span></div>
+              <div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">Aadhaar Card:</span> <strong style="color:#065f46; font-family:monospace;">${item.aadhaar_no}</strong></div>
+              ${item.pan_no ? `<div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">PAN Card:</span> <strong style="color:#0284c7; font-family:monospace;">${item.pan_no}</strong></div>` : ''}
+              <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e2e8f0;">
+                <span style="color:#64748b; font-size:12px; display:block; margin-bottom:2px;">Residential Address:</span>
+                <div style="color:#334155; font-size:12.5px; line-height:1.4;">${item.address}, ${item.taluk ? item.taluk + ', ' : ''}${item.district}, ${item.state} - ${item.pincode}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- VICTIM STATUS CARD -->
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
+            <h4 style="font-size: 13px; font-weight: 800; color: #1e1b4b; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-hospital-user" style="color: #e11d48;"></i> Victim Information
+            </h4>
+            ${item.is_victim ? `
+              <div class="pill-tag" style="background:#f0fdf4; color:#059669; font-weight:700; font-size:12px;">
+                <i class="fa-solid fa-check"></i> Complainer is the direct primary victim
+              </div>
+            ` : `
+              <div style="font-size: 12.5px; line-height: 1.5; color: #334155;">
+                <div><strong>Victim Name:</strong> ${item.victim_name || 'Not provided'}</div>
+                <div><strong>Relation to Complainer:</strong> ${item.victim_relation || 'Not specified'}</div>
+                <div><strong>Contact:</strong> ${item.victim_contact || 'N/A'}</div>
+                <div><strong>Address:</strong> ${item.victim_address || 'N/A'}</div>
+              </div>
+            `}
+          </div>
+
+          <!-- VERIFICATION SELFIE & GPS CARD -->
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px;">
+            <h4 style="font-size: 13px; font-weight: 800; color: #1e1b4b; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 8px;">
+              <i class="fa-solid fa-camera-retro" style="color: #059669;"></i> Live Selfie &amp; Geolocation Verification
+            </h4>
+            <div style="display: flex; gap: 14px; align-items: center;">
+              ${item.selfie_url ? `
+                <div style="width: 100px; height: 100px; border-radius: 10px; overflow: hidden; border: 2px solid #10b981; flex-shrink: 0; background: #000;">
+                  <img src="${item.selfie_url}" style="width: 100%; height: 100%; object-fit: cover;" alt="Verification Selfie" onError="this.onerror=null;this.src='/images/founder.jpg';" />
+                </div>
+              ` : `
+                <div style="width: 100px; height: 100px; border-radius: 10px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #94a3b8;">No Selfie</div>
+              `}
+              <div style="flex: 1; font-size: 12px; line-height: 1.5;">
+                <div style="font-weight: 800; color: #065f46;"><i class="fa-solid fa-circle-check"></i> Biometric Selfie Authenticated</div>
+                <div style="color: #64748b; margin-top: 4px;">Captured live via Citizen Camera stream</div>
+                ${hasGps ? `
+                  <div style="margin-top: 8px;">
+                    <a href="${mapsLink}" target="_blank" class="btn btn-sm btn-outline" style="color: #059669; border-color: #059669; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                      <i class="fa-solid fa-map-location-dot"></i> View Incident GPS on Google Maps
+                    </a>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+            ${item.gps_address ? `
+              <div style="margin-top: 10px; font-size: 11.5px; color: #475569; background: #f8fafc; padding: 8px 10px; border-radius: 6px;">
+                <i class="fa-solid fa-location-dot" style="color:#ef4444;"></i> <strong>GPS Reverse Address:</strong> ${item.gps_address}
+              </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: INCIDENT, TRANSCRIPT, EVIDENCE & CASE ACTION -->
+        <div>
+          <!-- INCIDENT PARTICULARS -->
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 20px;">
+            <h4 style="font-size: 13px; font-weight: 800; color: #1e1b4b; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 8px;">
+              <i class="fa-solid fa-triangle-exclamation" style="color: #b91c1c;"></i> Incident Particulars &amp; Accused Details
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+              <div style="display: flex; justify-content: space-between;"><span style="color:#64748b; font-weight:600;">Category:</span> <strong style="color:#b91c1c;">${item.category}</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">Incident Date:</span> <span>${incidentDateStr}</span></div>
+              <div><span style="color:#64748b; display:block; margin-bottom:2px;">Incident Location / Jurisdiction:</span> <strong>${item.incident_location}</strong></div>
+              ${item.accused_details ? `
+                <div style="background: #fff1f2; border: 1px solid #fecdd3; padding: 8px 12px; border-radius: 6px; margin-top: 4px;">
+                  <span style="color: #9f1239; font-weight: 800; font-size: 11.5px; text-transform: uppercase; display:block; margin-bottom: 2px;">Accused Individual(s) / Organization:</span>
+                  <div style="color: #881337; font-size: 12.5px;">${item.accused_details}</div>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- FULL COMPLAINT NARRATIVE STATEMENT -->
+          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 20px;">
+            <h4 style="font-size: 13px; font-weight: 800; color: #1e1b4b; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-file-lines" style="color: #0284c7;"></i> Citizen Statement &amp; Case Narrative
+            </h4>
+            <div style="background: #f8fafc; border-left: 4px solid #0284c7; padding: 12px 16px; border-radius: 6px; font-size: 13px; line-height: 1.65; color: #1e293b; text-align: justify; max-height: 220px; overflow-y: auto;">
+              ${(item.description || '').replace(/\n/g, '<br/>')}
+            </div>
+            ${item.evidence_urls ? `
+              <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 12px; font-weight: 700; color: #059669;"><i class="fa-solid fa-paperclip"></i> Supporting Evidence Files Attached</span>
+                <a href="${item.evidence_urls}" target="_blank" download class="btn btn-sm btn-outline" style="color: #059669; border-color: #059669; font-size: 11px;">Download Evidence</a>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- ADMIN CASE CONTROLS -->
+          <div style="background: #faf5ff; border: 1.5px solid #d8b4fe; border-radius: 10px; padding: 18px;">
+            <h4 style="font-size: 13px; font-weight: 800; color: #6b21a8; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-gavel"></i> Admin Grievance Action &amp; Status Controls
+            </h4>
+            <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+              <div style="flex: 1;">
+                <label style="display:block; font-size: 11.5px; font-weight: 700; color: #581c87; margin-bottom: 4px;">Update Status</label>
+                <select id="dossier-status-select" class="form-select" style="width: 100%; font-size: 12.5px;">
+                  <option value="PENDING" ${item.status === 'PENDING' ? 'selected' : ''}>PENDING VERIFICATION</option>
+                  <option value="UNDER_REVIEW" ${item.status === 'UNDER_REVIEW' ? 'selected' : ''}>UNDER REVIEW / INVESTIGATION</option>
+                  <option value="ACTION_TAKEN" ${item.status === 'ACTION_TAKEN' ? 'selected' : ''}>LEGAL ACTION INITIATED</option>
+                  <option value="RESOLVED" ${item.status === 'RESOLVED' ? 'selected' : ''}>RESOLVED / JUSTICE SERVED</option>
+                  <option value="REJECTED" ${item.status === 'REJECTED' ? 'selected' : ''}>REJECTED / INVALID</option>
+                </select>
+              </div>
+              <div style="flex: 1;">
+                <label style="display:block; font-size: 11.5px; font-weight: 700; color: #581c87; margin-bottom: 4px;">Assigned Legal Officer / Convener</label>
+                <input type="text" id="dossier-officer-input" class="form-control" style="font-size: 12.5px;" value="${item.action_taken_by || 'PPPI Legal Action Cell'}" />
+              </div>
+            </div>
+            <div style="margin-bottom: 14px;">
+              <label style="display:block; font-size: 11.5px; font-weight: 700; color: #581c87; margin-bottom: 4px;">Internal Case Notes &amp; Action Taken</label>
+              <textarea id="dossier-notes-textarea" class="form-control" rows="3" style="font-size: 12.5px;" placeholder="Document legal notices sent, district administration response, ground inspections, and resolution details...">${item.admin_notes || ''}</textarea>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <button type="button" class="btn btn-sm btn-outline" id="btn-delete-dossier" style="color: var(--accent-rose); border-color: var(--accent-rose); font-size: 12px;">
+                <i class="fa-solid fa-trash"></i> Delete Case
+              </button>
+              <button type="button" class="btn btn-sm btn-primary" id="btn-save-dossier-action" style="background: #6b21a8; border-color: #6b21a8; font-size: 12.5px; font-weight: 700;">
+                <i class="fa-solid fa-floppy-disk"></i> Save Case Updates
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    `;
+
+    // Bind Save Case Action
+    const saveBtn = document.getElementById('btn-save-dossier-action');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        const newStatus = document.getElementById('dossier-status-select').value;
+        const newOfficer = document.getElementById('dossier-officer-input').value;
+        const newNotes = document.getElementById('dossier-notes-textarea').value;
+
+        setBtnLoading(saveBtn, true, 'Updating...');
+        try {
+          await apiUpdateComplaint(item.id, {
+            status: newStatus,
+            action_taken_by: newOfficer,
+            admin_notes: newNotes
+          });
+          alert('Complaint dossier updated successfully!');
+          appData.complaints = await apiGetComplaints();
+          updateBadges();
+          renderComplaintsTable();
+          modal.classList.remove('active');
+        } catch (err) {
+          alert('Error updating dossier: ' + err.message);
+        } finally {
+          setBtnLoading(saveBtn, false);
+        }
+      });
+    }
+
+    // Bind Delete Case
+    const deleteBtn = document.getElementById('btn-delete-dossier');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', async () => {
+        if (confirm(`Are you sure you want to delete complaint dossier ${item.complaint_no}? This action cannot be undone.`)) {
+          setBtnLoading(deleteBtn, true, 'Deleting...');
+          try {
+            await apiDeleteComplaint(item.id);
+            alert('Complaint dossier deleted successfully.');
+            appData.complaints = await apiGetComplaints();
+            updateBadges();
+            renderComplaintsTable();
+            modal.classList.remove('active');
+          } catch (err) {
+            alert('Error deleting complaint: ' + err.message);
+          } finally {
+            setBtnLoading(deleteBtn, false);
+          }
+        }
+      });
+    }
+  }
+
+  modal.classList.add('active');
+}
+
 function renderMaintenanceView() {
   const isMaint = Boolean(appData.settings && appData.settings.maintenance_mode);
   
@@ -2622,6 +3038,7 @@ function renderMaintenanceView() {
   const toggleBtn = document.getElementById('btn-toggle-maintenance');
   const lastUpdated = document.getElementById('maintenance-last-updated');
   const headlinePreview = document.getElementById('maintenance-headline-preview');
+
 
   const headlineInput = document.getElementById('maintenance-input-headline');
   const subtextInput = document.getElementById('maintenance-input-subtext');

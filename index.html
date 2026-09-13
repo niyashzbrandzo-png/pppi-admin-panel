@@ -143,6 +143,11 @@
           <span>Publicities &amp; Posters</span>
           <span class="badge" id="badge-publicity-count" style="background:#059669; color:white;">0</span>
         </a>
+        <a href="#" class="nav-item" data-view="complaints">
+          <i class="fa-solid fa-shield-halved" style="color:#ef4444;"></i>
+          <span>Public Complaints</span>
+          <span class="badge" id="badge-complaints-count" style="background:#dc2626; color:white;">0</span>
+        </a>
         <a href="#" class="nav-item" data-view="manifesto">
           <i class="fa-solid fa-book-open"></i>
           <span>Party Manifesto Topics</span>
@@ -865,6 +870,82 @@
           </div>
         </section>
 
+        <!-- PUBLIC COMPLAINTS & GRIEVANCE CMS VIEW -->
+        <section id="view-complaints" class="content-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title"><i class="fa-solid fa-shield-halved" style="color:#ef4444;"></i> Confidential Public Complaints &amp; Grievance Cell</h1>
+              <p class="view-subtitle">Strictly confidential citizen grievance records with live GPS location tracking, selfie verification, and legal action logs.</p>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <span class="pill-tag" style="background:#fee2e2; color:#dc2626; font-weight:800; font-size:12px; padding:6px 12px;">
+                <i class="fa-solid fa-lock"></i> RESTRICTED CONFIDENTIAL DOSSIER
+              </span>
+            </div>
+          </div>
+
+          <!-- COMPLAINT METRICS -->
+          <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 20px;">
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                <i class="fa-solid fa-folder-closed"></i>
+              </div>
+              <div>
+                <div class="stat-label">Total Grievances Filed</div>
+                <div class="stat-value" id="stat-complaints-total">0</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                <i class="fa-solid fa-hourglass-half"></i>
+              </div>
+              <div>
+                <div class="stat-label">Pending Verification</div>
+                <div class="stat-value" id="stat-complaints-pending">0</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(2, 132, 199, 0.1); color: #0284c7;">
+                <i class="fa-solid fa-scale-balanced"></i>
+              </div>
+              <div>
+                <div class="stat-label">Legal Action Initiated</div>
+                <div class="stat-value" id="stat-complaints-action">0</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                <i class="fa-solid fa-circle-check"></i>
+              </div>
+              <div>
+                <div class="stat-label">Resolved / Closed</div>
+                <div class="stat-value" id="stat-complaints-resolved">0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SEARCH & FILTER BAR -->
+          <div class="filters-bar" style="margin-bottom: 16px; display:flex; gap:12px; flex-wrap:wrap;">
+            <div class="search-input-wrapper" style="flex:1; min-width:240px;">
+              <i class="fa-solid fa-magnifying-glass search-icon"></i>
+              <input type="text" id="input-search-complaints" class="search-input" placeholder="Search by Complaint No, Citizen Name, Phone, or District..." />
+            </div>
+            <select id="filter-complaints-status" class="form-select" style="width: auto; min-width: 170px;">
+              <option value="ALL">All Statuses</option>
+              <option value="PENDING">Pending Verification</option>
+              <option value="UNDER_REVIEW">Under Review</option>
+              <option value="ACTION_TAKEN">Action Taken</option>
+              <option value="RESOLVED">Resolved</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
+          </div>
+
+          <!-- COMPLAINTS TABLE CONTAINER -->
+          <div class="table-container" id="complaints-table-container">
+            <!-- Rendered Dynamically -->
+          </div>
+        </section>
+
         <!-- MAINTENANCE MODE CMS VIEW -->
         <section id="view-maintenance" class="content-view">
           <div class="view-header">
@@ -1519,6 +1600,25 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Confidential Complaint Dossier Modal -->
+  <div class="modal-backdrop" id="modal-complaint-dossier">
+    <div class="modal-dialog modal-xl" style="max-width:960px;">
+      <div class="modal-header" style="background:linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); color:#fff; border-bottom:3px solid #ef4444;">
+        <div>
+          <h3 style="display:flex; align-items:center; gap:8px; margin:0; color:#fff;">
+            <i class="fa-solid fa-shield-halved" style="color:#f87171;"></i> 
+            <span id="dossier-modal-title">Confidential Citizen Complaint Dossier</span>
+          </h3>
+          <span style="font-size:11px; color:#cbd5e1; font-weight:700; text-transform:uppercase;">OFFICIAL POLICE/FIR-STYLE LEGAL RECORD • PPPI CENTRAL LEGAL CELL</span>
+        </div>
+        <button class="modal-close" data-close-modal="modal-complaint-dossier" style="color:#fff;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" id="dossier-modal-body" style="padding:22px; max-height:80vh; overflow-y:auto;">
+        <!-- Dossier Content Rendered Dynamically -->
       </div>
     </div>
   </div>
