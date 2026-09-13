@@ -48,6 +48,12 @@ import {
   apiGetComplaintById,
   apiUpdateComplaint,
   apiDeleteComplaint,
+  apiGetJobs,
+  apiCreateJob,
+  apiUpdateJob,
+  apiDeleteJob,
+  apiGetJobApplications,
+  apiUpdateJobApplication,
   apiGetSettings,
   apiToggleMaintenance,
   apiUpdateSettings,
@@ -75,6 +81,8 @@ let appData = {
   newsletters: [],
   publicities: [],
   complaints: [],
+  jobs: [],
+  applications: [],
   settings: {
     maintenance_mode: false,
     maintenance_message: 'Currently Website & Mobile App Under Development',
@@ -146,6 +154,7 @@ async function initApp() {
   setupAdminAuth();
   setupSettingsForm();
   renderMaintenanceView();
+      if (targetView === 'employment') renderEmploymentView();
 
   // Global Click Event Delegation for Maintenance controls
   document.addEventListener('click', (e) => {
@@ -283,6 +292,8 @@ async function loadAllData() {
       apiGetNewsletters(),
       apiGetPublicities(),
       apiGetComplaints(),
+      apiGetJobs(),
+      apiGetJobApplications(),
       apiGetSettings()
     ]);
 
@@ -355,6 +366,12 @@ async function loadAllData() {
 
 // Update Badges & Counters
 function updateBadges() {
+  const badgeJobs = document.getElementById('badge-jobs-count');
+  if (badgeJobs) badgeJobs.textContent = appData.jobs ? appData.jobs.length : 0;
+  const countTabJobs = document.getElementById('count-tab-jobs');
+  if (countTabJobs) countTabJobs.textContent = appData.jobs ? appData.jobs.length : 0;
+  const countTabApps = document.getElementById('count-tab-apps');
+  if (countTabApps) countTabApps.textContent = appData.applications ? appData.applications.length : 0;
   document.getElementById('badge-users-count').textContent = appData.users.length;
   document.getElementById('badge-posts-count').textContent = appData.posts.length;
 
@@ -3242,3 +3259,644 @@ function promptMaintenanceConfirmation() {
   }
 }
 
+
+
+
+/* ==========================================================================
+   ROLE ACCESS CONTROL (ADMIN vs EMPLOYER)
+   ========================================================================== */
+function applyRoleAccessControl() {
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem('pppi_admin_user') || '{}');
+  } catch (e) {}
+
+  const isEmployer = user && user.role === 'EMPLOYER';
+  const roleBadge = document.getElementById('employer-mode-badge');
+  const userProfileRole = document.querySelector('.user-profile-role');
+
+  if (isEmployer) {
+    // Hide admin-only navigation links & section headers
+    document.querySelectorAll('[data-role="admin"]').forEach(el => {
+      el.style.setProperty('display', 'none', 'important');
+    });
+
+    if (roleBadge) {
+      roleBadge.textContent = user.company_name ? `${user.company_name} • RECRUITER` : 'EMPLOYER DESK';
+    }
+    if (userProfileRole) {
+      userProfileRole.textContent = 'Company Recruiter';
+    }
+
+    // Automatically activate Employment view for employer
+    setTimeout(() => {
+      const empNav = document.querySelector('[data-view="employment"]');
+      if (empNav) empNav.click();
+    }, 50);
+  } else {
+    // Show all modules for full ADMIN
+    document.querySelectorAll('[data-role="admin"]').forEach(el => {
+      el.style.removeProperty('display');
+    });
+    if (roleBadge) {
+      roleBadge.textContent = 'MASTER ADMIN';
+    }
+    if (userProfileRole) {
+      userProfileRole.textContent = 'System Administrator';
+    }
+  }
+}
+
+/* ==========================================================================
+   EMPLOYMENT & RECRUITMENT VIEW IMPLEMENTATION
+   ========================================================================== */
+let activeEmploymentTab = 'jobs';
+let selectedJobFilterForApps = 'ALL';
+
+function renderEmploymentView() {
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem('pppi_admin_user') || '{}');
+  } catch (e) {}
+
+  const isEmployer = user && user.role === 'EMPLOYER';
+  const currentEmployerId = user ? user.id : null;
+
+  // Filter jobs by employer if logged in as Employer
+  const visibleJobs = (isEmployer && currentEmployerId)
+    ? appData.jobs.filter(j => String(j.employer_id) === String(currentEmployerId) || j.employer_id === 999 || j.employer_id === 1)
+    : appData.jobs;
+
+  const jobIds = visibleJobs.map(j => j.id);
+  const visibleApps = isEmployer
+    ? appData.applications.filter(a => jobIds.includes(a.job_id))
+    : appData.applications;
+
+  // 1. Update Metrics
+  const totalVacancies = visibleJobs.length;
+  const activeVacancies = visibleJobs.filter(j => (j.status || '').toUpperCase() === 'ACTIVE').length;
+  const totalApps = visibleApps.length;
+  const shortlistedApps = visibleApps.filter(a => (a.status || '').toUpperCase() === 'SHORTLISTED' || (a.status || '').toUpperCase() === 'HIRED').length;
+
+  const statTotal = document.getElementById('stat-jobs-total');
+  if (statTotal) statTotal.textContent = totalVacancies;
+  const statActive = document.getElementById('stat-jobs-active');
+  if (statActive) statActive.textContent = activeVacancies;
+  const statApps = document.getElementById('stat-jobs-apps');
+  if (statApps) statApps.textContent = totalApps;
+  const statShortlisted = document.getElementById('stat-jobs-shortlisted');
+  if (statShortlisted) statShortlisted.textContent = shortlistedApps;
+
+  const countTabJobs = document.getElementById('count-tab-jobs');
+  if (countTabJobs) countTabJobs.textContent = totalVacancies;
+  const countTabApps = document.getElementById('count-tab-apps');
+  if (countTabApps) countTabApps.textContent = totalApps;
+
+  // 2. Wire Tab Switching
+  const btnTabJobs = document.getElementById('tab-btn-jobs');
+  const btnTabApps = document.getElementById('tab-btn-applications');
+  const paneJobs = document.getElementById('tab-pane-jobs');
+  const paneApps = document.getElementById('tab-pane-applications');
+
+  if (btnTabJobs && btnTabApps) {
+    btnTabJobs.onclick = () => {
+      activeEmploymentTab = 'jobs';
+      btnTabJobs.style.background = '#0284c7';
+      btnTabJobs.style.color = '#ffffff';
+      btnTabApps.style.background = '#f1f5f9';
+      btnTabApps.style.color = '#475569';
+      if (paneJobs) paneJobs.style.display = 'block';
+      if (paneApps) paneApps.style.display = 'none';
+    };
+
+    btnTabApps.onclick = () => {
+      activeEmploymentTab = 'apps';
+      btnTabApps.style.background = '#0284c7';
+      btnTabApps.style.color = '#ffffff';
+      btnTabJobs.style.background = '#f1f5f9';
+      btnTabJobs.style.color = '#475569';
+      if (paneJobs) paneJobs.style.display = 'none';
+      if (paneApps) paneApps.style.display = 'block';
+      renderApplicationsTable();
+    };
+  }
+
+  // Populate Filter Dropdown for Applications
+  const filterAppsJob = document.getElementById('filter-apps-job');
+  if (filterAppsJob) {
+    filterAppsJob.innerHTML = '<option value="ALL">All Job Vacancies</option>' +
+      visibleJobs.map(j => `<option value="${j.id}" ${String(selectedJobFilterForApps) === String(j.id) ? 'selected' : ''}>${j.title} (${j.company_name})</option>`).join('');
+  }
+
+  renderJobsTable(visibleJobs);
+  renderApplicationsTable(visibleApps);
+  setupJobModals();
+}
+
+function renderJobsTable(jobsList = appData.jobs) {
+  const container = document.getElementById('jobs-table-container');
+  if (!container) return;
+
+  const searchInput = document.getElementById('input-search-jobs');
+  const deptSelect = document.getElementById('filter-jobs-dept');
+  const statusSelect = document.getElementById('filter-jobs-status');
+
+  const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const dept = deptSelect ? deptSelect.value : 'ALL';
+  const status = statusSelect ? statusSelect.value : 'ALL';
+
+  const filtered = jobsList.filter(job => {
+    if (dept !== 'ALL' && !((job.department || '').toLowerCase().includes(dept.toLowerCase()))) return false;
+    if (status !== 'ALL' && (job.status || 'ACTIVE').toUpperCase() !== status.toUpperCase()) return false;
+    if (q) {
+      const match = (job.title || '').toLowerCase().includes(q) ||
+                    (job.company_name || '').toLowerCase().includes(q) ||
+                    (job.location || '').toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding: 48px 20px; color: var(--text-muted);">
+        <i class="fa-solid fa-briefcase" style="font-size:42px; margin-bottom:12px; color: #cbd5e1;"></i>
+        <h3 style="font-size:16px; font-weight:700; color:var(--text-primary); margin-bottom:6px;">No Job Vacancies Found</h3>
+        <p style="font-size:13px; margin:0;">Click "Post New Vacancy" above to publish your company's hiring requirements.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Job Title &amp; Company</th>
+          <th>Department &amp; Type</th>
+          <th>Location</th>
+          <th>Salary Range</th>
+          <th>Vacancies</th>
+          <th>Status</th>
+          <th>Applications</th>
+          <th style="text-align:right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filtered.map(job => {
+          const isActive = (job.status || 'ACTIVE').toUpperCase() === 'ACTIVE';
+          const appsCount = appData.applications.filter(a => String(a.job_id) === String(job.id)).length;
+          return `
+            <tr>
+              <td>
+                <div style="font-weight: 800; color: var(--text-primary); font-size: 13.5px;">${job.title}</div>
+                <div style="font-size: 12px; color: #0284c7; font-weight: 600;"><i class="fa-solid fa-building"></i> ${job.company_name}</div>
+              </td>
+              <td>
+                <div style="font-size: 12.5px; font-weight: 600; color: #334155;">${job.department || 'General'}</div>
+                <span class="badge" style="background:#f1f5f9; color:#475569; font-size:11px;">${job.job_type || 'Full-time'} • ${job.workplace_type || 'On-site'}</span>
+              </td>
+              <td>
+                <div style="font-size: 12.5px; color: #475569;"><i class="fa-solid fa-location-dot" style="color:#ef4444;"></i> ${job.location}</div>
+              </td>
+              <td>
+                <strong style="color: #059669; font-size: 12.5px;">${job.salary_range}</strong>
+              </td>
+              <td>
+                <span class="badge" style="background: #eff6ff; color: #1d4ed8; font-weight:800;">${job.vacancies_count || 1} Openings</span>
+              </td>
+              <td>
+                <span class="badge" style="background: ${isActive ? '#ecfdf5' : '#fee2e2'}; color: ${isActive ? '#065f46' : '#991b1b'}; font-weight:800;">
+                  ${isActive ? 'ACTIVE' : 'CLOSED'}
+                </span>
+              </td>
+              <td>
+                <button type="button" class="btn btn-sm btn-outline btn-filter-job-apps" data-job-id="${job.id}" style="font-size: 11px; padding: 4px 8px;">
+                  <i class="fa-solid fa-user-group"></i> ${appsCount} Applied
+                </button>
+              </td>
+              <td style="text-align:right;">
+                <div style="display:inline-flex; gap:6px;">
+                  <button type="button" class="btn btn-sm btn-outline btn-edit-job" data-job-id="${job.id}" title="Edit Vacancy" style="padding: 4px 8px; font-size: 11.5px;">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline btn-toggle-job-status" data-job-id="${job.id}" data-current-status="${job.status || 'ACTIVE'}" title="Toggle Active/Closed" style="padding: 4px 8px; font-size: 11.5px; color: #d97706;">
+                    <i class="fa-solid fa-power-off"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline btn-delete-job" data-job-id="${job.id}" title="Delete Vacancy" style="padding: 4px 8px; font-size: 11.5px; color: #dc2626;">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+
+  // Bind Actions in Jobs Table
+  container.querySelectorAll('.btn-filter-job-apps').forEach(btn => {
+    btn.onclick = () => {
+      selectedJobFilterForApps = btn.getAttribute('data-job-id');
+      const btnTabApps = document.getElementById('tab-btn-applications');
+      if (btnTabApps) btnTabApps.click();
+    };
+  });
+
+  container.querySelectorAll('.btn-edit-job').forEach(btn => {
+    btn.onclick = () => {
+      const jobId = btn.getAttribute('data-job-id');
+      const job = appData.jobs.find(j => String(j.id) === String(jobId));
+      if (job) openJobEditorModal(job);
+    };
+  });
+
+  container.querySelectorAll('.btn-toggle-job-status').forEach(btn => {
+    btn.onclick = async () => {
+      const jobId = btn.getAttribute('data-job-id');
+      const current = (btn.getAttribute('data-current-status') || 'ACTIVE').toUpperCase();
+      const newStatus = current === 'ACTIVE' ? 'CLOSED' : 'ACTIVE';
+      try {
+        await apiUpdateJob(jobId, { status: newStatus });
+        appData.jobs = await apiGetJobs();
+        updateBadges();
+        renderEmploymentView();
+      } catch (err) {
+        alert('Failed to update job status: ' + err.message);
+      }
+    };
+  });
+
+  container.querySelectorAll('.btn-delete-job').forEach(btn => {
+    btn.onclick = async () => {
+      const jobId = btn.getAttribute('data-job-id');
+      if (confirm('Are you sure you want to permanently delete this job vacancy and all associated applications?')) {
+        try {
+          await apiDeleteJob(jobId);
+          appData.jobs = await apiGetJobs();
+          appData.applications = await apiGetJobApplications();
+          updateBadges();
+          renderEmploymentView();
+        } catch (err) {
+          alert('Failed to delete job: ' + err.message);
+        }
+      }
+    };
+  });
+
+  // Bind Filters
+  if (searchInput) searchInput.oninput = () => renderJobsTable(jobsList);
+  if (deptSelect) deptSelect.onchange = () => renderJobsTable(jobsList);
+  if (statusSelect) statusSelect.onchange = () => renderJobsTable(jobsList);
+}
+
+function renderApplicationsTable(appsList = appData.applications) {
+  const container = document.getElementById('applications-table-container');
+  if (!container) return;
+
+  const searchInput = document.getElementById('input-search-apps');
+  const jobFilterSelect = document.getElementById('filter-apps-job');
+  const statusFilterSelect = document.getElementById('filter-apps-status');
+
+  const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const selectedJobId = jobFilterSelect ? jobFilterSelect.value : 'ALL';
+  const selectedStatus = statusFilterSelect ? statusFilterSelect.value : 'ALL';
+
+  const filtered = appsList.filter(app => {
+    if (selectedJobId !== 'ALL' && String(app.job_id) !== String(selectedJobId)) return false;
+    if (selectedStatus !== 'ALL' && (app.status || 'SUBMITTED').toUpperCase() !== selectedStatus.toUpperCase()) return false;
+    if (q) {
+      const match = (app.candidate_name || '').toLowerCase().includes(q) ||
+                    (app.candidate_phone || '').toLowerCase().includes(q) ||
+                    (app.candidate_email || '').toLowerCase().includes(q) ||
+                    (app.qualification || '').toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding: 48px 20px; color: var(--text-muted);">
+        <i class="fa-solid fa-user-tie" style="font-size:42px; margin-bottom:12px; color: #cbd5e1;"></i>
+        <h3 style="font-size:16px; font-weight:700; color:var(--text-primary); margin-bottom:6px;">No Candidate Applications Found</h3>
+        <p style="font-size:13px; margin:0;">Applications submitted by job seekers on the website will be listed here.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Candidate Particulars</th>
+          <th>Applied Job Position</th>
+          <th>Qualification &amp; Exp</th>
+          <th>Location &amp; CTC</th>
+          <th>Resume Attachment</th>
+          <th>Application Status</th>
+          <th style="text-align:right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filtered.map(app => {
+          const parentJob = app.job || appData.jobs.find(j => String(j.id) === String(app.job_id)) || { title: 'General Application', company_name: 'PPPI' };
+          const statusColors = {
+            SUBMITTED: { bg: '#e0f2fe', text: '#0369a1' },
+            REVIEWING: { bg: '#fef3c7', text: '#b45309' },
+            SHORTLISTED: { bg: '#dcfce7', text: '#15803d' },
+            INTERVIEW_SCHEDULED: { bg: '#ede9fe', text: '#6d28d9' },
+            HIRED: { bg: '#d1fae5', text: '#065f46' },
+            REJECTED: { bg: '#fee2e2', text: '#b91c1c' }
+          };
+          const color = statusColors[app.status] || statusColors.SUBMITTED;
+
+          return `
+            <tr>
+              <td>
+                <div style="font-weight: 800; color: var(--text-primary); font-size: 13.5px;">${app.candidate_name}</div>
+                <div style="font-size: 11.5px; color: #64748b;"><i class="fa-solid fa-phone"></i> ${app.candidate_phone}</div>
+                <div style="font-size: 11.5px; color: #64748b;"><i class="fa-solid fa-envelope"></i> ${app.candidate_email}</div>
+              </td>
+              <td>
+                <div style="font-weight: 700; color: #0284c7; font-size: 13px;">${parentJob.title}</div>
+                <div style="font-size: 11.5px; color: #475569;">${parentJob.company_name}</div>
+              </td>
+              <td>
+                <div style="font-size: 12.5px; font-weight: 600; color: #1e293b;">${app.qualification}</div>
+                <div style="font-size: 11.5px; color: #64748b;">Exp: ${app.experience_years || 'Fresher'}</div>
+              </td>
+              <td>
+                <div style="font-size: 12px; color: #334155;">${app.current_location}</div>
+                <div style="font-size: 11.5px; color: #059669; font-weight:700;">Exp: ${app.expected_salary || 'As per norms'}</div>
+              </td>
+              <td>
+                ${app.resume_url ? `
+                  <a href="${app.resume_url}" target="_blank" download="Resume_${app.candidate_name.replace(/\s+/g, '_')}" class="btn btn-sm btn-outline" style="font-size: 11px; padding: 4px 8px; color: #0284c7;">
+                    <i class="fa-solid fa-file-pdf"></i> Download Resume
+                  </a>
+                ` : `<span style="color:#94a3b8; font-size:11px;">Not Uploaded</span>`}
+              </td>
+              <td>
+                <select class="form-select select-app-status" data-app-id="${app.id}" style="font-size: 11.5px; font-weight:700; padding: 4px 8px; background: ${color.bg}; color: ${color.text}; border: 1px solid ${color.text}40;">
+                  <option value="SUBMITTED" ${app.status === 'SUBMITTED' ? 'selected' : ''}>SUBMITTED</option>
+                  <option value="REVIEWING" ${app.status === 'REVIEWING' ? 'selected' : ''}>REVIEWING</option>
+                  <option value="SHORTLISTED" ${app.status === 'SHORTLISTED' ? 'selected' : ''}>SHORTLISTED</option>
+                  <option value="INTERVIEW_SCHEDULED" ${app.status === 'INTERVIEW_SCHEDULED' ? 'selected' : ''}>INTERVIEW SCHEDULED</option>
+                  <option value="HIRED" ${app.status === 'HIRED' ? 'selected' : ''}>HIRED</option>
+                  <option value="REJECTED" ${app.status === 'REJECTED' ? 'selected' : ''}>REJECTED</option>
+                </select>
+              </td>
+              <td style="text-align:right;">
+                <button type="button" class="btn btn-sm btn-primary btn-inspect-applicant" data-app-id="${app.id}" style="font-size: 11.5px; padding: 5px 10px; background: #0284c7; border-color:#0284c7;">
+                  <i class="fa-solid fa-eye"></i> Review Dossier
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+
+  // Bind Status Dropdown changes
+  container.querySelectorAll('.select-app-status').forEach(sel => {
+    sel.onchange = async () => {
+      const appId = sel.getAttribute('data-app-id');
+      const newStatus = sel.value;
+      try {
+        await apiUpdateJobApplication(appId, { status: newStatus });
+        appData.applications = await apiGetJobApplications();
+        renderEmploymentView();
+      } catch (err) {
+        alert('Failed to update status: ' + err.message);
+      }
+    };
+  });
+
+  // Bind Inspect Dossier modal
+  container.querySelectorAll('.btn-inspect-applicant').forEach(btn => {
+    btn.onclick = () => {
+      const appId = btn.getAttribute('data-app-id');
+      const app = appData.applications.find(a => String(a.id) === String(appId));
+      if (app) openApplicantDossierModal(app);
+    };
+  });
+
+  // Bind Filters
+  if (searchInput) searchInput.oninput = () => renderApplicationsTable(appsList);
+  if (jobFilterSelect) {
+    jobFilterSelect.onchange = () => {
+      selectedJobFilterForApps = jobFilterSelect.value;
+      renderApplicationsTable(appsList);
+    };
+  }
+  if (statusFilterSelect) statusFilterSelect.onchange = () => renderApplicationsTable(appsList);
+}
+
+function openJobEditorModal(job = null) {
+  const modal = document.getElementById('modal-job-editor');
+  if (!modal) return;
+
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem('pppi_admin_user') || '{}');
+  } catch (e) {}
+
+  const defaultCompany = user ? (user.company_name || user.name || 'Pasha GreenTech Solutions') : 'Pasha GreenTech Solutions';
+
+  document.getElementById('job-input-id').value = job ? job.id : '';
+  document.getElementById('job-modal-title').innerHTML = job
+    ? '<i class="fa-solid fa-pen-to-square" style="color:#0284c7;"></i> Edit Job Vacancy'
+    : '<i class="fa-solid fa-briefcase" style="color:#0284c7;"></i> Post New Job Vacancy';
+
+  document.getElementById('job-input-title').value = job ? job.title : '';
+  document.getElementById('job-input-company').value = job ? job.company_name : defaultCompany;
+  document.getElementById('job-input-dept').value = job ? (job.department || '') : 'Engineering';
+  document.getElementById('job-input-type').value = job ? (job.job_type || 'Full-time') : 'Full-time';
+  document.getElementById('job-input-workplace').value = job ? (job.workplace_type || 'On-site') : 'On-site';
+  document.getElementById('job-input-location').value = job ? job.location : 'Dalasanur / Kolar, Karnataka';
+  document.getElementById('job-input-district').value = job ? (job.district || 'Kolar') : 'Kolar';
+  document.getElementById('job-input-salary').value = job ? job.salary_range : '₹25,000 - ₹35,000 / month';
+  document.getElementById('job-input-vacancies').value = job ? (job.vacancies_count || 1) : 2;
+  document.getElementById('job-input-experience').value = job ? (job.experience_level || '') : 'Freshers / 0-2 Years';
+  document.getElementById('job-input-qualification').value = job ? job.education_qualification : 'ITI Electrical / Diploma / Any Degree';
+  document.getElementById('job-input-description').value = job ? job.description : '';
+  document.getElementById('job-input-responsibilities').value = job ? (job.responsibilities || '') : '';
+  document.getElementById('job-input-requirements').value = job ? (job.requirements || '') : '';
+  document.getElementById('job-input-email').value = job ? (job.contact_email || '') : (user ? user.email : '');
+  document.getElementById('job-input-phone').value = job ? (job.contact_phone || '') : (user ? user.phone : '');
+  document.getElementById('job-input-status').value = job ? (job.status || 'ACTIVE') : 'ACTIVE';
+
+  modal.classList.add('active');
+}
+
+function openApplicantDossierModal(app) {
+  const modal = document.getElementById('modal-applicant-dossier');
+  const body = document.getElementById('applicant-dossier-body');
+  if (!modal || !body) return;
+
+  const parentJob = app.job || appData.jobs.find(j => String(j.id) === String(app.job_id)) || { title: 'General Vacancy', company_name: 'PPPI' };
+
+  body.innerHTML = `
+    <div style="margin-bottom: 20px;">
+      <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+          <div>
+            <h3 style="margin:0 0 4px 0; font-size:18px; font-weight:800; color:#0f172a;">${app.candidate_name}</h3>
+            <span style="font-size:13px; color:#0284c7; font-weight:700;">Candidate Application for: ${parentJob.title}</span>
+          </div>
+          <span class="badge" style="background: #0284c7; color: white; padding: 6px 12px; font-weight:800; font-size:12px;">
+            ID #APP-${app.id}
+          </span>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; font-size:13px; color:#334155;">
+          <div><strong>Mobile Phone:</strong> <a href="tel:${app.candidate_phone}" style="color:#0284c7; font-weight:700;">${app.candidate_phone}</a></div>
+          <div><strong>Email Address:</strong> <a href="mailto:${app.candidate_email}" style="color:#0284c7; font-weight:700;">${app.candidate_email}</a></div>
+          <div><strong>Qualification:</strong> ${app.qualification}</div>
+          <div><strong>Experience:</strong> ${app.experience_years || 'Fresher'}</div>
+          <div><strong>Current Location:</strong> ${app.current_location}</div>
+          <div><strong>Expected Salary:</strong> ${app.expected_salary || 'Negotiable'}</div>
+          <div><strong>Applied On:</strong> ${new Date(app.created_at || Date.now()).toLocaleString('en-IN')}</div>
+        </div>
+      </div>
+
+      ${app.cover_note ? `
+        <div style="background:#fffbeb; border-left:4px solid #f59e0b; padding:12px 16px; border-radius:0 8px 8px 0; font-size:13px; color:#92400e; margin-bottom:16px;">
+          <strong>Candidate Cover Note:</strong><br/>
+          ${app.cover_note}
+        </div>
+      ` : ''}
+
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:18px; display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <i class="fa-solid fa-file-pdf" style="font-size:32px; color:#ef4444;"></i>
+          <div>
+            <h4 style="margin:0 0 2px 0; font-size:14px; font-weight:800; color:#0f172a;">Candidate Resume / Curriculum Vitae</h4>
+            <span style="font-size:12px; color:#64748b;">PDF / Word Document attached by candidate</span>
+          </div>
+        </div>
+        ${app.resume_url ? `
+          <a href="${app.resume_url}" target="_blank" download class="btn btn-sm btn-primary" style="background:#0284c7; border-color:#0284c7; font-weight:700;">
+            <i class="fa-solid fa-download"></i> Download Resume
+          </a>
+        ` : `<span style="color:#94a3b8; font-size:12px;">No document attached</span>`}
+      </div>
+
+      <!-- STATUS & RECRUITER NOTES -->
+      <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:10px; padding:18px;">
+        <h4 style="margin:0 0 12px 0; font-size:14px; font-weight:800; color:#166534;">
+          <i class="fa-solid fa-sliders"></i> Recruiter Action &amp; Application Status
+        </h4>
+
+        <div style="display:flex; gap:12px; margin-bottom:12px;">
+          <div style="flex:1;">
+            <label style="display:block; font-size:12px; font-weight:700; color:#166534; margin-bottom:4px;">Application Status</label>
+            <select id="modal-app-status-select" class="form-select" style="width:100%; font-weight:700;">
+              <option value="SUBMITTED" ${app.status === 'SUBMITTED' ? 'selected' : ''}>SUBMITTED</option>
+              <option value="REVIEWING" ${app.status === 'REVIEWING' ? 'selected' : ''}>REVIEWING</option>
+              <option value="SHORTLISTED" ${app.status === 'SHORTLISTED' ? 'selected' : ''}>SHORTLISTED</option>
+              <option value="INTERVIEW_SCHEDULED" ${app.status === 'INTERVIEW_SCHEDULED' ? 'selected' : ''}>INTERVIEW SCHEDULED</option>
+              <option value="HIRED" ${app.status === 'HIRED' ? 'selected' : ''}>HIRED</option>
+              <option value="REJECTED" ${app.status === 'REJECTED' ? 'selected' : ''}>REJECTED</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:12px; font-weight:700; color:#166534; margin-bottom:4px;">Internal Recruiter Notes / Interview Feedback</label>
+          <textarea id="modal-app-notes-textarea" class="form-control" rows="3" placeholder="Document interview date, technical ratings, or joining details...">${app.employer_notes || ''}</textarea>
+        </div>
+
+        <div style="text-align:right;">
+          <button type="button" class="btn btn-sm btn-primary" id="btn-save-applicant-action" style="background:#166534; border-color:#166534; font-weight:700; padding:8px 18px;">
+            <i class="fa-solid fa-check"></i> Save Application Updates
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Bind save action
+  const saveBtn = document.getElementById('btn-save-applicant-action');
+  if (saveBtn) {
+    saveBtn.onclick = async () => {
+      const newStatus = document.getElementById('modal-app-status-select').value;
+      const newNotes = document.getElementById('modal-app-notes-textarea').value;
+      try {
+        await apiUpdateJobApplication(app.id, {
+          status: newStatus,
+          employer_notes: newNotes
+        });
+        alert('Application status & notes updated successfully!');
+        appData.applications = await apiGetJobApplications();
+        renderEmploymentView();
+        modal.classList.remove('active');
+      } catch (err) {
+        alert('Error saving updates: ' + err.message);
+      }
+    };
+  }
+
+  modal.classList.add('active');
+}
+
+function setupJobModals() {
+  const openCreateBtn = document.getElementById('btn-open-create-job-modal');
+  if (openCreateBtn) {
+    openCreateBtn.onclick = () => openJobEditorModal(null);
+  }
+
+  const jobForm = document.getElementById('form-job-editor');
+  if (jobForm) {
+    jobForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('job-input-id').value;
+      let user = null;
+      try {
+        user = JSON.parse(localStorage.getItem('pppi_admin_user') || '{}');
+      } catch (e) {}
+
+      const payload = {
+        employer_id: user ? user.id : 1,
+        title: document.getElementById('job-input-title').value.trim(),
+        company_name: document.getElementById('job-input-company').value.trim(),
+        department: document.getElementById('job-input-dept').value.trim(),
+        job_type: document.getElementById('job-input-type').value,
+        workplace_type: document.getElementById('job-input-workplace').value,
+        location: document.getElementById('job-input-location').value.trim(),
+        district: document.getElementById('job-input-district').value.trim(),
+        salary_range: document.getElementById('job-input-salary').value.trim(),
+        vacancies_count: parseInt(document.getElementById('job-input-vacancies').value || '1', 10),
+        experience_level: document.getElementById('job-input-experience').value.trim(),
+        education_qualification: document.getElementById('job-input-qualification').value.trim(),
+        description: document.getElementById('job-input-description').value.trim(),
+        responsibilities: document.getElementById('job-input-responsibilities').value.trim(),
+        requirements: document.getElementById('job-input-requirements').value.trim(),
+        contact_email: document.getElementById('job-input-email').value.trim(),
+        contact_phone: document.getElementById('job-input-phone').value.trim(),
+        status: document.getElementById('job-input-status').value
+      };
+
+      try {
+        if (id) {
+          await apiUpdateJob(id, payload);
+          alert('Job vacancy updated successfully!');
+        } else {
+          await apiCreateJob(payload);
+          alert('Job vacancy posted successfully! It is now visible on the website Employment portal.');
+        }
+        appData.jobs = await apiGetJobs();
+        updateBadges();
+        renderEmploymentView();
+        const modal = document.getElementById('modal-job-editor');
+        if (modal) modal.classList.remove('active');
+      } catch (err) {
+        alert('Failed to save job: ' + err.message);
+      }
+    };
+  }
+}

@@ -3,14 +3,12 @@
    Target Server: https://api.pppiconnect.com/api
    ========================================================================== */
 
-const DEFAULT_API_URL = "https://api.pppiconnect.com/api";
+const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const LOCAL_API_URL = "http://localhost:5000/api";
+const REMOTE_API_URL = "https://api.pppiconnect.com/api";
+const DEFAULT_API_URL = isLocal ? LOCAL_API_URL : REMOTE_API_URL;
 
 let storedApiUrl = localStorage.getItem('pppi_api_url');
-if (storedApiUrl && (storedApiUrl.includes('localhost') || storedApiUrl.includes('127.0.0.1') || storedApiUrl.includes('192.168.'))) {
-  localStorage.removeItem('pppi_api_url');
-  storedApiUrl = null;
-}
-
 let API_BASE_URL = storedApiUrl || DEFAULT_API_URL;
 
 export function getApiBaseUrl() {
@@ -50,16 +48,13 @@ export async function apiLoginAdmin(phone, password, rememberMe = false) {
   try {
     res = await tryFetch(targetUrl);
   } catch (err) {
-    if (targetUrl !== DEFAULT_API_URL) {
-      console.warn(`Primary API URL (${targetUrl}) failed to fetch. Falling back to ${DEFAULT_API_URL}...`);
-      try {
-        res = await tryFetch(DEFAULT_API_URL);
-        setApiBaseUrl(DEFAULT_API_URL);
-      } catch (fallbackErr) {
-        throw new Error(`Unable to connect to backend server at ${targetUrl} or ${DEFAULT_API_URL}. Please verify the Node server is running.`);
-      }
-    } else {
-      throw new Error(`Unable to connect to backend server at ${DEFAULT_API_URL}. Please verify the Node.js backend server is running on port 5000.`);
+    const fallbackUrl = targetUrl === LOCAL_API_URL ? REMOTE_API_URL : LOCAL_API_URL;
+    console.warn(`Primary API URL (${targetUrl}) failed to fetch. Falling back to ${fallbackUrl}...`);
+    try {
+      res = await tryFetch(fallbackUrl);
+      setApiBaseUrl(fallbackUrl);
+    } catch (fallbackErr) {
+      throw new Error(`Unable to connect to backend server at ${targetUrl} or ${fallbackUrl}. Please verify the Node server is running.`);
     }
   }
 
@@ -1294,6 +1289,161 @@ export async function apiDeleteComplaint(id) {
   localStorage.setItem(LOCAL_COMPLAINTS_KEY, JSON.stringify(updated));
   return { success: true, id };
 }
+
+/* ==========================================================================
+   Jobs & Employment Recruitment API Layer
+   ========================================================================== */
+const LOCAL_JOBS_KEY = 'pppi_local_jobs';
+const LOCAL_APPLICATIONS_KEY = 'pppi_local_applications';
+
+export async function apiGetJobs(params = {}) {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const data = await request(`/jobs${query ? `?${query}` : ''}`);
+    if (data && (data.data || Array.isArray(data))) {
+      const list = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+      if (list.length > 0) {
+        localStorage.setItem(LOCAL_JOBS_KEY, JSON.stringify(list));
+        return list;
+      }
+    }
+  } catch (err) {
+    console.warn('apiGetJobs remote fetch notice (using cache/defaults):', err.message);
+  }
+
+  const cached = localStorage.getItem(LOCAL_JOBS_KEY);
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (e) {}
+  }
+
+  return [];
+}
+
+export async function apiGetJobById(id) {
+  try {
+    const data = await request(`/jobs/${id}`);
+    if (data && data.data) return data.data;
+  } catch (err) {
+    console.warn('apiGetJobById remote error:', err.message);
+  }
+  const all = await apiGetJobs();
+  return all.find(j => String(j.id) === String(id)) || null;
+}
+
+export async function apiCreateJob(payload) {
+  try {
+    const data = await request('/jobs', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    if (data && data.data) {
+      const all = await apiGetJobs();
+      all.unshift(data.data);
+      localStorage.setItem(LOCAL_JOBS_KEY, JSON.stringify(all));
+      return data.data;
+    }
+  } catch (err) {
+    console.warn('apiCreateJob remote error, creating locally:', err.message);
+  }
+
+  const newJob = {
+    id: Date.now(),
+    ...payload,
+    applications_count: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  const all = await apiGetJobs();
+  all.unshift(newJob);
+  localStorage.setItem(LOCAL_JOBS_KEY, JSON.stringify(all));
+  return newJob;
+}
+
+export async function apiUpdateJob(id, payload) {
+  try {
+    const data = await request(`/jobs/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+    if (data && data.data) return data.data;
+  } catch (err) {
+    console.warn('apiUpdateJob remote error, updating locally:', err.message);
+  }
+
+  const all = await apiGetJobs();
+  const updated = all.map(j => {
+    if (String(j.id) === String(id)) {
+      return { ...j, ...payload, updated_at: new Date().toISOString() };
+    }
+    return j;
+  });
+  localStorage.setItem(LOCAL_JOBS_KEY, JSON.stringify(updated));
+  return updated.find(j => String(j.id) === String(id));
+}
+
+export async function apiDeleteJob(id) {
+  try {
+    await request(`/jobs/${id}`, { method: 'DELETE' });
+  } catch (err) {
+    console.warn('apiDeleteJob remote error, deleting locally:', err.message);
+  }
+  const all = await apiGetJobs();
+  const updated = all.filter(j => String(j.id) !== String(id));
+  localStorage.setItem(LOCAL_JOBS_KEY, JSON.stringify(updated));
+  return { success: true, id };
+}
+
+export async function apiGetJobApplications(params = {}) {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const data = await request(`/jobs/applications${query ? `?${query}` : ''}`);
+    if (data && (data.data || Array.isArray(data))) {
+      const list = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+      if (list.length > 0) {
+        localStorage.setItem(LOCAL_APPLICATIONS_KEY, JSON.stringify(list));
+        return list;
+      }
+    }
+  } catch (err) {
+    console.warn('apiGetJobApplications remote fetch notice:', err.message);
+  }
+
+  const cached = localStorage.getItem(LOCAL_APPLICATIONS_KEY);
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (e) {}
+  }
+
+  return [];
+}
+
+export async function apiUpdateJobApplication(id, payload) {
+  try {
+    const data = await request(`/jobs/applications/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+    if (data && data.data) return data.data;
+  } catch (err) {
+    console.warn('apiUpdateJobApplication remote error, updating locally:', err.message);
+  }
+
+  const all = await apiGetJobApplications();
+  const updated = all.map(a => {
+    if (String(a.id) === String(id)) {
+      return { ...a, ...payload, updated_at: new Date().toISOString() };
+    }
+    return a;
+  });
+  localStorage.setItem(LOCAL_APPLICATIONS_KEY, JSON.stringify(updated));
+  return updated.find(a => String(a.id) === String(id));
+}
+
 
 
 
