@@ -173,6 +173,11 @@
           <span>SOS Emergencies</span>
           <span class="badge" id="badge-emergencies-count" style="background:#dc2626; color:white;">0</span>
         </a>
+        <a href="#" class="nav-item" data-view="elections" id="nav-elections" data-role="admin">
+          <i class="fa-solid fa-check-to-slot" style="color:#2563eb;"></i>
+          <span>Elections &amp; Candidates</span>
+          <span class="badge" id="badge-elections-count" style="background:#2563eb; color:white;">224</span>
+        </a>
         <a href="#" class="nav-item" data-view="manifesto" data-role="admin">
           <i class="fa-solid fa-book-open"></i>
           <span>Party Manifesto Topics</span>
@@ -1577,6 +1582,142 @@
           </div>
         </section>
 
+        <!-- ELECTIONS & CANDIDATES DIRECTORY CMS VIEW -->
+        <section id="view-elections" class="content-view" data-role="admin">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title"><i class="fa-solid fa-check-to-slot" style="color:#2563eb;"></i> Elections &amp; Karnataka 224 Constituencies</h1>
+              <p class="view-subtitle">Oversee upcoming elections (2028 CM &amp; 2029 PM), manage all 224 Karnataka Assembly constituencies, and assign verified paid members as official party candidates.</p>
+            </div>
+            <div class="view-actions" style="display:flex; gap:10px;">
+              <button class="btn btn-outline" id="btn-refresh-elections">
+                <i class="fa-solid fa-rotate"></i> Refresh Directory
+              </button>
+              <button class="btn btn-primary" id="btn-open-create-election">
+                <i class="fa-solid fa-plus"></i> Create Election
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI Metric Cards -->
+          <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px;">
+            <div class="stat-card" style="border-left: 4px solid #2563eb;">
+              <div class="stat-icon" style="background: rgba(37,99,235,0.1); color: #2563eb;"><i class="fa-solid fa-landmark"></i></div>
+              <div class="stat-info">
+                <h3 id="kpi-elections-total-seats">224</h3>
+                <p>Total Constituencies</p>
+              </div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #059669;">
+              <div class="stat-icon" style="background: rgba(5,150,105,0.1); color: #059669;"><i class="fa-solid fa-user-check"></i></div>
+              <div class="stat-info">
+                <h3 id="kpi-elections-declared-seats">0</h3>
+                <p>Declared Candidates</p>
+              </div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #f59e0b;">
+              <div class="stat-icon" style="background: rgba(245,158,11,0.1); color: #f59e0b;"><i class="fa-solid fa-chair"></i></div>
+              <div class="stat-info">
+                <h3 id="kpi-elections-vacant-seats">224</h3>
+                <p>Vacant Constituencies</p>
+              </div>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #8b5cf6;">
+              <div class="stat-icon" style="background: rgba(139,92,246,0.1); color: #8b5cf6;"><i class="fa-solid fa-id-card-clip"></i></div>
+              <div class="stat-info">
+                <h3 id="kpi-elections-eligible-members">0</h3>
+                <p>Eligible Paid Members Pool</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Election Switcher & Election Profile Card -->
+          <div class="card" style="margin-bottom: 20px; padding: 18px 22px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #ffffff; border-radius: 12px;">
+            <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:16px;">
+              <div>
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                  <span class="badge" style="background:#2563eb; color:white; font-size:11px; padding:4px 10px;" id="admin-election-code-badge">KA-2028-LA</span>
+                  <span class="badge" style="background:#059669; color:white; font-size:11px; padding:4px 10px;" id="admin-election-status-badge">UPCOMING</span>
+                </div>
+                <h2 id="admin-election-title-display" style="font-size:20px; font-weight:800; margin:0 0 6px 0; color:#ffffff;">
+                  2028 Karnataka Legislative Assembly Election (CM Election)
+                </h2>
+                <p id="admin-election-desc-display" style="font-size:13px; color:#94a3b8; margin:0; max-width:850px; line-height:1.5;">
+                  General Assembly Election to the 16th Karnataka Legislative Assembly.
+                </p>
+              </div>
+              <div style="min-width:260px;">
+                <label style="font-size:12px; font-weight:600; color:#cbd5e1; display:block; margin-bottom:6px;">Select Election Campaign:</label>
+                <select id="admin-select-election-switch" class="form-select" style="background:#0f172a; color:#f8fafc; border:1px solid #334155; padding:8px 12px; border-radius:8px; font-weight:600; width:100%;">
+                  <!-- Dynamically populated -->
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter & Search Controls -->
+          <div class="card" style="margin-bottom: 20px;">
+            <div class="card-body" style="display: flex; gap: 14px; flex-wrap: wrap; align-items: center;">
+              <div style="flex: 2; min-width: 240px;">
+                <div class="search-box">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input type="text" id="election-filter-search" class="form-control" placeholder="Search constituency number, name, district, or candidate..." />
+                </div>
+              </div>
+              <div style="flex: 1; min-width: 180px;">
+                <select id="election-filter-district" class="form-select">
+                  <option value="ALL">All 31 Districts</option>
+                  <!-- Dynamically populated -->
+                </select>
+              </div>
+              <div style="flex: 1; min-width: 160px;">
+                <select id="election-filter-status" class="form-select">
+                  <option value="ALL">All Nomination Statuses</option>
+                  <option value="DECLARED">Declared / Nominated</option>
+                  <option value="OPEN">Open / Vacant</option>
+                </select>
+              </div>
+              <div>
+                <button type="button" class="btn btn-outline" id="btn-reset-election-filter" style="padding:9px 15px;">
+                  <i class="fa-solid fa-filter-circle-xmark"></i> Clear Filters
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Karnataka 224 Assembly Constituencies Table -->
+          <div class="card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--border-color); flex-wrap:wrap; gap:10px;">
+              <h3 style="font-size:16px; font-weight:700; margin:0; display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-list-ol" style="color:#2563eb;"></i>
+                Assembly Constituencies Directory
+                <span class="badge" id="admin-constituencies-count-badge" style="background:#e0e7ff; color:#3730a3; margin-left:6px;">224</span>
+              </h3>
+              <div style="font-size:12px; color:var(--text-muted);">
+                <i class="fa-solid fa-circle-info" style="color:#2563eb;"></i> Strictly restricted to users with active paid membership plan. Free voter accounts cannot contest.
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="table-election-constituencies">
+                <thead>
+                  <tr>
+                    <th style="width: 70px;">AC #</th>
+                    <th>Constituency Name &amp; Category</th>
+                    <th>District</th>
+                    <th>Total Electors</th>
+                    <th>Contesting Candidate</th>
+                    <th>Nomination Status</th>
+                    <th style="text-align: right; width: 180px;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-election-constituencies">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
         <!-- MAINTENANCE MODE CMS VIEW -->
         <section id="view-maintenance" class="content-view">
           <div class="view-header">
@@ -2415,6 +2556,201 @@
             <i class="fa-solid fa-check"></i> Yes, Turn ON Maintenance Mode
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Candidate Nomination (Paid Members Only) -->
+  <div class="modal-backdrop" id="modal-assign-candidate">
+    <div class="modal-dialog modal-lg" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3 id="modal-nominate-header-title"><i class="fa-solid fa-user-tie" style="color:#2563eb;"></i> Nominate Official PPPI Candidate</h3>
+        <button class="modal-close" data-close-modal="modal-assign-candidate"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 24px;">
+        <!-- Constituency Header Banner -->
+        <div id="nominate-constituency-banner" style="background: #f1f5f9; border-left: 4px solid #2563eb; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px;">
+          <div style="font-size: 11px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 0.5px;" id="nominate-banner-sub">Constituency Selection</div>
+          <div style="font-size: 17px; font-weight: 800; color: #1e293b;" id="nominate-banner-title">AC #141 - Srinivaspur (GEN)</div>
+          <div style="font-size: 12px; color: #64748b; margin-top: 4px;" id="nominate-banner-district">Kolar District · 2,12,000 Registered Electors</div>
+        </div>
+
+        <form id="form-nominate-candidate">
+          <input type="hidden" id="nominate-input-const-id" value="" />
+
+          <!-- Strict Membership Rule Notice -->
+          <div style="background: rgba(37,99,235,0.06); border: 1px solid rgba(37,99,235,0.2); border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; display: flex; gap: 12px; align-items: flex-start;">
+            <i class="fa-solid fa-shield-halved" style="color: #2563eb; font-size: 18px; margin-top: 2px;"></i>
+            <div style="font-size: 12px; color: #334155; line-height: 1.5;">
+              <strong>PPPI Party Constitutional Bylaw:</strong> Only users who have purchased an active membership plan (Diamond, Gold, Silver, Platinum, Bronze) are permitted to conduct elections. Free voter accounts cannot contest.
+            </div>
+          </div>
+
+          <!-- Select Paid Member Dropdown -->
+          <div class="form-group" style="margin-bottom: 18px;">
+            <label class="form-label" style="font-weight: 700; display:flex; justify-content:space-between;">
+              <span>Select Paid Party Member to Nominate *</span>
+              <span id="nominate-eligible-count" style="font-size: 11px; font-weight: normal; color: #2563eb;">12 Eligible Paid Members</span>
+            </label>
+            <select id="nominate-select-candidate" class="form-select" required style="font-weight: 600; padding: 10px 12px;">
+              <option value="">-- Choose Eligible Paid Member --</option>
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+
+          <!-- Selected Candidate Preview Card -->
+          <div id="nominate-candidate-preview" style="display: none; background: #fafafa; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 14px 16px; margin-bottom: 18px;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <img id="nominate-preview-photo" src="/images/founder.jpg" style="width: 52px; height: 52px; border-radius: 50%; object-fit: cover; border: 2px solid #2563eb;" />
+              <div>
+                <div style="font-weight: 800; font-size: 15px; color: #0f172a;" id="nominate-preview-name">Candidate Name</div>
+                <div style="font-size: 12px; color: #64748b;" id="nominate-preview-details">Phone · Email</div>
+                <div style="margin-top: 4px;" id="nominate-preview-plan-badge">
+                  <span class="badge" style="background:#2563eb; color:white;">Diamond Plan</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Campaign Vision -->
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label class="form-label" style="font-weight: 700;">Campaign Vision &amp; Constituency Manifesto</label>
+            <textarea id="nominate-input-vision" class="form-control" rows="3" placeholder="Key local priorities, water security, youth jobs, health infrastructure..."></textarea>
+          </div>
+
+          <!-- Contesting Bio -->
+          <div class="form-group" style="margin-bottom: 22px;">
+            <label class="form-label" style="font-weight: 700;">Candidate Contesting Bio</label>
+            <textarea id="nominate-input-bio" class="form-control" rows="2" placeholder="Brief political and community service background..."></textarea>
+          </div>
+
+          <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; padding: 14px 0 0 0; border-top: 1px solid #e2e8f0;">
+            <div>
+              <button type="button" class="btn btn-outline" id="btn-nominate-remove-candidate" style="color: #dc2626; border-color: #fca5a5; display: none;">
+                <i class="fa-solid fa-user-xmark"></i> Remove Candidate
+              </button>
+            </div>
+            <div style="display:flex; gap: 10px;">
+              <button type="button" class="btn btn-outline" data-close-modal="modal-assign-candidate">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="btn-save-nomination">
+                <i class="fa-solid fa-check"></i> Confirm Nomination
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Create New Election Campaign -->
+  <div class="modal-backdrop" id="modal-create-election">
+    <div class="modal-dialog modal-lg" style="max-width: 640px;">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-plus-circle" style="color:#2563eb;"></i> Create New Election Campaign</h3>
+        <button class="modal-close" data-close-modal="modal-create-election"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 22px;">
+        <form id="form-create-election">
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="font-weight: 700;">Election Title *</label>
+            <input type="text" id="election-input-title" class="form-control" placeholder="e.g. 2028 Karnataka Legislative Assembly Election (CM Election)" required />
+          </div>
+          <div class="form-row" style="display:flex; gap:12px; margin-bottom: 14px;">
+            <div class="form-group" style="flex:1;">
+              <label class="form-label" style="font-weight: 700;">Election Code *</label>
+              <input type="text" id="election-input-code" class="form-control" placeholder="e.g. KA-2028-LA" required />
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label class="form-label" style="font-weight: 700;">Election Type *</label>
+              <select id="election-input-type" class="form-select" required>
+                <option value="ASSEMBLY">Legislative Assembly (MLA / CM)</option>
+                <option value="PARLIAMENTARY">Parliamentary (Lok Sabha / PM)</option>
+                <option value="LOCAL_BODY">Local Body Election</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row" style="display:flex; gap:12px; margin-bottom: 14px;">
+            <div class="form-group" style="flex:1;">
+              <label class="form-label" style="font-weight: 700;">State / Jurisdiction *</label>
+              <input type="text" id="election-input-state" class="form-control" value="Karnataka" required />
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label class="form-label" style="font-weight: 700;">Election Year *</label>
+              <input type="number" id="election-input-year" class="form-control" value="2028" required />
+            </div>
+          </div>
+          <div class="form-row" style="display:flex; gap:12px; margin-bottom: 14px;">
+            <div class="form-group" style="flex:1;">
+              <label class="form-label" style="font-weight: 700;">Total Seats *</label>
+              <input type="number" id="election-input-total-seats" class="form-control" value="224" required />
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label class="form-label" style="font-weight: 700;">Target Majority Seats</label>
+              <input type="number" id="election-input-target-seats" class="form-control" value="113" />
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="font-weight: 700;">Manifesto Theme / Slogan</label>
+            <input type="text" id="election-input-theme" class="form-control" placeholder="e.g. People-Centric Governance, Free Healthcare & Zero Corruption" />
+          </div>
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label class="form-label" style="font-weight: 700;">Full Campaign Description</label>
+            <textarea id="election-input-desc" class="form-control" rows="3" placeholder="Strategic goals, leadership face, and campaign charter..."></textarea>
+          </div>
+          <div class="modal-footer" style="padding-top:14px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-create-election">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-new-election">
+              <i class="fa-solid fa-plus"></i> Create Election
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Edit Constituency Details -->
+  <div class="modal-backdrop" id="modal-edit-constituency">
+    <div class="modal-dialog" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-pen-to-square" style="color:#2563eb;"></i> Edit Constituency Information</h3>
+        <button class="modal-close" data-close-modal="modal-edit-constituency"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <form id="form-edit-constituency">
+          <input type="hidden" id="edit-const-id" value="" />
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="font-weight: 700;">Constituency Number</label>
+            <input type="number" id="edit-const-no" class="form-control" readonly style="background:#f1f5f9;" />
+          </div>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="font-weight: 700;">Constituency Name *</label>
+            <input type="text" id="edit-const-name" class="form-control" required />
+          </div>
+          <div class="form-row" style="display:flex; gap:12px; margin-bottom: 14px;">
+            <div class="form-group" style="flex:1;">
+              <label class="form-label" style="font-weight: 700;">District *</label>
+              <input type="text" id="edit-const-district" class="form-control" required />
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label class="form-label" style="font-weight: 700;">Category</label>
+              <select id="edit-const-category" class="form-select">
+                <option value="GEN">General (GEN)</option>
+                <option value="SC">Scheduled Caste (SC)</option>
+                <option value="ST">Scheduled Tribe (ST)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label class="form-label" style="font-weight: 700;">Total Electors / Voters</label>
+            <input type="number" id="edit-const-electors" class="form-control" />
+          </div>
+          <div class="modal-footer" style="padding-top:14px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-edit-constituency">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-constituency-edit">
+              <i class="fa-solid fa-check"></i> Save Changes
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

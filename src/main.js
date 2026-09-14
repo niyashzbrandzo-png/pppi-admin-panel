@@ -68,6 +68,15 @@ import {
   apiUpdateEmergencyAlert,
   apiFileEmergencyPetition,
   apiDeleteEmergencyAlert,
+  apiGetElections,
+  apiCreateElection,
+  apiUpdateElection,
+  apiDeleteElection,
+  apiGetConstituencies,
+  apiAssignCandidate,
+  apiRemoveCandidate,
+  apiUpdateConstituency,
+  apiGetEligibleCandidates,
   apiGetSettings,
   apiToggleMaintenance,
   apiUpdateSettings,
@@ -101,6 +110,13 @@ let appData = {
   legalCases: [],
   marriageApplications: [],
   emergencyAlerts: [],
+  elections: [],
+  constituencies: [],
+  eligibleCandidates: [],
+  selectedElectionId: 1,
+  electionDistrictFilter: 'ALL',
+  electionStatusFilter: 'ALL',
+  electionSearchQuery: '',
   settings: {
     maintenance_mode: false,
     maintenance_message: 'Currently Website & Mobile App Under Development',
@@ -177,6 +193,7 @@ async function initApp() {
   setupLawAdminListeners();
   setupMarriageAdminListeners();
   setupEmergencyAdminListeners();
+  setupElectionAdminListeners();
   applyRoleAccessControl();
 
   // Global Click Event Delegation for Maintenance controls
@@ -380,6 +397,18 @@ async function loadAllData() {
     renderComplaintsTable();
     renderMaintenanceView();
     populateUserNotificationDropdown();
+
+    try {
+      appData.elections = await apiGetElections();
+      const cRes = await apiGetConstituencies({ election_id: appData.selectedElectionId || 1 });
+      if (cRes && cRes.data) {
+        appData.constituencies = cRes.data;
+      }
+      appData.eligibleCandidates = await apiGetEligibleCandidates();
+      renderElectionsView();
+    } catch (e) {
+      console.warn('loadAllData elections fetch notice:', e);
+    }
   } catch (err) {
     console.error('Error initializing admin app data:', err);
   } finally {
@@ -389,6 +418,9 @@ async function loadAllData() {
 
 // Update Badges & Counters
 function updateBadges() {
+  const badgeElections = document.getElementById('badge-elections-count');
+  if (badgeElections) badgeElections.textContent = appData.constituencies ? appData.constituencies.length : 224;
+
   const badgeJobs = document.getElementById('badge-jobs-count');
   if (badgeJobs) badgeJobs.textContent = appData.jobs ? appData.jobs.length : 0;
   const countTabJobs = document.getElementById('count-tab-jobs');
@@ -5522,6 +5554,571 @@ function setupEmergencyAdminListeners() {
   if (dismissBtn && banner) {
     dismissBtn.onclick = () => {
       banner.style.display = 'none';
+    };
+  }
+}
+
+
+/* ==========================================================================
+   PPPI Elections & Karnataka 224 Constituencies Directory Admin Controller
+   ========================================================================== */
+
+function renderElectionsView() {
+  const tbody = document.getElementById('tbody-election-constituencies');
+  if (!tbody) return;
+
+  const elections = appData.elections || [];
+  const selectedElectionId = Number(appData.selectedElectionId || 1);
+  const selectedElection = elections.find(e => e.id === selectedElectionId) || elections[0] || {
+    id: 1,
+    title: '2028 Karnataka Legislative Assembly Election (CM Election)',
+    code: 'KA-2028-LA',
+    status: 'UPCOMING',
+    total_seats: 224,
+    description: 'General Assembly Election to the 16th Karnataka Legislative Assembly.'
+  };
+
+  // 1. Update Election Switcher Dropdown
+  const selectSwitch = document.getElementById('admin-select-election-switch');
+  if (selectSwitch && elections.length > 0) {
+    selectSwitch.innerHTML = elections.map(e => `
+      <option value="${e.id}" ${e.id === selectedElectionId ? 'selected' : ''}>
+        ${e.code} - ${e.title}
+      </option>
+    `).join('');
+  }
+
+  // 2. Update Election Profile Card
+  const codeBadge = document.getElementById('admin-election-code-badge');
+  if (codeBadge) codeBadge.textContent = selectedElection.code || 'KA-2028-LA';
+
+  const statusBadge = document.getElementById('admin-election-status-badge');
+  if (statusBadge) statusBadge.textContent = selectedElection.status || 'UPCOMING';
+
+  const titleDisplay = document.getElementById('admin-election-title-display');
+  if (titleDisplay) titleDisplay.textContent = selectedElection.title;
+
+  const descDisplay = document.getElementById('admin-election-desc-display');
+  if (descDisplay) descDisplay.textContent = selectedElection.description || selectedElection.manifesto_theme || '';
+
+  // 3. Update KPI Metrics
+  const constituencies = appData.constituencies || [];
+  const declaredCount = constituencies.filter(c => c.candidate_name).length;
+  const vacantCount = constituencies.length - declaredCount;
+  const eligibleCount = (appData.eligibleCandidates || []).length;
+
+  const kpiTotal = document.getElementById('kpi-elections-total-seats');
+  if (kpiTotal) kpiTotal.textContent = constituencies.length || selectedElection.total_seats || 224;
+
+  const kpiDeclared = document.getElementById('kpi-elections-declared-seats');
+  if (kpiDeclared) kpiDeclared.textContent = declaredCount;
+
+  const kpiVacant = document.getElementById('kpi-elections-vacant-seats');
+  if (kpiVacant) kpiVacant.textContent = vacantCount;
+
+  const kpiEligible = document.getElementById('kpi-elections-eligible-members');
+  if (kpiEligible) kpiEligible.textContent = eligibleCount;
+
+  // 4. Update District Filter Dropdown (populate if only default option exists)
+  const districtSelect = document.getElementById('election-filter-district');
+  if (districtSelect && districtSelect.options.length <= 1) {
+    const districts = [...new Set(constituencies.map(c => c.district).filter(Boolean))].sort();
+    districtSelect.innerHTML = '<option value="ALL">All 31 Districts</option>' +
+      districts.map(d => `<option value="${d}">${d}</option>`).join('');
+    if (appData.electionDistrictFilter) {
+      districtSelect.value = appData.electionDistrictFilter;
+    }
+  }
+
+  // 5. Filter Table Data
+  const searchVal = (document.getElementById('election-filter-search')?.value || appData.electionSearchQuery || '').toLowerCase().trim();
+  const districtVal = document.getElementById('election-filter-district')?.value || appData.electionDistrictFilter || 'ALL';
+  const statusVal = document.getElementById('election-filter-status')?.value || appData.electionStatusFilter || 'ALL';
+
+  let list = [...constituencies];
+
+  if (districtVal !== 'ALL') {
+    list = list.filter(c => (c.district || '').toLowerCase() === districtVal.toLowerCase());
+  }
+
+  if (statusVal === 'DECLARED') {
+    list = list.filter(c => Boolean(c.candidate_name));
+  } else if (statusVal === 'OPEN') {
+    list = list.filter(c => !c.candidate_name);
+  }
+
+  if (searchVal) {
+    list = list.filter(c =>
+      (c.constituency_no || '').toString().includes(searchVal) ||
+      (c.name || '').toLowerCase().includes(searchVal) ||
+      (c.district || '').toLowerCase().includes(searchVal) ||
+      (c.candidate_name || '').toLowerCase().includes(searchVal)
+    );
+  }
+
+  // Update table count badge
+  const countBadge = document.getElementById('admin-constituencies-count-badge');
+  if (countBadge) countBadge.textContent = list.length;
+
+  if (list.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center; padding: 48px 20px; color: var(--text-muted);">
+          <div style="font-size:36px; margin-bottom:12px; color:#cbd5e1;"><i class="fa-solid fa-filter-circle-xmark"></i></div>
+          <div style="font-size:16px; font-weight:700; color:var(--text-primary); margin-bottom:6px;">No Constituencies Found</div>
+          <div style="font-size:13px;">No assembly constituencies match the current filter or search criteria.</div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = list.map(c => {
+    const isDeclared = Boolean(c.candidate_name);
+    const electorsStr = Number(c.total_electors || 0).toLocaleString('en-IN');
+    const catBadgeStyle = c.category === 'SC'
+      ? 'background:#fef3c7; color:#92400e;'
+      : (c.category === 'ST' ? 'background:#ede9fe; color:#5b21b6;' : 'background:#e0e7ff; color:#3730a3;');
+
+    return `
+      <tr>
+        <td>
+          <span style="font-weight: 800; font-size: 13px; color: #2563eb; background: #eff6ff; padding: 4px 8px; border-radius: 6px;">
+            #${c.constituency_no}
+          </span>
+        </td>
+        <td>
+          <div style="font-weight: 700; font-size: 14px; color: var(--text-primary);">${c.name}</div>
+          <div style="margin-top: 3px;">
+            <span class="badge" style="${catBadgeStyle} font-size: 10px; padding: 2px 7px;">
+              ${c.category || 'GEN'}
+            </span>
+          </div>
+        </td>
+        <td>
+          <div style="font-weight: 600; color: #334155;">${c.district}</div>
+        </td>
+        <td>
+          <span style="font-size: 13px; color: var(--text-muted);">${electorsStr} Electors</span>
+        </td>
+        <td>
+          ${isDeclared ? `
+            <div style="display:flex; align-items:center; gap:10px;">
+              <img src="${c.candidate_photo || '/images/founder.jpg'}" 
+                   style="width:38px; height:38px; border-radius:50%; object-fit:cover; border:2px solid #2563eb;" 
+                   onerror="this.src='/images/founder.jpg'" />
+              <div>
+                <div style="font-weight: 700; font-size: 13px; color: var(--text-primary);">${c.candidate_name}</div>
+                <div style="font-size: 11px; color: #2563eb; font-weight: 600;">
+                  <i class="fa-solid fa-crown" style="font-size:10px;"></i> ${c.candidate_plan || 'Paid Member'}
+                </div>
+                ${c.candidate_phone ? `<div style="font-size: 11px; color: var(--text-muted);">${c.candidate_phone}</div>` : ''}
+              </div>
+            </div>
+          ` : `
+            <span style="color: #94a3b8; font-size: 12px; font-style: italic; display:inline-flex; align-items:center; gap:5px;">
+              <i class="fa-regular fa-circle-question"></i> No Candidate Nominated
+            </span>
+          `}
+        </td>
+        <td>
+          ${isDeclared ? `
+            <span class="badge" style="background:#d1fae5; color:#065f46; font-weight: 700; padding: 5px 10px;">
+              <i class="fa-solid fa-circle-check"></i> DECLARED
+            </span>
+          ` : `
+            <span class="badge" style="background:#fef3c7; color:#92400e; font-weight: 600; padding: 5px 10px;">
+              <i class="fa-solid fa-clock"></i> OPEN
+            </span>
+          `}
+        </td>
+        <td style="text-align: right;">
+          <div style="display:inline-flex; gap: 6px; justify-content: flex-end;">
+            <button class="btn btn-sm btn-primary btn-nominate-candidate" data-cid="${c.id}" title="${isDeclared ? 'Change Candidate' : 'Nominate Paid Member'}">
+              <i class="fa-solid ${isDeclared ? 'fa-user-pen' : 'fa-user-plus'}"></i> ${isDeclared ? 'Change' : 'Nominate'}
+            </button>
+            ${isDeclared ? `
+              <button class="btn btn-sm btn-outline btn-remove-candidate" data-cid="${c.id}" title="Remove Candidate" style="color:#dc2626; border-color:#fca5a5; padding: 4px 8px;">
+                <i class="fa-solid fa-user-xmark"></i>
+              </button>
+            ` : ''}
+            <button class="btn btn-sm btn-outline btn-edit-constituency" data-cid="${c.id}" title="Edit Constituency Info" style="padding: 4px 8px;">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Attach Table Row Action Handlers
+  tbody.querySelectorAll('.btn-nominate-candidate').forEach(btn => {
+    btn.onclick = () => {
+      const cId = parseInt(btn.getAttribute('data-cid'), 10);
+      openAssignCandidateModal(cId);
+    };
+  });
+
+  tbody.querySelectorAll('.btn-remove-candidate').forEach(btn => {
+    btn.onclick = async () => {
+      const cId = parseInt(btn.getAttribute('data-cid'), 10);
+      const constItem = (appData.constituencies || []).find(c => c.id === cId);
+      const name = constItem ? constItem.name : `#${cId}`;
+      const ok = confirm(`Are you sure you want to remove candidate ${constItem?.candidate_name || ''} from constituency ${name}?`);
+      if (!ok) return;
+
+      try {
+        await apiRemoveCandidate(cId);
+        alert(`Candidate removed from constituency ${name}.`);
+        // Refresh constituencies
+        const cRes = await apiGetConstituencies({ election_id: appData.selectedElectionId || 1 });
+        if (cRes && cRes.data) {
+          appData.constituencies = cRes.data;
+        }
+        renderElectionsView();
+      } catch (err) {
+        alert('Failed to remove candidate: ' + err.message);
+      }
+    };
+  });
+
+  tbody.querySelectorAll('.btn-edit-constituency').forEach(btn => {
+    btn.onclick = () => {
+      const cId = parseInt(btn.getAttribute('data-cid'), 10);
+      openEditConstituencyModal(cId);
+    };
+  });
+}
+
+// Open Assign/Nominate Candidate Modal
+function openAssignCandidateModal(cId) {
+  const modal = document.getElementById('modal-assign-candidate');
+  if (!modal) return;
+
+  const constituency = (appData.constituencies || []).find(c => c.id === Number(cId));
+  if (!constituency) return;
+
+  // Set Constituency Banner
+  document.getElementById('nominate-input-const-id').value = constituency.id;
+  document.getElementById('nominate-banner-sub').textContent = `AC #${constituency.constituency_no} Nomination`;
+  document.getElementById('nominate-banner-title').textContent = `AC #${constituency.constituency_no} - ${constituency.name} (${constituency.category || 'GEN'})`;
+  document.getElementById('nominate-banner-district').textContent = `${constituency.district} District · ${Number(constituency.total_electors || 0).toLocaleString('en-IN')} Registered Electors`;
+
+  document.getElementById('nominate-input-vision').value = constituency.campaign_vision || '';
+  document.getElementById('nominate-input-bio').value = constituency.candidate_bio || '';
+
+  // Populate Eligible Paid Members Dropdown
+  const selectMember = document.getElementById('nominate-select-candidate');
+  const eligible = appData.eligibleCandidates || [];
+  const eligibleCountLabel = document.getElementById('nominate-eligible-count');
+  if (eligibleCountLabel) {
+    eligibleCountLabel.textContent = `${eligible.length} Eligible Paid Members Available`;
+  }
+
+  selectMember.innerHTML = '<option value="">-- Choose Eligible Paid Member --</option>' +
+    eligible.map(u => `
+      <option value="${u.id}" 
+              data-name="${u.name}" 
+              data-phone="${u.phone || ''}" 
+              data-email="${u.email || ''}" 
+              data-photo="${u.profile_image || '/images/founder.jpg'}" 
+              data-plan="${u.active_plan_name || 'Paid Member'}"
+              ${constituency.candidate_id === u.id ? 'selected' : ''}>
+        ${u.name} (${u.phone || u.email || 'Member'} - ${u.active_plan_name || 'Active'})
+      </option>
+    `).join('');
+
+  // If candidate is already nominated and was not in the eligible list (e.g. pre-seeded Pasha), include them
+  if (constituency.candidate_id && !eligible.find(u => u.id === constituency.candidate_id)) {
+    const opt = document.createElement('option');
+    opt.value = constituency.candidate_id;
+    opt.dataset.name = constituency.candidate_name;
+    opt.dataset.phone = constituency.candidate_phone || '';
+    opt.dataset.email = constituency.candidate_email || '';
+    opt.dataset.photo = constituency.candidate_photo || '/images/founder.jpg';
+    opt.dataset.plan = constituency.candidate_plan || 'Party Leadership Plan';
+    opt.textContent = `${constituency.candidate_name} (Current Nominee - ${constituency.candidate_plan})`;
+    opt.selected = true;
+    selectMember.appendChild(opt);
+  }
+
+  // Preview Box
+  const previewBox = document.getElementById('nominate-candidate-preview');
+  function updateCandidatePreview() {
+    const selectedOpt = selectMember.selectedOptions[0];
+    if (selectedOpt && selectedOpt.value) {
+      previewBox.style.display = 'block';
+      document.getElementById('nominate-preview-name').textContent = selectedOpt.dataset.name || selectedOpt.textContent;
+      document.getElementById('nominate-preview-details').textContent = `${selectedOpt.dataset.phone || ''} · ${selectedOpt.dataset.email || ''}`;
+      document.getElementById('nominate-preview-photo').src = selectedOpt.dataset.photo || '/images/founder.jpg';
+      document.getElementById('nominate-preview-plan-badge').innerHTML = `
+        <span class="badge" style="background:#2563eb; color:white; font-size:11px;">
+          <i class="fa-solid fa-crown" style="font-size:10px;"></i> ${selectedOpt.dataset.plan || 'Paid Member'}
+        </span>
+      `;
+    } else {
+      previewBox.style.display = 'none';
+    }
+  }
+
+  selectMember.onchange = updateCandidatePreview;
+  updateCandidatePreview();
+
+  // Remove Candidate button in modal
+  const btnRemoveModal = document.getElementById('btn-nominate-remove-candidate');
+  if (btnRemoveModal) {
+    if (constituency.candidate_name) {
+      btnRemoveModal.style.display = 'inline-block';
+      btnRemoveModal.onclick = async () => {
+        const ok = confirm(`Are you sure you want to remove ${constituency.candidate_name} as the candidate for ${constituency.name}?`);
+        if (!ok) return;
+        try {
+          await apiRemoveCandidate(constituency.id);
+          modal.style.display = 'none';
+          alert('Candidate removed successfully.');
+          const cRes = await apiGetConstituencies({ election_id: appData.selectedElectionId || 1 });
+          if (cRes && cRes.data) {
+            appData.constituencies = cRes.data;
+          }
+          renderElectionsView();
+        } catch (e) {
+          alert('Failed to remove candidate: ' + e.message);
+        }
+      };
+    } else {
+      btnRemoveModal.style.display = 'none';
+    }
+  }
+
+  modal.style.display = 'flex';
+}
+
+// Open Edit Constituency Modal
+function openEditConstituencyModal(cId) {
+  const modal = document.getElementById('modal-edit-constituency');
+  if (!modal) return;
+
+  const constituency = (appData.constituencies || []).find(c => c.id === Number(cId));
+  if (!constituency) return;
+
+  document.getElementById('edit-const-id').value = constituency.id;
+  document.getElementById('edit-const-no').value = constituency.constituency_no;
+  document.getElementById('edit-const-name').value = constituency.name;
+  document.getElementById('edit-const-district').value = constituency.district;
+  document.getElementById('edit-const-category').value = constituency.category || 'GEN';
+  document.getElementById('edit-const-electors').value = constituency.total_electors || '';
+
+  modal.style.display = 'flex';
+}
+
+// Setup Event Listeners for Elections Admin
+function setupElectionAdminListeners() {
+  // 1. Filter Search
+  const searchInp = document.getElementById('election-filter-search');
+  if (searchInp) {
+    searchInp.oninput = () => {
+      appData.electionSearchQuery = searchInp.value;
+      renderElectionsView();
+    };
+  }
+
+  // 2. District Filter
+  const districtSelect = document.getElementById('election-filter-district');
+  if (districtSelect) {
+    districtSelect.onchange = () => {
+      appData.electionDistrictFilter = districtSelect.value;
+      renderElectionsView();
+    };
+  }
+
+  // 3. Status Filter
+  const statusSelect = document.getElementById('election-filter-status');
+  if (statusSelect) {
+    statusSelect.onchange = () => {
+      appData.electionStatusFilter = statusSelect.value;
+      renderElectionsView();
+    };
+  }
+
+  // 4. Reset Filters Button
+  const btnReset = document.getElementById('btn-reset-election-filter');
+  if (btnReset) {
+    btnReset.onclick = () => {
+      if (searchInp) searchInp.value = '';
+      if (districtSelect) districtSelect.value = 'ALL';
+      if (statusSelect) statusSelect.value = 'ALL';
+      appData.electionSearchQuery = '';
+      appData.electionDistrictFilter = 'ALL';
+      appData.electionStatusFilter = 'ALL';
+      renderElectionsView();
+    };
+  }
+
+  // 5. Refresh Elections Directory
+  const btnRefresh = document.getElementById('btn-refresh-elections');
+  if (btnRefresh) {
+    btnRefresh.onclick = async () => {
+      btnRefresh.disabled = true;
+      btnRefresh.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Refreshing...';
+      try {
+        appData.elections = await apiGetElections();
+        const cRes = await apiGetConstituencies({ election_id: appData.selectedElectionId || 1 });
+        if (cRes && cRes.data) {
+          appData.constituencies = cRes.data;
+        }
+        appData.eligibleCandidates = await apiGetEligibleCandidates();
+        renderElectionsView();
+        alert('Elections and Constituencies directory refreshed successfully!');
+      } catch (e) {
+        alert('Refresh failed: ' + e.message);
+      } finally {
+        btnRefresh.disabled = false;
+        btnRefresh.innerHTML = '<i class="fa-solid fa-rotate"></i> Refresh Directory';
+      }
+    };
+  }
+
+  // 6. Switch Election Campaign Dropdown
+  const selectSwitch = document.getElementById('admin-select-election-switch');
+  if (selectSwitch) {
+    selectSwitch.onchange = async (e) => {
+      const elId = Number(e.target.value);
+      appData.selectedElectionId = elId;
+      showTopLoader();
+      try {
+        const cRes = await apiGetConstituencies({ election_id: elId });
+        if (cRes && cRes.data) {
+          appData.constituencies = cRes.data;
+        }
+        renderElectionsView();
+      } catch (err) {
+        alert('Failed to switch election: ' + err.message);
+      } finally {
+        hideTopLoader();
+      }
+    };
+  }
+
+  // 7. Open Create Election Modal
+  const btnOpenCreate = document.getElementById('btn-open-create-election');
+  const modalCreateEl = document.getElementById('modal-create-election');
+  if (btnOpenCreate && modalCreateEl) {
+    btnOpenCreate.onclick = () => {
+      modalCreateEl.style.display = 'flex';
+    };
+  }
+
+  // 8. Create Election Form Submit
+  const formCreateElection = document.getElementById('form-create-election');
+  if (formCreateElection) {
+    formCreateElection.onsubmit = async (e) => {
+      e.preventDefault();
+      const payload = {
+        title: document.getElementById('election-input-title').value.trim(),
+        code: document.getElementById('election-input-code').value.trim(),
+        election_type: document.getElementById('election-input-type').value,
+        state: document.getElementById('election-input-state').value.trim(),
+        year: parseInt(document.getElementById('election-input-year').value, 10),
+        total_seats: parseInt(document.getElementById('election-input-total-seats').value, 10),
+        target_seats: parseInt(document.getElementById('election-input-target-seats').value, 10) || null,
+        manifesto_theme: document.getElementById('election-input-theme').value.trim(),
+        description: document.getElementById('election-input-desc').value.trim()
+      };
+
+      try {
+        const newEl = await apiCreateElection(payload);
+        alert(`Election "${payload.title}" created successfully!`);
+        formCreateElection.reset();
+        modalCreateEl.style.display = 'none';
+
+        appData.elections = await apiGetElections();
+        appData.selectedElectionId = newEl.id || appData.elections[appData.elections.length - 1]?.id;
+        const cRes = await apiGetConstituencies({ election_id: appData.selectedElectionId });
+        if (cRes && cRes.data) {
+          appData.constituencies = cRes.data;
+        }
+        renderElectionsView();
+      } catch (err) {
+        alert('Failed to create election: ' + err.message);
+      }
+    };
+  }
+
+  // 9. Candidate Nomination Form Submit (Paid Members Only)
+  const formNominate = document.getElementById('form-nominate-candidate');
+  const modalNominate = document.getElementById('modal-assign-candidate');
+  if (formNominate && modalNominate) {
+    formNominate.onsubmit = async (e) => {
+      e.preventDefault();
+      const constId = parseInt(document.getElementById('nominate-input-const-id').value, 10);
+      const userId = parseInt(document.getElementById('nominate-select-candidate').value, 10);
+      const vision = document.getElementById('nominate-input-vision').value.trim();
+      const bio = document.getElementById('nominate-input-bio').value.trim();
+
+      if (!constId || !userId) {
+        alert('Please select an eligible paid member to nominate.');
+        return;
+      }
+
+      const saveBtn = document.getElementById('btn-save-nomination');
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Validating & Nominating...';
+
+      try {
+        const res = await apiAssignCandidate(constId, {
+          user_id: userId,
+          campaign_vision: vision,
+          candidate_bio: bio
+        });
+
+        if (res && (res.success || res.status === 200)) {
+          alert('Party Candidate nominated successfully for the constituency!');
+          modalNominate.style.display = 'none';
+          // Refresh constituencies
+          const cRes = await apiGetConstituencies({ election_id: appData.selectedElectionId || 1 });
+          if (cRes && cRes.data) {
+            appData.constituencies = cRes.data;
+          }
+          renderElectionsView();
+        } else {
+          alert((res && res.message) || 'Failed to nominate candidate. Please verify membership status.');
+        }
+      } catch (err) {
+        alert('Candidate Nomination Error: ' + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Confirm Nomination';
+      }
+    };
+  }
+
+  // 10. Edit Constituency Form Submit
+  const formEditConst = document.getElementById('form-edit-constituency');
+  const modalEditConst = document.getElementById('modal-edit-constituency');
+  if (formEditConst && modalEditConst) {
+    formEditConst.onsubmit = async (e) => {
+      e.preventDefault();
+      const constId = parseInt(document.getElementById('edit-const-id').value, 10);
+      const payload = {
+        name: document.getElementById('edit-const-name').value.trim(),
+        district: document.getElementById('edit-const-district').value.trim(),
+        category: document.getElementById('edit-const-category').value,
+        total_electors: parseInt(document.getElementById('edit-const-electors').value, 10) || 0
+      };
+
+      try {
+        await apiUpdateConstituency(constId, payload);
+        alert('Constituency information updated successfully!');
+        modalEditConst.style.display = 'none';
+
+        const cRes = await apiGetConstituencies({ election_id: appData.selectedElectionId || 1 });
+        if (cRes && cRes.data) {
+          appData.constituencies = cRes.data;
+        }
+        renderElectionsView();
+      } catch (err) {
+        alert('Failed to update constituency: ' + err.message);
+      }
     };
   }
 }

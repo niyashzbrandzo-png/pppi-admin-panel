@@ -1624,3 +1624,123 @@ export async function apiDeleteEmergencyAlert(alertId) {
     return false;
   }
 }
+
+/* ==========================================================================
+   PPPI Elections & Karnataka 224 Assembly Constituencies APIs
+   ========================================================================== */
+export async function apiGetElections() {
+  try {
+    const data = await request('/elections');
+    if (data && data.data && Array.isArray(data.data)) {
+      return data.data;
+    }
+  } catch (err) {
+    console.warn('apiGetElections remote fetch notice:', err.message);
+  }
+  return [];
+}
+
+export async function apiCreateElection(payload) {
+  try {
+    const res = await request('/elections', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    return res && res.data ? res.data : res;
+  } catch (err) {
+    console.error('apiCreateElection error:', err.message);
+    throw err;
+  }
+}
+
+export async function apiUpdateElection(electionId, payload) {
+  try {
+    const res = await request(`/elections/${electionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+    return res && (res.status === 200 || res.success);
+  } catch (err) {
+    console.error('apiUpdateElection error:', err.message);
+    throw err;
+  }
+}
+
+export async function apiDeleteElection(electionId) {
+  try {
+    const res = await request(`/elections/${electionId}`, {
+      method: 'DELETE'
+    });
+    return res && (res.status === 200 || res.success);
+  } catch (err) {
+    console.error('apiDeleteElection error:', err.message);
+    return false;
+  }
+}
+
+export async function apiGetConstituencies(params = {}) {
+  try {
+    const qs = new URLSearchParams();
+    if (params.election_id) qs.append('election_id', params.election_id);
+    if (params.district && params.district !== 'ALL') qs.append('district', params.district);
+    if (params.status && params.status !== 'ALL') qs.append('status', params.status);
+    if (params.search) qs.append('search', params.search);
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    const data = await request(`/elections/constituencies${query}`);
+    return data;
+  } catch (err) {
+    console.warn('apiGetConstituencies error:', err.message);
+    return { success: false, data: [], districts: [] };
+  }
+}
+
+export async function apiAssignCandidate(constituencyId, payload) {
+  try {
+    const res = await request(`/elections/constituencies/${constituencyId}/candidate`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    return res;
+  } catch (err) {
+    console.error('apiAssignCandidate error:', err.message);
+    throw err;
+  }
+}
+
+export async function apiRemoveCandidate(constituencyId) {
+  try {
+    const res = await request(`/elections/constituencies/${constituencyId}/candidate`, {
+      method: 'DELETE'
+    });
+    return res && (res.status === 200 || res.success);
+  } catch (err) {
+    console.error('apiRemoveCandidate error:', err.message);
+    return false;
+  }
+}
+
+export async function apiUpdateConstituency(constituencyId, payload) {
+  try {
+    const res = await request(`/elections/constituencies/${constituencyId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+    return res && (res.status === 200 || res.success);
+  } catch (err) {
+    console.error('apiUpdateConstituency error:', err.message);
+    throw err;
+  }
+}
+
+export async function apiGetEligibleCandidates() {
+  try {
+    const data = await request('/elections/candidates/eligible-users');
+    if (data && data.data && Array.isArray(data.data)) {
+      return data.data;
+    }
+  } catch (err) {
+    console.warn('apiGetEligibleCandidates error:', err.message);
+  }
+  return [];
+}
+
