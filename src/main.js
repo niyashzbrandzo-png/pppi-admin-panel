@@ -60,6 +60,9 @@ import {
   apiGetLegalCases,
   apiUpdateLegalCase,
   apiDeleteLegalCase,
+  apiGetMarriageApplications,
+  apiUpdateMarriageApplication,
+  apiDeleteMarriageApplication,
   apiGetSettings,
   apiToggleMaintenance,
   apiUpdateSettings,
@@ -91,6 +94,7 @@ let appData = {
   applications: [],
   agriQuestions: [],
   legalCases: [],
+  marriageApplications: [],
   settings: {
     maintenance_mode: false,
     maintenance_message: 'Currently Website & Mobile App Under Development',
@@ -165,6 +169,7 @@ async function initApp() {
   setupJobModals();
   setupAgricultureAdminListeners();
   setupLawAdminListeners();
+  setupMarriageAdminListeners();
   applyRoleAccessControl();
 
   // Global Click Event Delegation for Maintenance controls
@@ -4094,12 +4099,18 @@ function renderAgricultureView() {
         appData.agriQuestions = await apiGetAgriQuestions();
     try {
       appData.legalCases = await apiGetLegalCases();
+    try {
+      appData.marriageApplications = await apiGetMarriageApplications();
+    } catch(e) {
+      console.warn('apiGetMarriageApplications fallback notice:', e);
+    }
     } catch(e) {
       console.warn('apiGetLegalCases fallback notice:', e);
     }
         updateBadges();
         renderAgricultureView();
     renderLawView();
+    renderMarriagesView();
       } catch (err) {
         alert('Failed to delete question: ' + err.message);
       }
@@ -4475,5 +4486,317 @@ function setupLawAdminListeners() {
   const statusSelect = document.getElementById('law-filter-status');
   if (statusSelect) {
     statusSelect.onchange = () => renderLawView();
+  }
+}
+
+
+/* ==========================================================================
+   MARRIAGES SUPPORT & SOCIAL HARMONY CELL (ADMIN ONLY)
+   ========================================================================== */
+function renderMarriagesView() {
+  const tbody = document.getElementById('tbody-marriages-cases');
+  if (!tbody) return;
+
+  const applications = appData.marriageApplications || [];
+
+  // Update KPI counters
+  let totalApps = applications.length;
+  let underVerification = 0;
+  let highThreats = 0;
+  let solemnized = 0;
+
+  applications.forEach(a => {
+    if (a.status === 'UNDER_VERIFICATION') underVerification++;
+    if (a.threat_level === 'HIGH' || a.threat_level === 'URGENT') highThreats++;
+    if (a.status === 'MARRIAGE_SOLEMNIZED' || a.status === 'FINANCIAL_AID_SANCTIONED') solemnized++;
+  });
+
+  const kpiTotal = document.getElementById('kpi-marriages-total');
+  if (kpiTotal) kpiTotal.textContent = totalApps;
+  const kpiVer = document.getElementById('kpi-marriages-verification');
+  if (kpiVer) kpiVer.textContent = underVerification;
+  const kpiThreat = document.getElementById('kpi-marriages-threats');
+  if (kpiThreat) kpiThreat.textContent = highThreats;
+  const kpiSol = document.getElementById('kpi-marriages-solemnized');
+  if (kpiSol) kpiSol.textContent = solemnized;
+
+  // Filters
+  const searchVal = (document.getElementById('marriages-filter-search')?.value || '').toLowerCase().trim();
+  const barrierVal = document.getElementById('marriages-filter-barrier')?.value || 'ALL';
+  const statusVal = document.getElementById('marriages-filter-status')?.value || 'ALL';
+
+  const filtered = applications.filter(a => {
+    if (barrierVal !== 'ALL' && !String(a.barrier_type || '').includes(barrierVal)) return false;
+    if (statusVal !== 'ALL' && a.status !== statusVal) return false;
+    if (searchVal) {
+      const q = searchVal;
+      const match = (a.application_no && a.application_no.toLowerCase().includes(q)) ||
+                    (a.groom_name && a.groom_name.toLowerCase().includes(q)) ||
+                    (a.bride_name && a.bride_name.toLowerCase().includes(q)) ||
+                    (a.groom_phone && a.groom_phone.includes(q)) ||
+                    (a.bride_phone && a.bride_phone.includes(q)) ||
+                    (a.groom_district && a.groom_district.toLowerCase().includes(q));
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align: center; padding: 36px 16px; color: #64748b;">
+          <i class="fa-solid fa-heart-crack" style="font-size: 28px; margin-bottom: 8px; display: block; color: #cbd5e1;"></i>
+          No couple marriage support applications matching your search filters.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(a => {
+    const isUrgent = a.threat_level === 'URGENT' || a.threat_level === 'HIGH';
+    return `
+      <tr>
+        <td>
+          <div style="font-family: monospace; font-size: 11.5px; font-weight: 800; color: #be123c;">${escapeHtml(a.application_no || '')}</div>
+          <strong style="color: #0f172a; font-size: 13.5px;">${escapeHtml(a.groom_name || '')} &amp; ${escapeHtml(a.bride_name || '')}</strong>
+          <div style="font-size: 11px; color: #64748b;">${escapeHtml(a.relationship_years || 'Couple')} in love</div>
+        </td>
+        <td>
+          <div style="font-size: 12px;"><i class="fa-solid fa-mars" style="color:#0284c7; margin-right:4px;"></i>${escapeHtml(a.groom_phone || 'N/A')} (${escapeHtml(a.groom_district || 'Kolar')})</div>
+          <div style="font-size: 12px; margin-top:2px;"><i class="fa-solid fa-venus" style="color:#db2777; margin-right:4px;"></i>${escapeHtml(a.bride_phone || 'N/A')} (${escapeHtml(a.bride_district || 'Kolar')})</div>
+        </td>
+        <td>
+          <div style="font-weight: 600; color: #881337; font-size: 12.5px;">${escapeHtml(a.barrier_type || 'Social Barrier')}</div>
+          <small style="color: #64748b; font-size: 11px;">${escapeHtml(a.assistance_required || 'Counseling')}</small>
+        </td>
+        <td>
+          <span style="display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; ${isUrgent ? 'background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5;' : 'background: #fef9c3; color: #854d0e; border: 1px solid #fde047;'}">
+            ${isUrgent ? '<i class="fa-solid fa-triangle-exclamation" style="margin-right:3px;"></i>' : ''}${escapeHtml(a.threat_level || 'MEDIUM')}
+          </span>
+        </td>
+        <td>
+          <span class="badge ${a.status === 'MARRIAGE_SOLEMNIZED' ? 'badge-success' : a.status === 'COUPLE_CONTACTED' ? 'badge-primary' : 'badge-warning'}">
+            ${(a.status || 'UNDER_VERIFICATION').replace(/_/g, ' ')}
+          </span>
+        </td>
+        <td>
+          ${a.assigned_officer ? `
+            <div style="font-weight: 700; color: #be123c; font-size: 12px;">
+              <i class="fa-solid fa-user-shield" style="margin-right: 4px;"></i>${escapeHtml(a.assigned_officer)}
+            </div>
+          ` : `
+            <span style="font-size: 11px; color: #94a3b8; font-style: italic;">Awaiting Assignment</span>
+          `}
+        </td>
+        <td style="text-align: right; white-space: nowrap;">
+          <button type="button" class="btn btn-sm btn-outline-primary btn-view-marriage-dossier" data-id="${a.id}" title="Review Couple Dossier" style="margin-right: 4px;">
+            <i class="fa-solid fa-eye"></i> View
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-danger btn-delete-marriage-app" data-id="${a.id}" title="Delete Application">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Bind View Dossier buttons
+  document.querySelectorAll('.btn-view-marriage-dossier').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.getAttribute('data-id');
+      const item = applications.find(x => String(x.id) === String(id));
+      if (item) openMarriageDossierModal(item);
+    };
+  });
+
+  // Bind Delete buttons
+  document.querySelectorAll('.btn-delete-marriage-app').forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.getAttribute('data-id');
+      if (!confirm('Are you sure you want to remove this confidential marriage support application?')) return;
+      try {
+        await apiDeleteMarriageApplication(id);
+        alert('Marriage support dossier removed.');
+        appData.marriageApplications = await apiGetMarriageApplications();
+        updateBadges();
+        renderMarriagesView();
+      } catch (err) {
+        alert('Failed to delete application: ' + err.message);
+      }
+    };
+  });
+}
+
+function openMarriageDossierModal(item) {
+  let modal = document.getElementById('modal-marriage-dossier');
+  if (!modal) {
+    const modalDiv = document.createElement('div');
+    modalDiv.id = 'modal-marriage-dossier';
+    modalDiv.className = 'modal';
+    modalDiv.style.display = 'none';
+    modalDiv.innerHTML = `
+      <div class="modal-dialog" style="max-width: 840px;">
+        <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
+          <div class="modal-header" style="background: #881337; color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="modal-title" style="margin: 0; font-size: 16px;"><i class="fa-solid fa-heart" style="margin-right: 8px;"></i>Confidential Couple Dossier &amp; Social Aid Review</h3>
+            <button type="button" id="btn-close-marriage-dossier-x" style="color: white; background: none; border: none; font-size: 20px; cursor: pointer;">&times;</button>
+          </div>
+          <div class="modal-body" id="marriage-modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modalDiv);
+    modal = modalDiv;
+
+    document.getElementById('btn-close-marriage-dossier-x').onclick = () => {
+      modal.style.display = 'none';
+    };
+  }
+
+  const body = document.getElementById('marriage-modal-body');
+  if (!body) return;
+
+  body.innerHTML = `
+    <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <span style="font-family: monospace; font-size: 15px; font-weight: 800; color: #881337;">${escapeHtml(item.application_no || '')}</span>
+        <span style="background: #fdf2f8; color: #db2777; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; margin-left: 8px;">STRICTLY CONFIDENTIAL</span>
+      </div>
+      <div>
+        <span class="badge badge-warning" style="margin-right: 6px;">Threat: ${escapeHtml(item.threat_level || 'MEDIUM')}</span>
+        <span class="badge badge-primary">${(item.status || 'UNDER_VERIFICATION').replace(/_/g, ' ')}</span>
+      </div>
+    </div>
+
+    <!-- DUAL COLUMN COMPARISON: GROOM VS BRIDE -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+      <!-- Groom Card -->
+      <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; padding: 14px;">
+        <h4 style="margin: 0 0 10px 0; color: #0369a1; font-size: 14px; border-bottom: 1px solid #e0f2fe; padding-bottom: 6px;">
+          <i class="fa-solid fa-mars" style="margin-right: 6px;"></i>Groom (Boy Side) Details
+        </h4>
+        <div style="font-size: 12.5px; line-height: 1.6; color: #1e293b;">
+          <div><strong>Name:</strong> ${escapeHtml(item.groom_name || '')} (Age: ${item.groom_age})</div>
+          <div><strong>Father:</strong> ${escapeHtml(item.groom_father || 'N/A')}</div>
+          <div><strong>Phone:</strong> <a href="tel:${item.groom_phone}" style="color: #0284c7; font-weight: bold;">${escapeHtml(item.groom_phone || '')}</a></div>
+          <div><strong>Email:</strong> ${escapeHtml(item.groom_email || 'N/A')}</div>
+          <div><strong>Aadhaar:</strong> ${escapeHtml(item.groom_aadhaar || 'N/A')}</div>
+          <div><strong>PAN Card:</strong> ${escapeHtml(item.groom_pan || 'N/A')}</div>
+          <div><strong>Religion/Caste:</strong> ${escapeHtml(item.groom_religion || '')} - ${escapeHtml(item.groom_caste || 'N/A')}</div>
+          <div><strong>Occupation:</strong> ${escapeHtml(item.groom_occupation || '')} (${escapeHtml(item.groom_income || 'N/A')})</div>
+          <div><strong>Address:</strong> ${escapeHtml(item.groom_address || '')}, ${escapeHtml(item.groom_district || '')}</div>
+        </div>
+      </div>
+
+      <!-- Bride Card -->
+      <div style="background: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 10px; padding: 14px;">
+        <h4 style="margin: 0 0 10px 0; color: #be185d; font-size: 14px; border-bottom: 1px solid #fce7f3; padding-bottom: 6px;">
+          <i class="fa-solid fa-venus" style="margin-right: 6px;"></i>Bride (Girl Side) Details
+        </h4>
+        <div style="font-size: 12.5px; line-height: 1.6; color: #1e293b;">
+          <div><strong>Name:</strong> ${escapeHtml(item.bride_name || '')} (Age: ${item.bride_age})</div>
+          <div><strong>Father:</strong> ${escapeHtml(item.bride_father || 'N/A')}</div>
+          <div><strong>Phone:</strong> <a href="tel:${item.bride_phone}" style="color: #db2777; font-weight: bold;">${escapeHtml(item.bride_phone || '')}</a></div>
+          <div><strong>Email:</strong> ${escapeHtml(item.bride_email || 'N/A')}</div>
+          <div><strong>Aadhaar:</strong> ${escapeHtml(item.bride_aadhaar || 'N/A')}</div>
+          <div><strong>PAN Card:</strong> ${escapeHtml(item.bride_pan || 'N/A')}</div>
+          <div><strong>Religion/Caste:</strong> ${escapeHtml(item.bride_religion || '')} - ${escapeHtml(item.bride_caste || 'N/A')}</div>
+          <div><strong>Occupation:</strong> ${escapeHtml(item.bride_occupation || '')} (${escapeHtml(item.bride_income || 'N/A')})</div>
+          <div><strong>Address:</strong> ${escapeHtml(item.bride_address || '')}, ${escapeHtml(item.bride_district || '')}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Struggle & Opposition Background -->
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-bottom: 20px;">
+      <h4 style="margin: 0 0 6px 0; color: #881337; font-size: 13.5px;"><i class="fa-solid fa-circle-exclamation" style="margin-right: 6px;"></i>Dispute, Family Opposition &amp; Struggle Details:</h4>
+      <p style="font-size: 13px; color: #334155; line-height: 1.5; margin: 0 0 8px 0;">
+        ${escapeHtml(item.dispute_summary || 'No narrative specified.')}
+      </p>
+      <div style="display: flex; gap: 16px; font-size: 12px; color: #64748b; border-top: 1px dashed #e2e8f0; padding-top: 8px;">
+        <div><strong>Barrier Category:</strong> ${escapeHtml(item.barrier_type || '')}</div>
+        <div><strong>Relationship Duration:</strong> ${escapeHtml(item.relationship_years || 'N/A')}</div>
+        <div><strong>Assistance Desired:</strong> ${escapeHtml(item.assistance_required || '')}</div>
+      </div>
+    </div>
+
+    <!-- Admin Action & Counselor Assignment -->
+    <div style="background: #fdf4ff; border: 1px solid #f0abfc; border-radius: 10px; padding: 16px;">
+      <h4 style="margin: 0 0 12px 0; color: #701a75; font-size: 14px;"><i class="fa-solid fa-hand-holding-heart" style="margin-right: 6px;"></i>Social Harmony Action &amp; Counselor Assignment</h4>
+      <form id="form-update-marriage-status">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div>
+            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Application Status:</label>
+            <select id="modal-marriage-status" class="form-control" style="width: 100%;">
+              <option value="UNDER_VERIFICATION" ${item.status === 'UNDER_VERIFICATION' ? 'selected' : ''}>UNDER VERIFICATION</option>
+              <option value="COUPLE_CONTACTED" ${item.status === 'COUPLE_CONTACTED' ? 'selected' : ''}>COUPLE CONTACTED & VERIFIED</option>
+              <option value="COUNSELING_SCHEDULED" ${item.status === 'COUNSELING_SCHEDULED' ? 'selected' : ''}>COUNSELING / MEDIATION SCHEDULED</option>
+              <option value="LEGAL_AID_PROVIDED" ${item.status === 'LEGAL_AID_PROVIDED' ? 'selected' : ''}>LEGAL AID / SPECIAL MARRIAGE ACT</option>
+              <option value="FINANCIAL_AID_SANCTIONED" ${item.status === 'FINANCIAL_AID_SANCTIONED' ? 'selected' : ''}>KALYANA SAHAYA SANCTIONED</option>
+              <option value="MARRIAGE_SOLEMNIZED" ${item.status === 'MARRIAGE_SOLEMNIZED' ? 'selected' : ''}>MARRIAGE SOLEMNIZED / PROTECTED</option>
+              <option value="REJECTED" ${item.status === 'REJECTED' ? 'selected' : ''}>REJECTED / UNVERIFIED</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Assigned Counselor / Officer:</label>
+            <input type="text" id="modal-marriage-officer" class="form-control" value="${escapeHtml(item.assigned_officer || '')}" placeholder="e.g. Smt. Kavitha Gowda (Social Harmony)" style="width: 100%;" />
+          </div>
+        </div>
+        <div style="margin-bottom: 14px;">
+          <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Verification &amp; Social Action Notes:</label>
+          <textarea id="modal-marriage-notes" class="form-control" rows="3" placeholder="Enter background check findings, parental contact notes, safety instructions..." style="width: 100%;">${escapeHtml(item.admin_notes || '')}</textarea>
+        </div>
+        <div style="text-align: right;">
+          <button type="submit" class="btn btn-primary" id="btn-save-marriage-status" style="background: #881337; border-color: #881337;">
+            <i class="fa-solid fa-floppy-disk" style="margin-right: 6px;"></i> Save Action &amp; Counselor Notes
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  modal.style.display = 'flex';
+
+  const form = document.getElementById('form-update-marriage-status');
+  if (form) {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const status = document.getElementById('modal-marriage-status')?.value;
+      const assigned_officer = document.getElementById('modal-marriage-officer')?.value?.trim();
+      const admin_notes = document.getElementById('modal-marriage-notes')?.value?.trim();
+
+      try {
+        const ok = await apiUpdateMarriageApplication(item.id, { status, assigned_officer, admin_notes });
+        if (ok) {
+          alert('Marriage dossier and counselor assignment updated successfully!');
+          modal.style.display = 'none';
+          appData.marriageApplications = await apiGetMarriageApplications();
+          updateBadges();
+          renderMarriagesView();
+        } else {
+          alert('Failed to update marriage application.');
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    };
+  }
+}
+
+function setupMarriageAdminListeners() {
+  const searchInp = document.getElementById('marriages-filter-search');
+  if (searchInp) {
+    searchInp.oninput = () => renderMarriagesView();
+  }
+
+  const barrierSelect = document.getElementById('marriages-filter-barrier');
+  if (barrierSelect) {
+    barrierSelect.onchange = () => renderMarriagesView();
+  }
+
+  const statusSelect = document.getElementById('marriages-filter-status');
+  if (statusSelect) {
+    statusSelect.onchange = () => renderMarriagesView();
   }
 }

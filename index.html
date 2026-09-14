@@ -163,6 +163,11 @@
           <span>Law &amp; Judiciary</span>
           <span class="badge" id="badge-law-count" style="background:#d97706; color:white;">0</span>
         </a>
+        <a href="#" class="nav-item" data-view="marriages" id="nav-marriages" data-role="admin">
+          <i class="fa-solid fa-heart" style="color:#ec4899;"></i>
+          <span>Marriages Support</span>
+          <span class="badge" id="badge-marriages-count" style="background:#ec4899; color:white;">0</span>
+        </a>
         <a href="#" class="nav-item" data-view="manifesto" data-role="admin">
           <i class="fa-solid fa-book-open"></i>
           <span>Party Manifesto Topics</span>
@@ -1289,6 +1294,123 @@
                   </tr>
                 </thead>
                 <tbody id="tbody-law-cases">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- MARRIAGES SUPPORT & SOCIAL HARMONY VIEW (STRICTLY ADMIN ONLY) -->
+        <section id="view-marriages" class="content-view" data-role="admin">
+          <div class="view-header">
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                <h1 class="view-title">Marriages Support &amp; Social Harmony Cell</h1>
+                <span style="background: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
+                  <i class="fa-solid fa-lock" style="font-size: 10px; margin-right: 4px;"></i> Strictly Confidential
+                </span>
+                <span style="background: #fce7f3; color: #be185d; border: 1px solid #f472b6; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
+                  Special Marriage Act &amp; Social Aid
+                </span>
+              </div>
+              <p class="view-subtitle">Confidential dossier verification for couples struggling to marry due to caste, religion, language, international barriers, or financial hardship.</p>
+            </div>
+          </div>
+
+          <!-- KPI Cards Grid -->
+          <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px;">
+            <div class="kpi-card" style="border-left: 4px solid #db2777;">
+              <div class="kpi-icon" style="background: #fdf2f8; color: #db2777;">
+                <i class="fa-solid fa-heart"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Total Applications</span>
+                <h3 class="kpi-value" id="kpi-marriages-total">0</h3>
+                <span class="kpi-subtext" style="color:#db2777; font-weight:600;">Couple dossiers</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" style="border-left: 4px solid #eab308;">
+              <div class="kpi-icon" style="background: #fef9c3; color: #ca8a04;">
+                <i class="fa-solid fa-user-clock"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Under Verification</span>
+                <h3 class="kpi-value" id="kpi-marriages-verification">0</h3>
+                <span class="kpi-subtext" style="color:#ca8a04; font-weight:600;">Initial evaluation</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" style="border-left: 4px solid #ef4444;">
+              <div class="kpi-icon" style="background: #fee2e2; color: #dc2626;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">High Threat / Urgency</span>
+                <h3 class="kpi-value" id="kpi-marriages-threats">0</h3>
+                <span class="kpi-subtext" style="color:#dc2626; font-weight:600;">Police / Legal shelter</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" style="border-left: 4px solid #16a34a;">
+              <div class="kpi-icon" style="background: #dcfce7; color: #16a34a;">
+                <i class="fa-solid fa-ring"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Sanctioned / Solemnized</span>
+                <h3 class="kpi-value" id="kpi-marriages-solemnized">0</h3>
+                <span class="kpi-subtext" style="color:#16a34a; font-weight:600;">Protected unions</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Search & Filter Controls -->
+          <div class="card" style="margin-bottom: 20px; padding: 16px;">
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+              <div style="flex: 1; min-width: 260px; position: relative;">
+                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 12px; color: #94a3b8;"></i>
+                <input type="text" id="marriages-filter-search" class="form-control" placeholder="Search by groom, bride, mobile, ref no, or district..." style="padding-left: 36px;" />
+              </div>
+              <div style="min-width: 200px;">
+                <select id="marriages-filter-barrier" class="form-control">
+                  <option value="ALL">All Barrier Types</option>
+                  <option value="Inter-Caste">Inter-Caste Marriage Opposition</option>
+                  <option value="Inter-Faith">Inter-Faith / Religious Opposition</option>
+                  <option value="Financial Hardship">Financial Hardship / Poverty</option>
+                  <option value="Language">Language &amp; Cultural Differences</option>
+                  <option value="Parental Opposition">Parental Opposition &amp; Family Threats</option>
+                </select>
+              </div>
+              <div style="min-width: 170px;">
+                <select id="marriages-filter-status" class="form-control">
+                  <option value="ALL">All Statuses</option>
+                  <option value="UNDER_VERIFICATION">Under Verification</option>
+                  <option value="COUPLE_CONTACTED">Couple Contacted</option>
+                  <option value="COUNSELING_SCHEDULED">Counseling Scheduled</option>
+                  <option value="FINANCIAL_AID_SANCTIONED">Financial Aid Sanctioned</option>
+                  <option value="MARRIAGE_SOLEMNIZED">Marriage Solemnized</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Marriage Applications Table -->
+          <div class="card">
+            <div class="table-responsive">
+              <table class="data-table" id="table-marriages-cases">
+                <thead>
+                  <tr>
+                    <th>Ref / Couple</th>
+                    <th>Groom &amp; Bride Contacts</th>
+                    <th>Barrier &amp; Duration</th>
+                    <th>Threat Level</th>
+                    <th>Status</th>
+                    <th>Assigned Counselor / Officer</th>
+                    <th style="text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-marriages-cases">
                   <!-- Dynamically populated -->
                 </tbody>
               </table>

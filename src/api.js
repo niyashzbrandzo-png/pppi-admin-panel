@@ -1522,3 +1522,43 @@ export async function apiDeleteLegalCase(caseId) {
     return false;
   }
 }
+
+/* ==========================================================================
+   Marriages Support & Social Harmony APIs
+   ========================================================================== */
+export async function apiGetMarriageApplications() {
+  try {
+    const data = await request('/marriages/applications');
+    if (data && data.data && Array.isArray(data.data)) {
+      return data.data;
+    }
+  } catch (err) {
+    console.warn('apiGetMarriageApplications remote fetch notice:', err.message);
+  }
+  return [];
+}
+
+export async function apiUpdateMarriageApplication(appId, payload) {
+  try {
+    const res = await request(`/marriages/applications/${appId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+    return res && (res.status === 200 || res.success);
+  } catch (err) {
+    console.error('apiUpdateMarriageApplication error:', err.message);
+    return false;
+  }
+}
+
+export async function apiDeleteMarriageApplication(appId) {
+  try {
+    const res = await request(`/marriages/applications/${appId}`, {
+      method: 'DELETE'
+    });
+    return res && res.status === 200;
+  } catch (err) {
+    console.error('apiDeleteMarriageApplication error:', err.message);
+    return false;
+  }
+}
