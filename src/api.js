@@ -1562,3 +1562,65 @@ export async function apiDeleteMarriageApplication(appId) {
     return false;
   }
 }
+
+/* ==========================================================================
+   PPPI 24/7 Rapid Emergency Response & Petition APIs
+   ========================================================================== */
+export async function apiGetEmergencyAlerts() {
+  try {
+    const data = await request('/emergencies/alerts');
+    if (data && data.data && Array.isArray(data.data)) {
+      return data.data;
+    }
+  } catch (err) {
+    console.warn('apiGetEmergencyAlerts remote fetch notice:', err.message);
+  }
+  return [];
+}
+
+export async function apiGetEmergencyPoll() {
+  try {
+    const data = await request('/emergencies/poll');
+    return data;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function apiUpdateEmergencyAlert(alertId, payload) {
+  try {
+    const res = await request(`/emergencies/alerts/${alertId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+    return res && (res.status === 200 || res.success);
+  } catch (err) {
+    console.error('apiUpdateEmergencyAlert error:', err.message);
+    return false;
+  }
+}
+
+export async function apiFileEmergencyPetition(alertId, payload) {
+  try {
+    const res = await request(`/emergencies/alerts/${alertId}/petition`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    return res && (res.status === 200 || res.success);
+  } catch (err) {
+    console.error('apiFileEmergencyPetition error:', err.message);
+    return false;
+  }
+}
+
+export async function apiDeleteEmergencyAlert(alertId) {
+  try {
+    const res = await request(`/emergencies/alerts/${alertId}`, {
+      method: 'DELETE'
+    });
+    return res && res.status === 200;
+  } catch (err) {
+    console.error('apiDeleteEmergencyAlert error:', err.message);
+    return false;
+  }
+}

@@ -63,6 +63,11 @@ import {
   apiGetMarriageApplications,
   apiUpdateMarriageApplication,
   apiDeleteMarriageApplication,
+  apiGetEmergencyAlerts,
+  apiGetEmergencyPoll,
+  apiUpdateEmergencyAlert,
+  apiFileEmergencyPetition,
+  apiDeleteEmergencyAlert,
   apiGetSettings,
   apiToggleMaintenance,
   apiUpdateSettings,
@@ -95,6 +100,7 @@ let appData = {
   agriQuestions: [],
   legalCases: [],
   marriageApplications: [],
+  emergencyAlerts: [],
   settings: {
     maintenance_mode: false,
     maintenance_message: 'Currently Website & Mobile App Under Development',
@@ -170,6 +176,7 @@ async function initApp() {
   setupAgricultureAdminListeners();
   setupLawAdminListeners();
   setupMarriageAdminListeners();
+  setupEmergencyAdminListeners();
   applyRoleAccessControl();
 
   // Global Click Event Delegation for Maintenance controls
@@ -4101,6 +4108,7 @@ function renderAgricultureView() {
       appData.legalCases = await apiGetLegalCases();
     try {
       appData.marriageApplications = await apiGetMarriageApplications();
+    appData.emergencyAlerts = await apiGetEmergencyAlerts();
     } catch(e) {
       console.warn('apiGetMarriageApplications fallback notice:', e);
     }
@@ -4798,5 +4806,722 @@ function setupMarriageAdminListeners() {
   const statusSelect = document.getElementById('marriages-filter-status');
   if (statusSelect) {
     statusSelect.onchange = () => renderMarriagesView();
+  }
+}
+
+
+/* ==========================================================================
+   PPPI 24/7 RAPID EMERGENCY COMMAND, SOUND ALERTS & PETITION SYSTEM
+   ========================================================================== */
+
+let sirenAudioCtx = null;
+let isSirenMuted = false;
+let lastKnownEmergencyId = null;
+
+function playEmergencySiren() {
+  if (isSirenMuted) return;
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    if (!sirenAudioCtx) sirenAudioCtx = new AudioContext();
+    if (sirenAudioCtx.state === 'suspended') sirenAudioCtx.resume();
+
+    const osc = sirenAudioCtx.createOscillator();
+    const gain = sirenAudioCtx.createGain();
+
+    osc.type = 'sawtooth';
+    const now = sirenAudioCtx.currentTime;
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.linearRampToValueAtTime(660, now + 0.25);
+    osc.frequency.linearRampToValueAtTime(880, now + 0.5);
+    osc.frequency.linearRampToValueAtTime(660, now + 0.75);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.9);
+
+    osc.connect(gain);
+    gain.connect(sirenAudioCtx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.9);
+  } catch (e) {
+    console.warn('Audio synthesis notice:', e.message);
+  }
+}
+
+function showEmergencyBanner(alertItem) {
+  const banner = document.getElementById('emergency-live-banner');
+  const title = document.getElementById('emergency-banner-title');
+  const details = document.getElementById('emergency-banner-details');
+  const viewBtn = document.getElementById('btn-banner-view-sos');
+
+  if (banner && title && details) {
+    title.textContent = `CRITICAL SOS: ${alertItem.category || 'EMERGENCY'} INCOMING!`;
+    details.textContent = `"${alertItem.title || alertItem.location_name}" - Phone: ${alertItem.informant_phone || 'N/A'}`;
+    banner.style.display = 'flex';
+
+    if (viewBtn) {
+      viewBtn.onclick = () => {
+        showView('emergencies');
+        openEmergencyDossierModal(alertItem, 'petition');
+      };
+    }
+  }
+}
+
+async function pollEmergencyAlerts() {
+  try {
+    const poll = await apiGetEmergencyPoll();
+    if (poll && poll.success) {
+      const badge = document.getElementById('badge-emergencies-count');
+      if (badge) {
+        badge.textContent = poll.active_count || 0;
+      }
+
+      if (poll.latest_alert) {
+        if (lastKnownEmergencyId !== null && poll.latest_alert.id > lastKnownEmergencyId) {
+          showEmergencyBanner(poll.latest_alert);
+          playEmergencySiren();
+          appData.emergencyAlerts = await apiGetEmergencyAlerts();
+          updateBadges();
+          if (document.getElementById('view-emergencies')?.classList.contains('active')) {
+            renderEmergenciesView();
+          }
+        }
+        lastKnownEmergencyId = Math.max(lastKnownEmergencyId || 0, poll.latest_alert.id);
+      }
+    }
+  } catch (err) {
+    // silent poll error
+  }
+}
+
+// Start 7-second emergency polling loop
+setInterval(pollEmergencyAlerts, 7000);
+
+function renderEmergenciesView() {
+  const tbody = document.getElementById('tbody-emergency-cases');
+  if (!tbody) return;
+
+  const searchVal = (document.getElementById('emergency-filter-search')?.value || '').toLowerCase().trim();
+  const catVal = document.getElementById('emergency-filter-category')?.value || 'ALL';
+  const sevVal = document.getElementById('emergency-filter-severity')?.value || 'ALL';
+  const statusVal = document.getElementById('emergency-filter-status')?.value || 'ALL';
+
+  let list = [...(appData.emergencyAlerts || [])];
+
+  // Update KPI Metrics
+  const kpiTotal = document.getElementById('kpi-emergency-total');
+  const kpiActive = document.getElementById('kpi-emergency-active');
+  const kpiPetitions = document.getElementById('kpi-emergency-petitions');
+  const kpiResolved = document.getElementById('kpi-emergency-resolved');
+
+  if (kpiTotal) kpiTotal.textContent = list.length;
+  if (kpiActive) kpiActive.textContent = list.filter(a => a.status === 'ACTIVE_ALERT' || a.status === 'INVESTIGATING').length;
+  if (kpiPetitions) kpiPetitions.textContent = list.filter(a => a.petition_status === 'FILED' || a.status === 'PETITION_FILED').length;
+  if (kpiResolved) kpiResolved.textContent = list.filter(a => a.status === 'RESOLVED').length;
+
+  // Filter
+  if (catVal !== 'ALL') {
+    list = list.filter(a => (a.category || '').toLowerCase().includes(catVal.toLowerCase()));
+  }
+  if (sevVal !== 'ALL') {
+    list = list.filter(a => (a.severity || '').toUpperCase() === sevVal.toUpperCase());
+  }
+  if (statusVal !== 'ALL') {
+    list = list.filter(a => (a.status || '').toUpperCase() === statusVal.toUpperCase());
+  }
+  if (searchVal) {
+    list = list.filter(a =>
+      (a.alert_no || '').toLowerCase().includes(searchVal) ||
+      (a.location_name || '').toLowerCase().includes(searchVal) ||
+      (a.landmark || '').toLowerCase().includes(searchVal) ||
+      (a.title || '').toLowerCase().includes(searchVal) ||
+      (a.informant_name || '').toLowerCase().includes(searchVal) ||
+      (a.informant_phone || '').toLowerCase().includes(searchVal)
+    );
+  }
+
+  if (list.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center; padding: 40px; color:#64748b;">
+          <i class="fa-solid fa-shield-check" style="font-size:32px; color:#10b981; margin-bottom:10px; display:block;"></i>
+          No emergency alerts match the selected criteria.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = list.map(item => {
+    const sevBadge = item.severity === 'CRITICAL'
+      ? '<span style="background:#fee2e2; color:#dc2626; border:1px solid #f87171; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:800;">CRITICAL</span>'
+      : item.severity === 'HIGH'
+      ? '<span style="background:#ffedd5; color:#c2410c; border:1px solid #fb923c; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:800;">HIGH</span>'
+      : '<span style="background:#fef9c3; color:#a16207; border:1px solid #facc15; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:800;">MODERATE</span>';
+
+    const statusBadge = item.status === 'ACTIVE_ALERT'
+      ? '<span style="background:#fee2e2; color:#dc2626; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">ACTIVE ALERT</span>'
+      : item.status === 'PETITION_FILED'
+      ? '<span style="background:#dbeafe; color:#1d4ed8; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">PETITION FILED</span>'
+      : item.status === 'DISPATCHED_TO_AUTHORITIES'
+      ? '<span style="background:#ffedd5; color:#ea580c; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">DISPATCHED</span>'
+      : item.status === 'RESOLVED'
+      ? '<span style="background:#dcfce7; color:#15803d; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">RESOLVED</span>'
+      : `<span style="background:#f1f5f9; color:#475569; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">${escapeHtml(item.status || '')}</span>`;
+
+    const petitionBadge = item.petition_status === 'FILED'
+      ? `<div style="margin-top:4px;"><span style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; font-size:10.5px; font-weight:700; padding:1px 6px; border-radius:4px;"><i class="fa-solid fa-file-contract"></i> ${escapeHtml(item.petition_ref_no || 'Petition')}</span></div>`
+      : '';
+
+    const gpsLink = (item.latitude && item.longitude)
+      ? `<a href="https://maps.google.com/?q=${item.latitude},${item.longitude}" target="_blank" style="color:#0284c7; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px; margin-top:3px;"><i class="fa-solid fa-map-location-dot"></i> ${item.latitude.toFixed(4)}°, ${item.longitude.toFixed(4)}°</a>`
+      : '<span style="font-size:11px; color:#94a3b8;">Manual Address</span>';
+
+    return `
+      <tr style="${item.severity === 'CRITICAL' && item.status === 'ACTIVE_ALERT' ? 'background: #fff5f5;' : ''}">
+        <td>
+          <span style="font-family:monospace; font-weight:800; color:#991b1b;">${escapeHtml(item.alert_no || '')}</span>
+          <div style="font-size:11.5px; color:#64748b; margin-top:2px;">${new Date(item.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}, ${new Date(item.created_at || Date.now()).toLocaleDateString('en-IN')}</div>
+        </td>
+        <td>
+          <div style="font-weight:700; color:#0f172a; margin-bottom:4px;">${escapeHtml(item.category || '')}</div>
+          ${sevBadge}
+        </td>
+        <td>
+          <div style="font-weight:600; color:#1e293b; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(item.location_name || '')}">
+            ${escapeHtml(item.location_name || '')}
+          </div>
+          <div style="font-size:11.5px; color:#64748b;">${escapeHtml(item.landmark || item.district || 'Kolar')}</div>
+          ${gpsLink}
+        </td>
+        <td>
+          <div style="font-weight:700; color:#0f172a;">${escapeHtml(item.informant_name || '')}</div>
+          <a href="tel:${item.informant_phone}" style="color:#dc2626; font-weight:800; font-size:12px; text-decoration:none;">
+            <i class="fa-solid fa-phone" style="font-size:10px; margin-right:4px;"></i>${escapeHtml(item.informant_phone || '')}
+          </a>
+        </td>
+        <td>
+          ${statusBadge}
+          ${petitionBadge}
+        </td>
+        <td>
+          <div style="font-size:12.5px; font-weight:600; color:#334155;">${escapeHtml(item.assigned_officer || 'Unassigned')}</div>
+        </td>
+        <td style="text-align: right; white-space: nowrap;">
+          <button class="btn btn-sm btn-outline btn-view-emergency-dossier" data-id="${item.id}" title="Inspect Dossier" style="padding:4px 8px; margin-right:4px;">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+          <button class="btn btn-sm btn-primary btn-file-emergency-petition" data-id="${item.id}" title="Draft & File Petition" style="background:#2563eb; border-color:#2563eb; padding:4px 10px; margin-right:4px;">
+            <i class="fa-solid fa-file-signature"></i> Petition
+          </button>
+          <button class="btn btn-sm btn-outline btn-delete-emergency" data-id="${item.id}" title="Dismiss Alert" style="color:#ef4444; border-color:#fca5a5; padding:4px 8px;">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Attach table button click handlers
+  tbody.querySelectorAll('.btn-view-emergency-dossier').forEach(btn => {
+    btn.onclick = () => {
+      const id = parseInt(btn.dataset.id, 10);
+      const item = appData.emergencyAlerts.find(a => a.id === id);
+      if (item) openEmergencyDossierModal(item, 'dossier');
+    };
+  });
+
+  tbody.querySelectorAll('.btn-file-emergency-petition').forEach(btn => {
+    btn.onclick = () => {
+      const id = parseInt(btn.dataset.id, 10);
+      const item = appData.emergencyAlerts.find(a => a.id === id);
+      if (item) openEmergencyDossierModal(item, 'petition');
+    };
+  });
+
+  tbody.querySelectorAll('.btn-delete-emergency').forEach(btn => {
+    btn.onclick = async () => {
+      const id = parseInt(btn.dataset.id, 10);
+      if (confirm('Are you sure you want to dismiss or delete this emergency alert?')) {
+        const ok = await apiDeleteEmergencyAlert(id);
+        if (ok) {
+          appData.emergencyAlerts = appData.emergencyAlerts.filter(a => a.id !== id);
+          updateBadges();
+          renderEmergenciesView();
+        } else {
+          alert('Failed to delete alert.');
+        }
+      }
+    };
+  });
+}
+
+function openEmergencyDossierModal(item, initialTab = 'dossier') {
+  let modal = document.getElementById('modal-emergency-dossier');
+  if (!modal) {
+    const modalDiv = document.createElement('div');
+    modalDiv.id = 'modal-emergency-dossier';
+    modalDiv.className = 'modal';
+    modalDiv.style.display = 'none';
+    modalDiv.innerHTML = `
+      <div class="modal-dialog" style="max-width: 880px;">
+        <div class="modal-content" style="border-radius: 12px; overflow: hidden; border-top: 5px solid #dc2626;">
+          <div class="modal-header" style="background: #7f1d1d; color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h3 class="modal-title" style="margin: 0; font-size: 16px; color: white;">
+                <i class="fa-solid fa-triangle-exclamation" style="margin-right: 8px; color: #f87171;"></i>
+                SOS Emergency Incident &amp; Statutory Petition Cell
+              </h3>
+              <span id="emergency-modal-subhdr" style="font-size: 12px; color: #fecaca;"></span>
+            </div>
+            <button type="button" id="btn-close-emergency-dossier-x" style="color: white; background: none; border: none; font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+          </div>
+
+          <!-- TABS ROW -->
+          <div style="display: flex; border-bottom: 1px solid #e2e8f0; background: #f8fafc; padding: 0 16px;">
+            <button type="button" class="tab-btn active" id="tab-btn-dossier" style="padding: 12px 18px; font-weight: 700; border: none; background: none; cursor: pointer; border-bottom: 3px solid #dc2626; color: #dc2626;">
+              <i class="fa-solid fa-file-lines" style="margin-right: 6px;"></i> 1. Incident Dossier &amp; Ground Facts
+            </button>
+            <button type="button" class="tab-btn" id="tab-btn-petition" style="padding: 12px 18px; font-weight: 700; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent; color: #64748b;">
+              <i class="fa-solid fa-file-signature" style="margin-right: 6px;"></i> 2. Draft &amp; File Emergency Petition
+            </button>
+            <button type="button" class="tab-btn" id="tab-btn-dispatch" style="padding: 12px 18px; font-weight: 700; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent; color: #64748b;">
+              <i class="fa-solid fa-person-running" style="margin-right: 6px;"></i> 3. Status &amp; Officer Dispatch
+            </button>
+          </div>
+
+          <div class="modal-body" id="emergency-modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modalDiv);
+    modal = modalDiv;
+
+    document.getElementById('btn-close-emergency-dossier-x').onclick = () => {
+      modal.style.display = 'none';
+    };
+  }
+
+  const subhdr = document.getElementById('emergency-modal-subhdr');
+  if (subhdr) {
+    subhdr.textContent = `${item.alert_no} • ${item.category} • ${item.location_name}`;
+  }
+
+  function renderTab(tabName) {
+    const body = document.getElementById('emergency-modal-body');
+    if (!body) return;
+
+    // Update tab header styles
+    ['dossier', 'petition', 'dispatch'].forEach(t => {
+      const btn = document.getElementById(`tab-btn-${t}`);
+      if (btn) {
+        if (t === tabName) {
+          btn.style.borderBottom = '3px solid #dc2626';
+          btn.style.color = '#dc2626';
+        } else {
+          btn.style.borderBottom = '3px solid transparent';
+          btn.style.color = '#64748b';
+        }
+      }
+    });
+
+    if (tabName === 'dossier') {
+      body.innerHTML = `
+        <!-- Alert Status Banner -->
+        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <span style="font-family: monospace; font-size: 16px; font-weight: 900; color: #991b1b;">${escapeHtml(item.alert_no || '')}</span>
+            <span style="background: #dc2626; color: white; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; margin-left: 8px;">${escapeHtml(item.severity || 'CRITICAL')}</span>
+            <span style="background: #fee2e2; color: #991b1b; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; margin-left: 6px;">${escapeHtml(item.category || '')}</span>
+          </div>
+          <div>
+            <span class="badge badge-primary">${(item.status || 'ACTIVE_ALERT').replace(/_/g, ' ')}</span>
+          </div>
+        </div>
+
+        <!-- Location & GPS Coordinates Card -->
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px; margin-bottom: 18px;">
+          <h4 style="margin: 0 0 10px 0; color: #166534; font-size: 14px;"><i class="fa-solid fa-location-dot" style="margin-right: 6px;"></i>Location &amp; Geolocation Coordinates</h4>
+          <div style="font-size: 13px; line-height: 1.6; color: #1e293b;">
+            <div><strong>Location:</strong> ${escapeHtml(item.location_name || '')}</div>
+            <div><strong>Landmark:</strong> ${escapeHtml(item.landmark || 'N/A')}</div>
+            <div><strong>District / State:</strong> ${escapeHtml(item.district || 'Kolar')}, ${escapeHtml(item.state || 'Karnataka')}</div>
+            ${(item.latitude && item.longitude) ? `
+              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #86efac;">
+                <strong>GPS Coordinates:</strong> Lat ${item.latitude.toFixed(5)}°, Long ${item.longitude.toFixed(5)}° (Accuracy: ±${Math.round(item.gps_accuracy || 10)}m)
+                <br />
+                <a href="https://maps.google.com/?q=${item.latitude},${item.longitude}" target="_blank" class="btn btn-sm btn-outline" style="background:#ffffff; color:#15803d; border-color:#86efac; font-weight:700; margin-top:6px; display:inline-flex; align-items:center; gap:6px;">
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Live Location in Google Maps
+                </a>
+              </div>
+            ` : '<div style="color: #64748b; font-size: 12px; margin-top: 4px;">No GPS coordinates captured. Citizen provided manual landmark address.</div>'}
+          </div>
+        </div>
+
+        <!-- Incident Narrative -->
+        <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 18px;">
+          <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 15px;">${escapeHtml(item.title || item.category)}</h4>
+          <p style="font-size: 13.5px; color: #334155; line-height: 1.6; margin: 0 0 10px 0; white-space: pre-wrap;">${escapeHtml(item.description || 'No description.')}</p>
+          ${item.victim_condition ? `
+            <div style="background: #fff1f2; border-left: 4px solid #e11d48; padding: 8px 12px; font-size: 12.5px; color: #9f1239;">
+              <strong>Victim Condition:</strong> ${escapeHtml(item.victim_condition)}
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Informant Details -->
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; margin-bottom: 18px;">
+          <h4 style="margin: 0 0 10px 0; color: #334155; font-size: 14px;"><i class="fa-solid fa-address-card" style="margin-right: 6px;"></i>Informant / Reporting Person</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
+            <div><strong>Name:</strong> ${escapeHtml(item.informant_name || '')}</div>
+            <div><strong>Primary Mobile:</strong> <a href="tel:${item.informant_phone}" style="color: #dc2626; font-weight: 800;">${escapeHtml(item.informant_phone || '')}</a></div>
+            <div><strong>Alternate Phone:</strong> ${escapeHtml(item.informant_alt_phone || 'None')}</div>
+            <div><strong>Logged At:</strong> ${new Date(item.created_at || Date.now()).toLocaleString('en-IN')}</div>
+          </div>
+        </div>
+
+        ${item.photo_url ? `
+          <div style="margin-bottom: 18px;">
+            <h4 style="margin: 0 0 8px 0; font-size: 13.5px; color: #334155;"><i class="fa-solid fa-camera" style="margin-right: 6px;"></i>Attached Incident Evidence Photo</h4>
+            <img src="${item.photo_url}" alt="Evidence" style="max-height: 220px; border-radius: 8px; border: 1px solid #cbd5e1; object-fit: cover;" />
+          </div>
+        ` : ''}
+
+        <div style="text-align: right; margin-top: 10px;">
+          <button type="button" class="btn btn-primary" id="btn-goto-petition-tab" style="background: #2563eb; border-color: #2563eb;">
+            <i class="fa-solid fa-file-signature" style="margin-right: 6px;"></i> Proceed to Draft Official Statutory Petition &rarr;
+          </button>
+        </div>
+      `;
+
+      const btnGotoPetition = document.getElementById('btn-goto-petition-tab');
+      if (btnGotoPetition) {
+        btnGotoPetition.onclick = () => renderTab('petition');
+      }
+    } else if (tabName === 'petition') {
+      // Generate default petition draft if not already filed
+      const targetAuth = item.petition_filed_to || (
+        item.category === 'Natural Disaster'
+          ? 'Deputy Commissioner & District Magistrate (DDMA), Kolar District'
+          : item.category === 'Snatching & Robbery' || item.category === 'Assault & Violence' || item.category === 'Threatening / Extortion'
+          ? 'Superintendent of Police (SP), Kolar District'
+          : 'Deputy Commissioner & Superintendent of Police, Kolar'
+      );
+
+      const defaultSubject = item.petition_subject || (
+        item.category === 'Natural Disaster'
+          ? `URGENT STATUTORY DISASTER PETITION UNDER SECTION 30 OF DISASTER MANAGEMENT ACT 2005 FOR IMMEDIATE RESCUE & RELIEF AT ${(item.location_name || 'KOLAR').toUpperCase()} (SOS REF: ${item.alert_no})`
+          : `EMERGENCY POLICE ACTION PETITION & ZERO FIR DEMAND (UNDER SECTION 173 BNSS / ARTICLE 21) REGARDING ${(item.category || 'EMERGENCY').toUpperCase()} AT ${(item.location_name || 'KOLAR').toUpperCase()} (SOS REF: ${item.alert_no})`
+      );
+
+      const defaultText = item.petition_text || `To:
+The ${targetAuth},
+District Administrative Headquarters, Kolar - 563101.
+
+Subject: ${defaultSubject}
+
+Respected Sir / Madam,
+The Pasha People Party of India (PPPI) Rapid Emergency Cell and Citizen Legal Taskforce hereby submits this formal emergency representation under Article 21 of the Constitution of India, demanding immediate statutory intervention regarding a life-critical emergency reported at ${item.location_name || 'Kolar'}.
+
+Particulars of the Emergency:
+1. Incident Category: ${item.category || 'Emergency'} (Urgency: ${item.severity || 'CRITICAL'}).
+2. Time of Occurrence / Logged: ${new Date(item.created_at || Date.now()).toLocaleString('en-IN')}.
+3. Exact Location: ${item.location_name || ''}${item.landmark ? ' (Near ' + item.landmark + ')' : ''}, ${item.district || 'Kolar'}.
+${item.latitude ? `4. GPS Satellite Coordinates: Lat ${item.latitude.toFixed(5)}°, Long ${item.longitude.toFixed(5)}°.` : ''}
+5. Informant / Victim: ${item.informant_name} (Phone: ${item.informant_phone}).
+
+Factual Narrative of Danger:
+${item.description}
+
+Specific Statutory Demands:
+1. Immediate mobilization and dispatch of regional police patrol / disaster rescue squad to the exact spot.
+2. Immediate registration of Zero FIR and impounding of local CCTV / evidence.
+3. 24/7 security protection for the informant and affected families against retaliatory harm.
+4. Immediate transit shelter, medical aid, or relief as mandated under law.
+
+Submitted on behalf of the affected citizens by:
+PPPI Rapid Emergency Command & Citizen Protection Cell
+Contact Helpline: +91 7259798393`;
+
+      body.innerHTML = `
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 18px; margin-bottom: 18px;">
+          <h4 style="margin: 0 0 6px 0; color: #1e40af; font-size: 14px;"><i class="fa-solid fa-scroll" style="margin-right: 6px;"></i>Administrative &amp; Police Action Petition Generator</h4>
+          <p style="margin: 0; font-size: 12.5px; color: #3b82f6;">
+            Review and customize the formal petition below. Once filed, it will be recorded with an official PPPI Petition Reference Number and can be printed or dispatched via police wireless / WhatsApp messenger.
+          </p>
+        </div>
+
+        <form id="form-file-emergency-petition">
+          <div style="margin-bottom: 12px;">
+            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Target Statutory Authority: <span style="color:#dc2626;">*</span></label>
+            <select id="modal-petition-target" class="form-control" style="width: 100%;">
+              <option value="Superintendent of Police (SP), Kolar District" ${targetAuth.includes('Superintendent') ? 'selected' : ''}>Superintendent of Police (SP), Kolar District</option>
+              <option value="Deputy Commissioner & District Magistrate (DDMA), Kolar District" ${targetAuth.includes('Deputy Commissioner') ? 'selected' : ''}>Deputy Commissioner & District Magistrate (DDMA), Kolar District</option>
+              <option value="Circle Police Inspector & Station House Officer (SHO), Kolar Town" ${targetAuth.includes('Circle Police') ? 'selected' : ''}>Circle Police Inspector & SHO, Local Police Station</option>
+              <option value="National & State Disaster Response Force (SDRF / NDRF), Karnataka" ${targetAuth.includes('Disaster') ? 'selected' : ''}>State Disaster Response Force (SDRF / NDRF)</option>
+              <option value="Karnataka State Human Rights Commission (KSHRC), Bengaluru">Karnataka State Human Rights Commission (KSHRC)</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom: 12px;">
+            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Petition Subject Line: <span style="color:#dc2626;">*</span></label>
+            <input type="text" id="modal-petition-subject" class="form-control" value="${escapeHtml(defaultSubject)}" style="width: 100%; font-weight: 600;" required />
+          </div>
+
+          <div style="margin-bottom: 14px;">
+            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Complete Petition Representation Body: <span style="color:#dc2626;">*</span></label>
+            <textarea id="modal-petition-body" class="form-control" rows="12" style="font-family: inherit; font-size: 12.5px; line-height: 1.55; width: 100%;" required>${escapeHtml(defaultText)}</textarea>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-outline" id="btn-print-petition" style="border-color: #cbd5e1;">
+                <i class="fa-solid fa-print" style="margin-right: 4px;"></i> Print / Export Petition
+              </button>
+              <button type="button" class="btn btn-outline" id="btn-copy-petition-text" style="border-color: #cbd5e1;">
+                <i class="fa-solid fa-copy" style="margin-right: 4px;"></i> Copy Petition Text
+              </button>
+            </div>
+            <button type="submit" class="btn btn-primary" id="btn-submit-file-petition" style="background: #2563eb; border-color: #2563eb; padding: 10px 20px; font-weight: 800;">
+              <i class="fa-solid fa-stamp" style="margin-right: 6px;"></i> Submit &amp; Mark Petition Filed
+            </button>
+          </div>
+        </form>
+      `;
+
+      // Copy Petition Text
+      const btnCopy = document.getElementById('btn-copy-petition-text');
+      if (btnCopy) {
+        btnCopy.onclick = () => {
+          const txt = document.getElementById('modal-petition-body')?.value || '';
+          navigator.clipboard.writeText(txt).then(() => {
+            btnCopy.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+            setTimeout(() => {
+              btnCopy.innerHTML = '<i class="fa-solid fa-copy"></i> Copy Petition Text';
+            }, 2000);
+          });
+        };
+      }
+
+      // Print / Export Petition
+      const btnPrint = document.getElementById('btn-print-petition');
+      if (btnPrint) {
+        btnPrint.onclick = () => {
+          const txt = document.getElementById('modal-petition-body')?.value || '';
+          const printWin = window.open('', '_blank');
+          if (printWin) {
+            printWin.document.write(`
+              <html>
+                <head>
+                  <title>PPPI Emergency Petition - ${item.alert_no}</title>
+                  <style>
+                    body { font-family: 'Times New Roman', serif; padding: 40px; color: #000; line-height: 1.6; }
+                    .header { border-bottom: 2px solid #b91c1c; padding-bottom: 12px; margin-bottom: 24px; text-align: center; }
+                    .header h1 { margin: 0; color: #991b1b; font-size: 24px; }
+                    .header h3 { margin: 4px 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+                    pre { font-family: 'Times New Roman', serif; font-size: 14px; white-space: pre-wrap; margin-top: 20px; }
+                    .seal { margin-top: 40px; text-align: right; }
+                  </style>
+                </head>
+                <body>
+                  <div class="header">
+                    <h1>PASHA PEOPLE PARTY OF INDIA (PPPI)</h1>
+                    <h3>Citizen Emergency Response Command &amp; Legal Taskforce</h3>
+                    <small>Official HQ: Dalasanur, Srinivaspur Taluk, Kolar District | 24/7 Helpline: +91 7259798393</small>
+                  </div>
+                  <pre>${txt}</pre>
+                  <div class="seal">
+                    <p>___________________________<br />Authorized Legal Signatory<br />PPPI Citizen Action Taskforce</p>
+                  </div>
+                  <script>window.print();</script>
+                </body>
+              </html>
+            `);
+            printWin.document.close();
+          }
+        };
+      }
+
+      // Submit Petition Form
+      const pForm = document.getElementById('form-file-emergency-petition');
+      if (pForm) {
+        pForm.onsubmit = async (e) => {
+          e.preventDefault();
+          const target = document.getElementById('modal-petition-target')?.value?.trim();
+          const subj = document.getElementById('modal-petition-subject')?.value?.trim();
+          const pBody = document.getElementById('modal-petition-body')?.value?.trim();
+
+          try {
+            const ok = await apiFileEmergencyPetition(item.id, {
+              petition_filed_to: target,
+              petition_subject: subj,
+              petition_text: pBody,
+              assigned_officer: 'PPPI Legal Emergency Action Wing',
+              action_taken: `Official emergency petition filed to ${target}.`
+            });
+
+            if (ok) {
+              alert('Emergency Petition filed successfully!');
+              appData.emergencyAlerts = await apiGetEmergencyAlerts();
+              updateBadges();
+              renderEmergenciesView();
+              modal.style.display = 'none';
+            } else {
+              alert('Failed to file petition.');
+            }
+          } catch (err) {
+            alert('Error: ' + err.message);
+          }
+        };
+      }
+    } else if (tabName === 'dispatch') {
+      body.innerHTML = `
+        <div style="background: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 10px; padding: 14px 18px; margin-bottom: 18px;">
+          <h4 style="margin: 0 0 6px 0; color: #9d174d; font-size: 14px;"><i class="fa-solid fa-user-shield" style="margin-right: 6px;"></i>Officer Assignment &amp; Ground Dispatch Controls</h4>
+          <p style="margin: 0; font-size: 12.5px; color: #be185d;">
+            Update incident stage, assign response coordinators, or mark resolved once police or disaster teams confirm safety.
+          </p>
+        </div>
+
+        <form id="form-update-emergency-status">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+            <div>
+              <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Incident Alert Status: <span style="color:#dc2626;">*</span></label>
+              <select id="modal-emergency-status" class="form-control" style="width: 100%;">
+                <option value="ACTIVE_ALERT" ${item.status === 'ACTIVE_ALERT' ? 'selected' : ''}>ACTIVE ALERT (Live Danger)</option>
+                <option value="INVESTIGATING" ${item.status === 'INVESTIGATING' ? 'selected' : ''}>INVESTIGATING / CALLING VICTIM</option>
+                <option value="PETITION_FILED" ${item.status === 'PETITION_FILED' ? 'selected' : ''}>PETITION FILED TO AUTHORITIES</option>
+                <option value="DISPATCHED_TO_AUTHORITIES" ${item.status === 'DISPATCHED_TO_AUTHORITIES' ? 'selected' : ''}>DISPATCHED TO POLICE / SDRF</option>
+                <option value="RESOLVED" ${item.status === 'RESOLVED' ? 'selected' : ''}>RESOLVED / CITIZEN PROTECTED</option>
+                <option value="FALSE_ALARM" ${item.status === 'FALSE_ALARM' ? 'selected' : ''}>FALSE ALARM / DISMISSED</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Assigned Response Commander:</label>
+              <input type="text" id="modal-emergency-officer" class="form-control" value="${escapeHtml(item.assigned_officer || '')}" placeholder="e.g. Adv. S. K. Venkatesh (Citizen Legal Taskforce)" style="width: 100%;" />
+            </div>
+          </div>
+
+          <div style="margin-bottom: 14px;">
+            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Action Taken Log:</label>
+            <textarea id="modal-emergency-action" class="form-control" rows="3" placeholder="Log details of police deployment, volunteer rescue, ambulance dispatch, or FIR registration..." style="width: 100%;">${escapeHtml(item.action_taken || '')}</textarea>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Internal Administrative Notes:</label>
+            <textarea id="modal-emergency-notes" class="form-control" rows="2" placeholder="Internal remarks, victim follow-up instructions..." style="width: 100%;">${escapeHtml(item.admin_notes || '')}</textarea>
+          </div>
+
+          <div style="text-align: right;">
+            <button type="submit" class="btn btn-primary" id="btn-save-emergency-status" style="background: #991b1b; border-color: #991b1b;">
+              <i class="fa-solid fa-floppy-disk" style="margin-right: 6px;"></i> Save Status &amp; Dispatch Updates
+            </button>
+          </div>
+        </form>
+      `;
+
+      const statusForm = document.getElementById('form-update-emergency-status');
+      if (statusForm) {
+        statusForm.onsubmit = async (e) => {
+          e.preventDefault();
+          const status = document.getElementById('modal-emergency-status')?.value;
+          const assigned_officer = document.getElementById('modal-emergency-officer')?.value?.trim();
+          const action_taken = document.getElementById('modal-emergency-action')?.value?.trim();
+          const admin_notes = document.getElementById('modal-emergency-notes')?.value?.trim();
+
+          try {
+            const ok = await apiUpdateEmergencyAlert(item.id, {
+              status,
+              assigned_officer,
+              action_taken,
+              admin_notes
+            });
+
+            if (ok) {
+              alert('Emergency status and officer assignment updated successfully!');
+              appData.emergencyAlerts = await apiGetEmergencyAlerts();
+              updateBadges();
+              renderEmergenciesView();
+              modal.style.display = 'none';
+            } else {
+              alert('Failed to update emergency alert.');
+            }
+          } catch (err) {
+            alert('Error: ' + err.message);
+          }
+        };
+      }
+    }
+  }
+
+  // Set up tab switching
+  document.getElementById('tab-btn-dossier').onclick = () => renderTab('dossier');
+  document.getElementById('tab-btn-petition').onclick = () => renderTab('petition');
+  document.getElementById('tab-btn-dispatch').onclick = () => renderTab('dispatch');
+
+  // Render initial tab
+  renderTab(initialTab);
+  modal.style.display = 'flex';
+}
+
+function setupEmergencyAdminListeners() {
+  const searchInp = document.getElementById('emergency-filter-search');
+  if (searchInp) {
+    searchInp.oninput = () => renderEmergenciesView();
+  }
+
+  const catSelect = document.getElementById('emergency-filter-category');
+  if (catSelect) {
+    catSelect.onchange = () => renderEmergenciesView();
+  }
+
+  const sevSelect = document.getElementById('emergency-filter-severity');
+  if (sevSelect) {
+    sevSelect.onchange = () => renderEmergenciesView();
+  }
+
+  const statusSelect = document.getElementById('emergency-filter-status');
+  if (statusSelect) {
+    statusSelect.onchange = () => renderEmergenciesView();
+  }
+
+  const refreshBtn = document.getElementById('btn-refresh-emergencies');
+  if (refreshBtn) {
+    refreshBtn.onclick = async () => {
+      refreshBtn.disabled = true;
+      refreshBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Refreshing...';
+      appData.emergencyAlerts = await apiGetEmergencyAlerts();
+      updateBadges();
+      renderEmergenciesView();
+      refreshBtn.disabled = false;
+      refreshBtn.innerHTML = '<i class="fa-solid fa-rotate"></i> Refresh SOS Queue';
+    };
+  }
+
+  // Siren Mute Button
+  const muteBtn = document.getElementById('btn-toggle-siren');
+  const sirenIcon = document.getElementById('siren-sound-icon');
+  if (muteBtn && sirenIcon) {
+    muteBtn.onclick = () => {
+      isSirenMuted = !isSirenMuted;
+      if (isSirenMuted) {
+        sirenIcon.className = 'fa-solid fa-volume-xmark';
+        muteBtn.title = 'Unmute Siren Audio';
+      } else {
+        sirenIcon.className = 'fa-solid fa-volume-high';
+        muteBtn.title = 'Mute Siren Audio';
+      }
+    };
+  }
+
+  // Dismiss Banner Button
+  const dismissBtn = document.getElementById('btn-dismiss-emergency-banner');
+  const banner = document.getElementById('emergency-live-banner');
+  if (dismissBtn && banner) {
+    dismissBtn.onclick = () => {
+      banner.style.display = 'none';
+    };
   }
 }

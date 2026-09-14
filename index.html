@@ -168,6 +168,11 @@
           <span>Marriages Support</span>
           <span class="badge" id="badge-marriages-count" style="background:#ec4899; color:white;">0</span>
         </a>
+        <a href="#" class="nav-item" data-view="emergencies" id="nav-emergencies" data-role="admin">
+          <i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i>
+          <span>SOS Emergencies</span>
+          <span class="badge" id="badge-emergencies-count" style="background:#dc2626; color:white;">0</span>
+        </a>
         <a href="#" class="nav-item" data-view="manifesto" data-role="admin">
           <i class="fa-solid fa-book-open"></i>
           <span>Party Manifesto Topics</span>
@@ -264,6 +269,29 @@
         </div>
 
       </header>
+      <!-- LIVE EMERGENCY SOS ALERT TICKER BANNER -->
+      <div id="emergency-live-banner" style="display: none; background: linear-gradient(90deg, #991b1b, #dc2626); color: white; padding: 10px 20px; align-items: center; justify-content: space-between; border-bottom: 2px solid #f87171; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25); z-index: 999;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ffffff; box-shadow: 0 0 0 4px rgba(255,255,255,0.4);"></span>
+          <i class="fa-solid fa-triangle-exclamation" style="font-size: 18px; color: #fee2e2;"></i>
+          <div>
+            <strong id="emergency-banner-title" style="color: #ffffff; font-size: 13.5px; text-transform: uppercase;">CRITICAL SOS EMERGENCY INCOMING!</strong>
+            <span id="emergency-banner-details" style="color: #fecaca; font-size: 13px; margin-left: 6px;">New emergency distress call logged.</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button type="button" class="btn btn-sm" id="btn-banner-view-sos" style="background: #ffffff; color: #991b1b; font-weight: 800; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer;">
+            <i class="fa-solid fa-bolt" style="color: #dc2626; margin-right: 4px;"></i> Inspect &amp; Draft Petition
+          </button>
+          <button type="button" class="btn btn-sm" id="btn-toggle-siren" title="Toggle Emergency Siren Audio" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 6px 12px; border-radius: 6px; cursor: pointer;">
+            <i class="fa-solid fa-volume-high" id="siren-sound-icon"></i>
+          </button>
+          <button type="button" id="btn-dismiss-emergency-banner" title="Dismiss Banner" style="background: transparent; border: none; color: #fee2e2; font-size: 18px; cursor: pointer; padding: 4px 8px;">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
 
       <!-- View Content Container -->
       <div class="content-container">
@@ -1411,6 +1439,137 @@
                   </tr>
                 </thead>
                 <tbody id="tbody-marriages-cases">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- EMERGENCY SOS & ACTION PETITION CELL VIEW -->
+        <section id="view-emergencies" class="content-view" data-role="admin">
+          <div class="view-header">
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                <h1 class="view-title">SOS Emergency Command &amp; Citizen Action Cell</h1>
+                <span style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
+                  <i class="fa-solid fa-tower-broadcast" style="font-size: 10px; margin-right: 4px;"></i> 24/7 Live Monitoring
+                </span>
+                <span style="background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
+                  Statutory Petitions &amp; Rescue Taskforce
+                </span>
+              </div>
+              <p class="view-subtitle">Confidential real-time monitoring of natural disasters, life threats, violent crimes &amp; urgent statutory petition dispatch to SP and District Magistrate.</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-primary" id="btn-refresh-emergencies" style="background: #dc2626; border-color: #dc2626;">
+                <i class="fa-solid fa-rotate"></i> Refresh SOS Queue
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI Cards Grid -->
+          <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px;">
+            <div class="kpi-card" style="border-left: 4px solid #dc2626;">
+              <div class="kpi-icon" style="background: #fee2e2; color: #dc2626;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Total SOS Alerts</span>
+                <h3 class="kpi-value" id="kpi-emergency-total">0</h3>
+                <span class="kpi-subtext" style="color:#dc2626; font-weight:600;">Recorded incidents</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" style="border-left: 4px solid #ea580c;">
+              <div class="kpi-icon" style="background: #ffedd5; color: #ea580c;">
+                <i class="fa-solid fa-bolt"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Active / Critical</span>
+                <h3 class="kpi-value" id="kpi-emergency-active">0</h3>
+                <span class="kpi-subtext" style="color:#ea580c; font-weight:600;">Immediate action needed</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" style="border-left: 4px solid #2563eb;">
+              <div class="kpi-icon" style="background: #dbeafe; color: #2563eb;">
+                <i class="fa-solid fa-file-contract"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Petitions Dispatched</span>
+                <h3 class="kpi-value" id="kpi-emergency-petitions">0</h3>
+                <span class="kpi-subtext" style="color:#2563eb; font-weight:600;">To SP / DC / SDRF</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" style="border-left: 4px solid #16a34a;">
+              <div class="kpi-icon" style="background: #dcfce7; color: #16a34a;">
+                <i class="fa-solid fa-shield-halved"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Rescued &amp; Resolved</span>
+                <h3 class="kpi-value" id="kpi-emergency-resolved">0</h3>
+                <span class="kpi-subtext" style="color:#16a34a; font-weight:600;">Protected citizens</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Search & Filter Controls -->
+          <div class="card" style="margin-bottom: 20px; padding: 16px;">
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+              <div style="flex: 1; min-width: 260px; position: relative;">
+                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 12px; color: #94a3b8;"></i>
+                <input type="text" id="emergency-filter-search" class="form-control" placeholder="Search by SOS ref, location, informant, or phone..." style="padding-left: 36px;" />
+              </div>
+              <div style="min-width: 180px;">
+                <select id="emergency-filter-category" class="form-control">
+                  <option value="ALL">All Categories</option>
+                  <option value="Natural Disaster">Natural Disaster</option>
+                  <option value="Threatening / Extortion">Threatening / Extortion</option>
+                  <option value="Snatching & Robbery">Snatching &amp; Robbery</option>
+                  <option value="Assault & Violence">Assault &amp; Violence</option>
+                  <option value="Medical & Accident">Medical &amp; Accident</option>
+                  <option value="Community Hazard">Community Hazard</option>
+                </select>
+              </div>
+              <div style="min-width: 150px;">
+                <select id="emergency-filter-severity" class="form-control">
+                  <option value="ALL">All Severities</option>
+                  <option value="CRITICAL">Critical Only</option>
+                  <option value="HIGH">High Priority</option>
+                  <option value="MODERATE">Moderate</option>
+                </select>
+              </div>
+              <div style="min-width: 170px;">
+                <select id="emergency-filter-status" class="form-control">
+                  <option value="ALL">All Statuses</option>
+                  <option value="ACTIVE_ALERT">Active Alert</option>
+                  <option value="INVESTIGATING">Investigating</option>
+                  <option value="PETITION_FILED">Petition Filed</option>
+                  <option value="DISPATCHED_TO_AUTHORITIES">Dispatched</option>
+                  <option value="RESOLVED">Resolved / Rescued</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Emergency Incidents Table -->
+          <div class="card">
+            <div class="table-responsive">
+              <table class="data-table" id="table-emergency-cases">
+                <thead>
+                  <tr>
+                    <th>Ref / Time</th>
+                    <th>Category &amp; Urgency</th>
+                    <th>Location &amp; Coordinates</th>
+                    <th>Informant &amp; Contact</th>
+                    <th>Status &amp; Petition</th>
+                    <th>Assigned Response Lead</th>
+                    <th style="text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-emergency-cases">
                   <!-- Dynamically populated -->
                 </tbody>
               </table>
