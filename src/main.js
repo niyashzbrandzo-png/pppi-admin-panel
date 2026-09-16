@@ -2040,6 +2040,9 @@ function renderLiveStreamsView() {
 function renderEnquiriesTable() {
   const tbody = document.getElementById('enquiries-table-body');
   const btnRefresh = document.getElementById('btn-refresh-enquiries');
+  const searchInput = document.getElementById('enquiry-filter-search');
+  const categorySelect = document.getElementById('enquiry-filter-category');
+  const btnReset = document.getElementById('btn-reset-enquiry-filter');
 
   if (btnRefresh && !btnRefresh.dataset.bound) {
     btnRefresh.dataset.bound = 'true';
@@ -2056,31 +2059,108 @@ function renderEnquiriesTable() {
     });
   }
 
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => renderEnquiriesTable());
+  }
+
+  if (categorySelect && !categorySelect.dataset.bound) {
+    categorySelect.dataset.bound = 'true';
+    categorySelect.addEventListener('change', () => renderEnquiriesTable());
+  }
+
+  if (btnReset && !btnReset.dataset.bound) {
+    btnReset.dataset.bound = 'true';
+    btnReset.addEventListener('click', () => {
+      if (searchInput) searchInput.value = '';
+      if (categorySelect) categorySelect.value = 'ALL';
+      renderEnquiriesTable();
+    });
+  }
+
   if (!tbody) return;
   tbody.innerHTML = '';
 
-  if (!appData.enquiries || appData.enquiries.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--text-muted);">No website contact enquiries received yet.</td></tr>`;
+  let list = [...(appData.enquiries || [])];
+
+  const q = (searchInput?.value || '').toLowerCase().trim();
+  const cat = categorySelect?.value || 'ALL';
+
+  if (cat !== 'ALL') {
+    list = list.filter(item => {
+      const c = (item.category || item.subject || '').toLowerCase();
+      return c.includes(cat.toLowerCase());
+    });
+  }
+
+  if (q) {
+    list = list.filter(item =>
+      (item.name || '').toLowerCase().includes(q) ||
+      (item.phone || '').toLowerCase().includes(q) ||
+      (item.email || '').toLowerCase().includes(q) ||
+      (item.subject || '').toLowerCase().includes(q) ||
+      (item.message || '').toLowerCase().includes(q) ||
+      (item.ref_no || '').toLowerCase().includes(q)
+    );
+  }
+
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:36px; color:var(--text-muted);"><i class="fa-solid fa-inbox" style="font-size:24px; margin-bottom:8px; display:block; color:#cbd5e1;"></i>No public concerns or enquiries found matching criteria.</td></tr>';
     return;
   }
 
-  appData.enquiries.forEach(item => {
+  list.forEach(item => {
     const tr = document.createElement('tr');
     const dateText = item.created_at ? new Date(item.created_at).toLocaleString() : 'Recent';
+    const refCode = item.ref_no || `#${item.id}`;
+    const catName = item.category || 'General Concern';
+    const prioName = item.priority || 'Normal';
+
+    // Category styling
+    let catBg = '#e0e7ff', catColor = '#3730a3';
+    if (catName.toLowerCase().includes('website')) { catBg = '#eff6ff'; catColor = '#1d4ed8'; }
+    else if (catName.toLowerCase().includes('mobile')) { catBg = '#ecfdf5'; catColor = '#047857'; }
+    else if (catName.toLowerCase().includes('party')) { catBg = '#fffbeb'; catColor = '#b45309'; }
+    else if (catName.toLowerCase().includes('policy')) { catBg = '#f5f3ff'; catColor = '#6d28d9'; }
+
+    // Priority styling
+    let prioBg = '#f1f5f9', prioColor = '#475569';
+    if (prioName.toLowerCase() === 'urgent') { prioBg = '#fee2e2'; prioColor = '#b91c1c'; }
+    else if (prioName.toLowerCase() === 'important') { prioBg = '#fef3c7'; prioColor = '#b45309'; }
 
     tr.innerHTML = `
-      <td><code>#${item.id}</code></td>
-      <td><strong>${item.name}</strong></td>
       <td>
-        <div style="font-size:13px; color:var(--text-primary);">${item.email}</div>
-        <div style="font-size:12px; color:var(--text-muted);">${item.phone || 'N/A'}</div>
+        <span style="font-weight: 800; font-size: 12px; color: #059669; background: #ecfdf5; padding: 4px 8px; border-radius: 6px;">
+          ${refCode}
+        </span>
       </td>
-      <td><span class="pill-tag">${item.subject || 'General'}</span></td>
-      <td style="max-width:300px; font-size:13px; color:var(--text-secondary); line-height:1.4;">${item.message}</td>
-      <td style="font-size:12px; color:var(--text-muted);">${dateText}</td>
       <td>
-        <button class="btn btn-sm btn-outline btn-delete-enquiry" data-id="${item.id}" style="color:var(--accent-rose);">
-          <i class="fa-solid fa-trash"></i> Delete
+        <div style="margin-bottom: 4px;">
+          <span class="badge" style="background:${catBg}; color:${catColor}; font-size: 11px; padding: 3px 8px; font-weight: 700;">
+            ${catName}
+          </span>
+        </div>
+        <div>
+          <span class="badge" style="background:${prioBg}; color:${prioColor}; font-size: 10px; padding: 2px 6px;">
+            ${prioName}
+          </span>
+        </div>
+      </td>
+      <td>
+        <div style="font-weight: 700; color: var(--text-primary);">${item.name}</div>
+        <div style="font-size: 12px; color: #059669; font-weight: 600;">${item.phone || 'N/A'}</div>
+        <div style="font-size: 11px; color: var(--text-muted);">${item.email || ''}</div>
+      </td>
+      <td>
+        <div style="font-weight: 600; font-size: 13px; color: var(--text-primary);">${item.subject || 'Concern / Enquiry'}</div>
+      </td>
+      <td style="max-width: 320px; font-size: 13px; color: var(--text-secondary); line-height: 1.4;">
+        ${item.message}
+      </td>
+      <td style="font-size: 12px; color: var(--text-muted);">${dateText}</td>
+      <td style="text-align: right;">
+        <button class="btn btn-sm btn-outline btn-delete-enquiry" data-id="${item.id}" style="color: var(--accent-rose); border-color: #fca5a5;" title="Delete Message">
+          <i class="fa-solid fa-trash"></i>
         </button>
       </td>
     `;
