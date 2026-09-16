@@ -317,50 +317,40 @@ async function loadAllData() {
   showTopLoader();
   try {
     const results = await Promise.allSettled([
-      apiGetUsers(),
-      apiGetPosts(),
-      apiGetPlans(),
-      apiGetEvents(),
-      apiGetDonations(),
-      apiGetFunds(),
-      apiGetNotifications(),
-      apiGetLiveStreams(),
-      apiGetEnquiries(),
-      apiGetJoinRequests(),
-      apiGetManifesto(),
-      apiGetGallery(),
-      apiGetNewsletters(),
-      apiGetPublicities(),
-      apiGetComplaints(),
-      apiGetJobs(),
-      apiGetJobApplications(),
-      apiGetSettings()
+      apiGetUsers(),                // 0
+      apiGetPosts(),                // 1
+      apiGetPlans(),                // 2
+      apiGetEvents(),               // 3
+      apiGetDonations(),            // 4
+      apiGetFunds(),                // 5
+      apiGetNotifications(),        // 6
+      apiGetLiveStreams(),          // 7
+      apiGetEnquiries(),            // 8
+      apiGetJoinRequests(),         // 9
+      apiGetManifesto(),            // 10
+      apiGetGallery(),              // 11
+      apiGetNewsletters(),          // 12
+      apiGetPublicities(),          // 13
+      apiGetComplaints(),           // 14
+      apiGetJobs(),                 // 15
+      apiGetJobApplications(),      // 16
+      apiGetAgriQuestions(),        // 17
+      apiGetLegalCases(),           // 18
+      apiGetMarriageApplications(), // 19
+      apiGetEmergencyAlerts(),      // 20
+      apiGetElections(),            // 21
+      apiGetEligibleCandidates(),   // 22
+      apiGetSettings()              // 23
     ]);
 
-    const users = results[0].status === 'fulfilled' ? results[0].value : [];
-    const posts = results[1].status === 'fulfilled' ? results[1].value : [];
-    const plans = results[2].status === 'fulfilled' ? results[2].value : [];
-    const events = results[3].status === 'fulfilled' ? results[3].value : [];
-    const donations = results[4].status === 'fulfilled' ? results[4].value : [];
-    const funds = results[5].status === 'fulfilled' ? results[5].value : [];
+    appData.users = results[0].status === 'fulfilled' ? results[0].value || [] : [];
+    appData.posts = results[1].status === 'fulfilled' ? results[1].value || [] : [];
+    appData.plans = results[2].status === 'fulfilled' ? results[2].value || [] : [];
+    appData.events = results[3].status === 'fulfilled' ? results[3].value || [] : [];
+    appData.donations = results[4].status === 'fulfilled' ? results[4].value || [] : [];
+    appData.funds = results[5].status === 'fulfilled' ? results[5].value || [] : [];
+
     const notifResult = results[6].status === 'fulfilled' ? results[6].value : null;
-    const liveStreams = results[7].status === 'fulfilled' ? results[7].value : [];
-    const enquiries = results[8].status === 'fulfilled' ? results[8].value : [];
-    const joinRequests = results[9].status === 'fulfilled' ? results[9].value : [];
-    const manifesto = results[10].status === 'fulfilled' ? results[10].value : [];
-    const gallery = results[11].status === 'fulfilled' ? results[11].value : [];
-    const newsletters = results[12].status === 'fulfilled' ? results[12].value : [];
-    const publicities = results[13].status === 'fulfilled' ? results[13].value : [];
-    const complaints = results[14].status === 'fulfilled' ? results[14].value : [];
-    const settings = results[15].status === 'fulfilled' ? results[15].value : null;
-
-    appData.users = users || [];
-    appData.posts = posts || [];
-    appData.plans = plans || [];
-    appData.events = events || [];
-    appData.donations = donations || [];
-    appData.funds = funds || [];
-
     if (notifResult && typeof notifResult === 'object' && Array.isArray(notifResult.notifications)) {
       appData.notifications = notifResult.notifications;
       appData.unreadNotifCount = notifResult.unreadCount !== undefined ? notifResult.unreadCount : appData.notifications.filter(n => !n.is_read).length;
@@ -369,46 +359,64 @@ async function loadAllData() {
       appData.unreadNotifCount = appData.notifications.filter(n => !n.is_read).length;
     }
 
-    appData.liveStreams = liveStreams || [];
-    appData.enquiries = enquiries || [];
-    appData.joinRequests = joinRequests || [];
-    appData.manifesto = manifesto || [];
-    appData.gallery = gallery || [];
-    appData.newsletters = newsletters || [];
-    appData.publicities = publicities || [];
-    appData.complaints = complaints || [];
-    appData.settings = settings || { maintenance_mode: false };
-
-    updateBadges();
-    renderDashboard();
-    renderUsersTable();
-    renderPostsGrid();
-    renderEventsGrid();
-    renderPlansGrid();
-    renderDonationsTable();
-    renderNotificationsTable();
-    renderLiveStreamsView();
-    renderEnquiriesTable();
-    renderJoinRequestsTable();
-    renderManifestoGrid();
-    renderGalleryGrid();
-    renderNewsletterGrid();
-    renderPublicityGrid();
-    renderComplaintsTable();
-    renderMaintenanceView();
-    populateUserNotificationDropdown();
+    appData.liveStreams = results[7].status === 'fulfilled' ? results[7].value || [] : [];
+    appData.enquiries = results[8].status === 'fulfilled' ? results[8].value || [] : [];
+    appData.joinRequests = results[9].status === 'fulfilled' ? results[9].value || [] : [];
+    appData.manifesto = results[10].status === 'fulfilled' ? results[10].value || [] : [];
+    appData.gallery = results[11].status === 'fulfilled' ? results[11].value || [] : [];
+    appData.newsletters = results[12].status === 'fulfilled' ? results[12].value || [] : [];
+    appData.publicities = results[13].status === 'fulfilled' ? results[13].value || [] : [];
+    appData.complaints = results[14].status === 'fulfilled' ? results[14].value || [] : [];
+    appData.jobs = results[15].status === 'fulfilled' ? results[15].value || [] : [];
+    appData.applications = results[16].status === 'fulfilled' ? results[16].value || [] : [];
+    appData.agriQuestions = results[17].status === 'fulfilled' ? results[17].value || [] : [];
+    appData.legalCases = results[18].status === 'fulfilled' ? results[18].value || [] : [];
+    appData.marriageApplications = results[19].status === 'fulfilled' ? results[19].value || [] : [];
+    appData.emergencyAlerts = results[20].status === 'fulfilled' ? results[20].value || [] : [];
+    appData.elections = results[21].status === 'fulfilled' ? results[21].value || [] : [];
+    appData.eligibleCandidates = results[22].status === 'fulfilled' ? results[22].value || [] : [];
+    appData.settings = results[23].status === 'fulfilled' ? results[23].value || { maintenance_mode: false } : { maintenance_mode: false };
 
     try {
-      appData.elections = await apiGetElections();
       const cRes = await apiGetConstituencies({ election_id: appData.selectedElectionId || 1 });
       if (cRes && cRes.data) {
         appData.constituencies = cRes.data;
       }
-      appData.eligibleCandidates = await apiGetEligibleCandidates();
-      renderElectionsView();
     } catch (e) {
-      console.warn('loadAllData elections fetch notice:', e);
+      console.warn('Constituencies load notice:', e);
     }
+
+    updateBadges();
+
+    // Safely render all initial views
+    const safeRender = (fn, name) => {
+      try { fn(); } catch (err) { console.error(`Error rendering ${name}:`, err); }
+    };
+
+    safeRender(renderDashboard, 'Dashboard');
+    safeRender(renderUsersTable, 'Users');
+    safeRender(renderPostsGrid, 'Posts');
+    safeRender(renderEventsGrid, 'Events');
+    safeRender(renderPlansGrid, 'Plans');
+    safeRender(renderDonationsTable, 'Donations');
+    safeRender(renderNotificationsTable, 'Notifications');
+    safeRender(renderLiveStreamsView, 'LiveStreams');
+    safeRender(renderEnquiriesTable, 'Enquiries');
+    safeRender(renderJoinRequestsTable, 'JoinRequests');
+    safeRender(renderManifestoGrid, 'Manifesto');
+    safeRender(renderGalleryGrid, 'Gallery');
+    safeRender(renderNewsletterGrid, 'Newsletter');
+    safeRender(renderPublicityGrid, 'Publicity');
+    safeRender(renderComplaintsTable, 'Complaints');
+    safeRender(renderEmploymentView, 'Employment');
+    safeRender(renderAgricultureView, 'Agriculture');
+    safeRender(renderLawView, 'Law');
+    safeRender(renderMarriagesView, 'Marriages');
+    safeRender(renderEmergenciesView, 'Emergencies');
+    safeRender(renderElectionsView, 'Elections');
+    safeRender(renderMaintenanceView, 'Maintenance');
+    safeRender(populateUserNotificationDropdown, 'UserDropdown');
+
   } catch (err) {
     console.error('Error initializing admin app data:', err);
   } finally {
@@ -484,6 +492,18 @@ function updateBadges() {
     maintBadge.style.background = isMaint ? '#f59e0b' : '#10b981';
   }
 
+  const badgeAgri = document.getElementById('badge-agriculture-count');
+  if (badgeAgri) badgeAgri.textContent = appData.agriQuestions ? appData.agriQuestions.length : 0;
+
+  const badgeLaw = document.getElementById('badge-law-count');
+  if (badgeLaw) badgeLaw.textContent = appData.legalCases ? appData.legalCases.length : 0;
+
+  const badgeMarriages = document.getElementById('badge-marriages-count');
+  if (badgeMarriages) badgeMarriages.textContent = appData.marriageApplications ? appData.marriageApplications.length : 0;
+
+  const badgeEmergencies = document.getElementById('badge-emergencies-count');
+  if (badgeEmergencies) badgeEmergencies.textContent = appData.emergencyAlerts ? appData.emergencyAlerts.length : 0;
+
   document.getElementById('stat-total-users').textContent = appData.users.length;
   document.getElementById('stat-total-posts').textContent = appData.posts.length;
   document.getElementById('stat-total-plans').textContent = appData.plans.length;
@@ -513,7 +533,7 @@ function setupNavigation() {
       navItems.forEach(n => n.classList.remove('active'));
       item.classList.add('active');
 
-      views.forEach(v => {
+            views.forEach(v => {
         v.classList.remove('active');
         if (v.id === `view-${targetView}`) {
           v.classList.add('active');
@@ -522,6 +542,7 @@ function setupNavigation() {
 
       closeMobileSidebar();
       renderMaintenanceView();
+      dispatchViewRender(targetView);
     });
   });
 
@@ -559,6 +580,84 @@ function setupNavigation() {
         setBtnLoading(btn, false);
       }
     });
+  }
+}
+
+function dispatchViewRender(viewName) {
+  try {
+    switch (viewName) {
+      case 'dashboard':
+        renderDashboard();
+        break;
+      case 'users':
+        renderUsersTable();
+        break;
+      case 'posts':
+        renderPostsGrid();
+        break;
+      case 'events':
+        renderEventsGrid();
+        break;
+      case 'plans':
+        renderPlansGrid();
+        break;
+      case 'donations':
+        renderDonationsTable();
+        break;
+      case 'livestreams':
+        renderLiveStreamsView();
+        break;
+      case 'newsletter':
+        renderNewsletterGrid();
+        break;
+      case 'publicity':
+        renderPublicityGrid();
+        break;
+      case 'complaints':
+        renderComplaintsTable();
+        break;
+      case 'employment':
+        renderEmploymentView();
+        break;
+      case 'agriculture':
+        renderAgricultureView();
+        break;
+      case 'law':
+        renderLawView();
+        break;
+      case 'marriages':
+        renderMarriagesView();
+        break;
+      case 'emergencies':
+        renderEmergenciesView();
+        break;
+      case 'elections':
+        renderElectionsView();
+        break;
+      case 'manifesto':
+        renderManifestoGrid();
+        break;
+      case 'gallery':
+        renderGalleryGrid();
+        break;
+      case 'join-requests':
+        renderJoinRequestsTable();
+        break;
+      case 'enquiries':
+        renderEnquiriesTable();
+        break;
+      case 'maintenance':
+        renderMaintenanceView();
+        break;
+      case 'activity':
+        renderActivityScreen();
+        break;
+      case 'notifications':
+        renderNotificationsTable();
+        break;
+    }
+  } catch (err) {
+    console.error(`Error dispatching render for view "${viewName}":`, err);
   }
 }
 

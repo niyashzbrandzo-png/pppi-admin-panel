@@ -3,21 +3,36 @@
    Target Server: https://api.pppiconnect.com/api
    ========================================================================== */
 
-const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+const isLocal = typeof window !== 'undefined' && !isHttps && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 const LOCAL_API_URL = "http://localhost:5000/api";
 const REMOTE_API_URL = "https://api.pppiconnect.com/api";
-const DEFAULT_API_URL = isLocal ? LOCAL_API_URL : REMOTE_API_URL;
 
-let storedApiUrl = localStorage.getItem('pppi_api_url');
-let API_BASE_URL = storedApiUrl || DEFAULT_API_URL;
+// Purge any accidental localhost storage in live production
+if (typeof window !== 'undefined') {
+  const stored = localStorage.getItem('pppi_api_url');
+  if (isHttps && stored && stored.includes('localhost')) {
+    localStorage.removeItem('pppi_api_url');
+  }
+}
+
+const DEFAULT_API_URL = isLocal ? LOCAL_API_URL : REMOTE_API_URL;
+let storedApiUrl = typeof window !== 'undefined' ? localStorage.getItem('pppi_api_url') : null;
+let API_BASE_URL = isHttps ? REMOTE_API_URL : (storedApiUrl || DEFAULT_API_URL);
 
 export function getApiBaseUrl() {
   return API_BASE_URL;
 }
 
 export function setApiBaseUrl(url) {
+  if (isHttps && url.startsWith('http:')) {
+    console.warn('Blocked setting insecure HTTP URL on HTTPS admin panel:', url);
+    return;
+  }
   API_BASE_URL = url;
-  localStorage.setItem('pppi_api_url', url);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('pppi_api_url', url);
+  }
 }
 
 /* ==========================================================================
@@ -48,13 +63,16 @@ export async function apiLoginAdmin(phone, password, rememberMe = false) {
   try {
     res = await tryFetch(targetUrl);
   } catch (err) {
-    const fallbackUrl = targetUrl === LOCAL_API_URL ? REMOTE_API_URL : LOCAL_API_URL;
-    console.warn(`Primary API URL (${targetUrl}) failed to fetch. Falling back to ${fallbackUrl}...`);
-    try {
-      res = await tryFetch(fallbackUrl);
-      setApiBaseUrl(fallbackUrl);
-    } catch (fallbackErr) {
-      throw new Error(`Unable to connect to backend server at ${targetUrl} or ${fallbackUrl}. Please verify the Node server is running.`);
+    if (!isHttps && targetUrl === LOCAL_API_URL) {
+      console.warn(`Local API URL failed, trying remote: ${REMOTE_API_URL}`);
+      try {
+        res = await tryFetch(REMOTE_API_URL);
+        setApiBaseUrl(REMOTE_API_URL);
+      } catch (fallbackErr) {
+        throw new Error(`Unable to connect to backend server at ${REMOTE_API_URL}.`);
+      }
+    } else {
+      throw new Error(`Unable to connect to live backend server at ${targetUrl}. Please verify network connection or server status.`);
     }
   }
 
