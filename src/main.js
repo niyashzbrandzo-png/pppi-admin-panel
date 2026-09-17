@@ -10,6 +10,7 @@ import {
   apiDeletePost,
   apiGetPlans,
   apiCreatePlan,
+  apiUpdatePlan,
   apiDeletePlan,
   apiGetEvents,
   apiGetEventRegistrations,
@@ -1527,8 +1528,11 @@ function renderPlansGrid() {
           <span style="font-size:12px; color:var(--accent-emerald); font-weight:600; display:flex; align-items:center; gap:6px;">
             <i class="fa-solid fa-circle-dot"></i> Active Tier in System
           </span>
-          <div style="display:flex; align-items:center; gap:10px;">
+          <div style="display:flex; align-items:center; gap:8px;">
             <span style="font-size:12px; color:var(--text-muted); font-weight:500;">ID: #${plan.id}</span>
+            <button class="btn btn-sm btn-outline btn-edit-plan" data-id="${plan.id}" style="color:var(--primary, #2563eb); border-color:rgba(37,99,235,0.3); padding:4px 10px;" title="Edit Plan">
+              <i class="fa-solid fa-pen-to-square"></i> Edit
+            </button>
             <button class="btn btn-sm btn-outline btn-delete-plan" data-id="${plan.id}" style="color:var(--accent-rose); border-color:rgba(239,68,68,0.3); padding:4px 8px;" title="Delete Plan">
               <i class="fa-solid fa-trash"></i> Delete
             </button>
@@ -1537,6 +1541,44 @@ function renderPlansGrid() {
       </div>
     `;
     container.appendChild(card);
+  });
+
+  // Edit Plan Button Handlers
+  container.querySelectorAll('.btn-edit-plan').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const plan = appData.plans.find(p => String(p.id) === String(id));
+      if (!plan) return;
+
+      const titleEl = document.getElementById('modal-plan-title');
+      if (titleEl) titleEl.textContent = 'Edit Membership Plan';
+
+      const idEl = document.getElementById('plan-input-id');
+      if (idEl) idEl.value = plan.id;
+
+      const nameEl = document.getElementById('plan-input-name');
+      if (nameEl) nameEl.value = plan.plan_name || '';
+
+      const priceEl = document.getElementById('plan-input-price');
+      if (priceEl) priceEl.value = plan.price !== undefined ? plan.price : '';
+
+      const popularEl = document.getElementById('plan-input-popular');
+      if (popularEl) popularEl.value = plan.is_popular ? 'true' : 'false';
+
+      let benefitsArr = [];
+      if (Array.isArray(plan.benefits)) {
+        benefitsArr = plan.benefits.map(b => typeof b === 'string' ? b : (b.benefit || String(b)));
+      } else if (Array.isArray(plan.plan_benefits)) {
+        benefitsArr = plan.plan_benefits.map(b => typeof b === 'string' ? b : (b.benefit || String(b)));
+      }
+      const benefitsEl = document.getElementById('plan-input-benefits');
+      if (benefitsEl) benefitsEl.value = benefitsArr.join(', ');
+
+      const submitBtn = document.getElementById('btn-save-plan');
+      if (submitBtn) submitBtn.textContent = 'Update Membership Plan';
+
+      openModal('modal-plan');
+    });
   });
 
   container.querySelectorAll('.btn-delete-plan').forEach(btn => {
@@ -1586,9 +1628,20 @@ function setupModals() {
     openModal('modal-event');
   });
 
-  document.getElementById('btn-open-create-plan-modal').addEventListener('click', () => {
-    openModal('modal-plan');
-  });
+  const btnOpenCreatePlan = document.getElementById('btn-open-create-plan-modal');
+  if (btnOpenCreatePlan) {
+    btnOpenCreatePlan.addEventListener('click', () => {
+      const formPlan = document.getElementById('form-plan');
+      if (formPlan) formPlan.reset();
+      const idEl = document.getElementById('plan-input-id');
+      if (idEl) idEl.value = '';
+      const titleEl = document.getElementById('modal-plan-title');
+      if (titleEl) titleEl.textContent = 'Add Membership Plan';
+      const submitBtn = document.getElementById('btn-save-plan');
+      if (submitBtn) submitBtn.textContent = 'Save Membership Plan';
+      openModal('modal-plan');
+    });
+  }
 
   const btnNotifModal = document.getElementById('btn-open-create-notif-modal');
   if (btnNotifModal) {
@@ -1684,31 +1737,53 @@ function setupModals() {
   });
 
 
-  // Plan Form Submit
-  document.getElementById('form-plan').addEventListener('submit', async e => {
-    e.preventDefault();
-    const submitBtn = document.getElementById('btn-save-plan');
-    setBtnLoading(submitBtn, true, 'Creating Plan...');
+  // Plan Form Submit (Create & Update)
+  const formPlan = document.getElementById('form-plan');
+  if (formPlan) {
+    formPlan.addEventListener('submit', async e => {
+      e.preventDefault();
+      const planId = document.getElementById('plan-input-id')?.value;
+      const isEdit = Boolean(planId);
+      const submitBtn = document.getElementById('btn-save-plan');
+      setBtnLoading(submitBtn, true, isEdit ? 'Updating Plan...' : 'Creating Plan...');
 
-    try {
-      const planData = {
-        plan_name: document.getElementById('plan-input-name').value,
-        price: document.getElementById('plan-input-price').value,
-        is_popular: document.getElementById('plan-input-popular').value,
-        benefits: document.getElementById('plan-input-benefits').value
-      };
+      try {
+        const planData = {
+          plan_name: document.getElementById('plan-input-name').value,
+          price: document.getElementById('plan-input-price').value,
+          is_popular: document.getElementById('plan-input-popular').value,
+          benefits: document.getElementById('plan-input-benefits').value
+        };
 
-      await apiCreatePlan(planData);
-      appData.plans = await apiGetPlans();
-      updateBadges();
-      renderPlansGrid();
-      closeModal('modal-plan');
-      e.target.reset();
-      alert('New Membership plan created!');
-    } finally {
-      setBtnLoading(submitBtn, false);
-    }
-  });
+        if (isEdit) {
+          const res = await apiUpdatePlan(planId, planData);
+          if (res && res.status && res.status >= 400) {
+            throw new Error(res.message || 'Failed to update plan');
+          }
+          alert('Membership plan updated successfully!');
+        } else {
+          const res = await apiCreatePlan(planData);
+          if (res && res.status && res.status >= 400) {
+            throw new Error(res.message || 'Failed to create plan');
+          }
+          alert('New Membership plan created!');
+        }
+
+        appData.plans = await apiGetPlans();
+        updateBadges();
+        renderPlansGrid();
+        closeModal('modal-plan');
+        formPlan.reset();
+        const idEl = document.getElementById('plan-input-id');
+        if (idEl) idEl.value = '';
+      } catch (err) {
+        console.error('Plan save error:', err);
+        alert(err.message || 'Failed to save membership plan');
+      } finally {
+        setBtnLoading(submitBtn, false);
+      }
+    });
+  }
 
   // Fund Form Submit
   const btnCreateFund = document.getElementById('btn-open-create-fund-modal');

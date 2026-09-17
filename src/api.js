@@ -377,6 +377,26 @@ export async function apiCreatePlan(planData) {
   return await res.json();
 }
 
+export async function apiUpdatePlan(id, planData) {
+  const token = getAdminToken();
+  const res = await fetch(`${API_BASE_URL}/plans/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({
+      plan_name: planData.plan_name,
+      price: Number(planData.price),
+      is_popular: planData.is_popular === 'true' || planData.is_popular === true,
+      benefits: typeof planData.benefits === 'string'
+        ? planData.benefits.split(',').map(b => b.trim()).filter(Boolean)
+        : (planData.benefits || [])
+    })
+  });
+  return await res.json();
+}
+
 export async function apiDeletePlan(id) {
   const token = getAdminToken();
   const res = await fetch(`${API_BASE_URL}/plans/${id}`, {

@@ -1972,6 +1972,7 @@
       </div>
       <div class="modal-body">
         <form id="form-plan">
+          <input type="hidden" id="plan-input-id" />
           <div class="form-group">
             <label class="form-label">Plan Name *</label>
             <input type="text" id="plan-input-name" class="form-control" required placeholder="e.g. Platinum Plan" />
@@ -1996,7 +1997,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline" data-close-modal="modal-plan">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save Membership Plan</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-plan">Save Membership Plan</button>
           </div>
         </form>
       </div>
