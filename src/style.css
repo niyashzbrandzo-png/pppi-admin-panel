@@ -1478,4 +1478,289 @@ button:disabled, .btn:disabled {
   margin-top: 6px;
 }
 
+/* ==========================================================================
+   Elevated Design System: KPI Cards, Tab Pills & Advanced Dossiers
+   ========================================================================== */
+
+/* Unified KPI Grid & Cards */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.kpi-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
+}
+
+.kpi-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.kpi-data {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kpi-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kpi-value {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 2px 0;
+  line-height: 1.2;
+}
+
+.kpi-subtext {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+/* Tab Pills Navigation */
+.tab-pills-nav {
+  display: flex;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 20px;
+  padding-bottom: 2px;
+}
+
+.tab-pill {
+  padding: 10px 20px;
+  border-radius: 10px 10px 0 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  border: none;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tab-pill:hover {
+  color: var(--text-main);
+  background: var(--bg-card);
+}
+
+.tab-pill.active {
+  color: #fff;
+  background: var(--primary);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+/* Status Badges */
+.badge-critical {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: var(--accent-rose) !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+  font-weight: 800 !important;
+}
+
+.badge-high {
+  background: rgba(249, 115, 22, 0.15) !important;
+  color: #ea580c !important;
+  border: 1px solid rgba(249, 115, 22, 0.35) !important;
+  font-weight: 800 !important;
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: var(--accent-amber) !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  font-weight: 800 !important;
+}
+
+.badge-success {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: var(--accent-emerald) !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  font-weight: 800 !important;
+}
+
+.badge-info {
+  background: rgba(2, 132, 199, 0.15) !important;
+  color: #0284c7 !important;
+  border: 1px solid rgba(2, 132, 199, 0.35) !important;
+  font-weight: 800 !important;
+}
+
+.badge-primary {
+  background: var(--primary-light) !important;
+  color: var(--primary) !important;
+  border: 1px solid rgba(99, 102, 241, 0.35) !important;
+  font-weight: 800 !important;
+}
+
+.badge-purple {
+  background: rgba(168, 85, 247, 0.15) !important;
+  color: var(--secondary) !important;
+  border: 1px solid rgba(168, 85, 247, 0.35) !important;
+  font-weight: 800 !important;
+}
+
+/* Animations */
+@keyframes pulse-glow-red {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+}
+
+.pulse-critical {
+  animation: pulse-glow-red 2s infinite ease-in-out;
+}
+
+/* Dossier Components */
+.dossier-box {
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.dossier-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dossier-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .dossier-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dossier-prop {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dossier-prop-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.dossier-prop-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  word-break: break-word;
+}
+
+/* Media Cards for Publicity & Newsletters */
+.media-admin-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.media-admin-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
+}
+
+.media-preview-container {
+  position: relative;
+  width: 100%;
+  background: #0b0f19;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.media-badge-tag {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Agriculture Q&A Styling */
+.agri-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s ease;
+}
+
+.agri-card:hover {
+  border-color: var(--primary);
+}
+
+.agri-answers-box {
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-top: 14px;
+}
+
+
 

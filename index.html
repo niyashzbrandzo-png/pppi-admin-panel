@@ -905,15 +905,80 @@
         <section id="view-newsletter" class="content-view">
           <div class="view-header">
             <div>
-              <h1 class="view-title">Official Newsletters & Founder Press Meets</h1>
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+                <h1 class="view-title">Official Newsletters & Founder Press Meets</h1>
+                <span class="badge badge-info" style="font-size:11px; padding:4px 10px; border-radius:20px;">
+                  <i class="fa-solid fa-newspaper"></i> Central Press Bureau
+                </span>
+              </div>
               <p class="view-subtitle">Publish official party communiques, press conference transcripts, media releases, and downloadable documents.</p>
             </div>
-            <button class="btn btn-primary" id="btn-open-create-newsletter-modal" style="background:#0284c7; border-color:#0284c7;">
+            <button class="btn btn-primary" id="btn-open-create-newsletter-modal">
               <i class="fa-solid fa-plus"></i> Add News Letter
             </button>
           </div>
 
-          <div class="posts-grid" id="newsletter-grid-container">
+          <!-- NEWSLETTER KPI METRICS -->
+          <div class="kpi-grid">
+            <div class="kpi-card" style="border-left: 4px solid var(--primary);">
+              <div class="kpi-icon" style="background: var(--primary-light); color: var(--primary);">
+                <i class="fa-solid fa-newspaper"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Total News Releases</span>
+                <h3 class="kpi-value" id="kpi-newsletter-total">0</h3>
+                <span class="kpi-subtext" style="color:var(--primary);">Published Communiques</span>
+              </div>
+            </div>
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-emerald);">
+              <div class="kpi-icon" style="background: rgba(16,185,129,0.15); color: var(--accent-emerald);">
+                <i class="fa-solid fa-microphone-lines"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Press Conferences</span>
+                <h3 class="kpi-value" id="kpi-newsletter-press">0</h3>
+                <span class="kpi-subtext" style="color:var(--accent-emerald);">Media Statements</span>
+              </div>
+            </div>
+            <div class="kpi-card" style="border-left: 4px solid #0284c7;">
+              <div class="kpi-icon" style="background: rgba(2,132,199,0.15); color: #0284c7;">
+                <i class="fa-solid fa-file-pdf"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Documents & PDFs</span>
+                <h3 class="kpi-value" id="kpi-newsletter-docs">0</h3>
+                <span class="kpi-subtext" style="color:#0284c7;">Official Gazettes</span>
+              </div>
+            </div>
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-amber);">
+              <div class="kpi-icon" style="background: rgba(245,158,11,0.15); color: var(--accent-amber);">
+                <i class="fa-solid fa-bullhorn"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Policy Bulletins</span>
+                <h3 class="kpi-value" id="kpi-newsletter-bulletins">0</h3>
+                <span class="kpi-subtext" style="color:var(--accent-amber);">Public Briefings</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SEARCH & CATEGORY FILTER BAR -->
+          <div class="filters-bar" style="margin-bottom: 20px; display:flex; gap:12px; flex-wrap:wrap;">
+            <div class="search-input-wrapper" style="flex:1; min-width:260px;">
+              <i class="fa-solid fa-magnifying-glass search-icon"></i>
+              <input type="text" id="input-search-newsletter" class="search-input" placeholder="Search by title, speech excerpt, founder statement, or keywords..." />
+            </div>
+            <select id="filter-newsletter-category" class="form-select" style="width:auto; min-width:180px;">
+              <option value="ALL">All Categories</option>
+              <option value="Official Press Meet">Official Press Meet</option>
+              <option value="Party Gazette">Party Gazette</option>
+              <option value="Manifesto Bulletin">Manifesto Bulletin</option>
+              <option value="Founder Statement">Founder Statement</option>
+              <option value="Policy Briefing">Policy Briefing</option>
+            </select>
+          </div>
+
+          <div class="posts-grid" id="newsletter-grid-container" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:22px;">
             <!-- Newsletter Cards Rendered Dynamically -->
           </div>
         </section>
@@ -922,15 +987,86 @@
         <section id="view-publicity" class="content-view">
           <div class="view-header">
             <div>
-              <h1 class="view-title"><i class="fa-solid fa-photo-film" style="color:#059669;"></i> Official Publicities, Campaign Posters &amp; Flex Banners</h1>
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+                <h1 class="view-title"><i class="fa-solid fa-photo-film" style="color:var(--accent-emerald);"></i> Official Publicities, Campaign Posters &amp; Flex Banners</h1>
+                <span class="badge badge-success" style="font-size:11px; padding:4px 10px; border-radius:20px;">
+                  <i class="fa-solid fa-cloud-arrow-down"></i> High-Res Media Depot
+                </span>
+              </div>
               <p class="view-subtitle">Upload, manage, and distribute high-res portrait posters, wide flex banners, promotional videos, and party publicity materials.</p>
             </div>
-            <button class="btn btn-primary" id="btn-open-create-publicity-modal" style="background:#059669; border-color:#059669;">
+            <button class="btn btn-primary" id="btn-open-create-publicity-modal" style="background:var(--accent-emerald); border-color:var(--accent-emerald);">
               <i class="fa-solid fa-plus"></i> Add Poster / Banner
             </button>
           </div>
 
-          <div class="posts-grid" id="publicity-grid-container" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:22px;">
+          <!-- PUBLICITY KPI METRICS -->
+          <div class="kpi-grid">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-emerald);">
+              <div class="kpi-icon" style="background: rgba(16,185,129,0.15); color: var(--accent-emerald);">
+                <i class="fa-solid fa-photo-film"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Total Publicity Assets</span>
+                <h3 class="kpi-value" id="kpi-publicity-total">0</h3>
+                <span class="kpi-subtext" style="color:var(--accent-emerald);">Approved Creative Assets</span>
+              </div>
+            </div>
+            <div class="kpi-card" style="border-left: 4px solid #0284c7;">
+              <div class="kpi-icon" style="background: rgba(2,132,199,0.15); color: #0284c7;">
+                <i class="fa-solid fa-image"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Campaign Posters</span>
+                <h3 class="kpi-value" id="kpi-publicity-posters">0</h3>
+                <span class="kpi-subtext" style="color:#0284c7;">Portrait Wall Media</span>
+              </div>
+            </div>
+            <div class="kpi-card" style="border-left: 4px solid var(--secondary);">
+              <div class="kpi-icon" style="background: rgba(168,85,247,0.15); color: var(--secondary);">
+                <i class="fa-solid fa-panorama"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Flex & Stage Banners</span>
+                <h3 class="kpi-value" id="kpi-publicity-flex">0</h3>
+                <span class="kpi-subtext" style="color:var(--secondary);">Wide Rallies & Hoardings</span>
+              </div>
+            </div>
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-amber);">
+              <div class="kpi-icon" style="background: rgba(245,158,11,0.15); color: var(--accent-amber);">
+                <i class="fa-solid fa-video"></i>
+              </div>
+              <div class="kpi-data">
+                <span class="kpi-label">Video Clips & Reels</span>
+                <h3 class="kpi-value" id="kpi-publicity-videos">0</h3>
+                <span class="kpi-subtext" style="color:var(--accent-amber);">Digital & Broadcast</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SEARCH & FILTER TOOLBAR -->
+          <div class="filters-bar" style="margin-bottom: 20px; display:flex; gap:12px; flex-wrap:wrap;">
+            <div class="search-input-wrapper" style="flex:1; min-width:260px;">
+              <i class="fa-solid fa-magnifying-glass search-icon"></i>
+              <input type="text" id="input-search-publicity" class="search-input" placeholder="Search posters, banners, slogans, or dimensions..." />
+            </div>
+            <select id="filter-publicity-category" class="form-select" style="width:auto; min-width:170px;">
+              <option value="ALL">All Categories</option>
+              <option value="Campaign Poster">Campaign Poster</option>
+              <option value="Flex Banner">Flex Banner</option>
+              <option value="Event Flyer">Event Flyer</option>
+              <option value="Videos & Reels">Videos & Reels</option>
+              <option value="Official Notice">Official Notice</option>
+            </select>
+            <select id="filter-publicity-format" class="form-select" style="width:auto; min-width:140px;">
+              <option value="ALL">All Formats</option>
+              <option value="image">Images</option>
+              <option value="video">Videos</option>
+              <option value="pdf">Documents/PDF</option>
+            </select>
+          </div>
+
+          <div class="posts-grid" id="publicity-grid-container" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(290px, 1fr)); gap:22px;">
             <!-- Publicity Cards Rendered Dynamically -->
           </div>
         </section>
@@ -939,52 +1075,56 @@
         <section id="view-complaints" class="content-view">
           <div class="view-header">
             <div>
-              <h1 class="view-title"><i class="fa-solid fa-shield-halved" style="color:#ef4444;"></i> Confidential Public Complaints &amp; Grievance Cell</h1>
-              <p class="view-subtitle">Strictly confidential citizen grievance records with live GPS location tracking, selfie verification, and legal action logs.</p>
-            </div>
-            <div style="display:flex; gap:10px; align-items:center;">
-              <span class="pill-tag" style="background:#fee2e2; color:#dc2626; font-weight:800; font-size:12px; padding:6px 12px;">
-                <i class="fa-solid fa-lock"></i> RESTRICTED CONFIDENTIAL DOSSIER
-              </span>
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+                <h1 class="view-title"><i class="fa-solid fa-shield-halved" style="color:var(--accent-rose);"></i> Confidential Citizen Grievance Cell</h1>
+                <span class="badge badge-critical pulse-critical" style="font-size:11px; padding:4px 10px; border-radius:20px;">
+                  <i class="fa-solid fa-lock"></i> Restricted Confidential Dossier
+                </span>
+              </div>
+              <p class="view-subtitle">Citizen grievance records with GPS coordinates, selfie photo verification, legal audit logs, and investigation statuses.</p>
             </div>
           </div>
 
           <!-- COMPLAINT METRICS -->
-          <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 20px;">
-            <div class="stat-card">
-              <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+          <div class="kpi-grid">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-rose);">
+              <div class="kpi-icon" style="background: rgba(239, 68, 68, 0.15); color: var(--accent-rose);">
                 <i class="fa-solid fa-folder-closed"></i>
               </div>
-              <div>
-                <div class="stat-label">Total Grievances Filed</div>
-                <div class="stat-value" id="stat-complaints-total">0</div>
+              <div class="kpi-data">
+                <span class="kpi-label">Total Grievances</span>
+                <h3 class="kpi-value" id="stat-complaints-total">0</h3>
+                <span class="kpi-subtext" style="color:var(--accent-rose);">Registered Complaints</span>
               </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-amber);">
+              <div class="kpi-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber);">
                 <i class="fa-solid fa-hourglass-half"></i>
               </div>
-              <div>
-                <div class="stat-label">Pending Verification</div>
-                <div class="stat-value" id="stat-complaints-pending">0</div>
+              <div class="kpi-data">
+                <span class="kpi-label">Pending Verification</span>
+                <h3 class="kpi-value" id="stat-complaints-pending">0</h3>
+                <span class="kpi-subtext" style="color:var(--accent-amber);">Under Preliminary Audit</span>
               </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon" style="background: rgba(2, 132, 199, 0.1); color: #0284c7;">
+            <div class="kpi-card" style="border-left: 4px solid #0284c7;">
+              <div class="kpi-icon" style="background: rgba(2, 132, 199, 0.15); color: #0284c7;">
                 <i class="fa-solid fa-scale-balanced"></i>
               </div>
-              <div>
-                <div class="stat-label">Legal Action Initiated</div>
-                <div class="stat-value" id="stat-complaints-action">0</div>
+              <div class="kpi-data">
+                <span class="kpi-label">Legal Action Initiated</span>
+                <h3 class="kpi-value" id="stat-complaints-action">0</h3>
+                <span class="kpi-subtext" style="color:#0284c7;">FIR / Notice Sent</span>
               </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-emerald);">
+              <div class="kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald);">
                 <i class="fa-solid fa-circle-check"></i>
               </div>
-              <div>
-                <div class="stat-label">Resolved / Closed</div>
-                <div class="stat-value" id="stat-complaints-resolved">0</div>
+              <div class="kpi-data">
+                <span class="kpi-label">Resolved / Closed</span>
+                <h3 class="kpi-value" id="stat-complaints-resolved">0</h3>
+                <span class="kpi-subtext" style="color:var(--accent-emerald);">Remedy Provided</span>
               </div>
             </div>
           </div>
@@ -1018,65 +1158,69 @@
             <div>
               <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
                 <h1 class="view-title">Employment &amp; Recruitment Portal</h1>
-                <span id="employer-mode-badge" style="background: #e0f2fe; color: #0369a1; border: 1px solid #7dd3fc; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
-                  RECRUITMENT DESK
+                <span id="employer-mode-badge" class="badge badge-info" style="font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
+                  <i class="fa-solid fa-briefcase"></i> Recruitment Desk
                 </span>
               </div>
               <p class="view-subtitle">Post job vacancies, review applications, download candidate resumes, and manage recruitment pipeline.</p>
             </div>
             <div style="display: flex; gap: 10px; align-items: center;">
-              <button class="btn btn-primary" id="btn-open-create-job-modal" style="background:#0284c7; border-color:#0284c7;">
+              <button class="btn btn-primary" id="btn-open-create-job-modal">
                 <i class="fa-solid fa-plus"></i> Post New Vacancy
               </button>
             </div>
           </div>
 
           <!-- METRICS CARDS -->
-          <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); margin-bottom: 22px;">
-            <div class="stat-card">
-              <div class="stat-icon" style="background: rgba(2, 132, 199, 0.1); color: #0284c7;">
+          <div class="kpi-grid">
+            <div class="kpi-card" style="border-left: 4px solid #0284c7;">
+              <div class="kpi-icon" style="background: rgba(2, 132, 199, 0.15); color: #0284c7;">
                 <i class="fa-solid fa-briefcase"></i>
               </div>
-              <div>
-                <div class="stat-label">Total Vacancies</div>
-                <div class="stat-value" id="stat-jobs-total">0</div>
+              <div class="kpi-data">
+                <span class="kpi-label">Total Vacancies</span>
+                <h3 class="kpi-value" id="stat-jobs-total">0</h3>
+                <span class="kpi-subtext" style="color:#0284c7;">Positions Listed</span>
               </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-emerald);">
+              <div class="kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald);">
                 <i class="fa-solid fa-circle-check"></i>
               </div>
-              <div>
-                <div class="stat-label">Active Openings</div>
-                <div class="stat-value" id="stat-jobs-active">0</div>
+              <div class="kpi-data">
+                <span class="kpi-label">Active Openings</span>
+                <h3 class="kpi-value" id="stat-jobs-active">0</h3>
+                <span class="kpi-subtext" style="color:var(--accent-emerald);">Accepting Applications</span>
               </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon" style="background: rgba(99, 102, 241, 0.1); color: #6366f1;">
+            <div class="kpi-card" style="border-left: 4px solid var(--primary);">
+              <div class="kpi-icon" style="background: var(--primary-light); color: var(--primary);">
                 <i class="fa-solid fa-user-group"></i>
               </div>
-              <div>
-                <div class="stat-label">Applications Received</div>
-                <div class="stat-value" id="stat-jobs-apps">0</div>
+              <div class="kpi-data">
+                <span class="kpi-label">Applications Received</span>
+                <h3 class="kpi-value" id="stat-jobs-apps">0</h3>
+                <span class="kpi-subtext" style="color:var(--primary);">Candidate Submissions</span>
               </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-amber);">
+              <div class="kpi-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber);">
                 <i class="fa-solid fa-star"></i>
               </div>
-              <div>
-                <div class="stat-label">Shortlisted Candidates</div>
-                <div class="stat-value" id="stat-jobs-shortlisted">0</div>
+              <div class="kpi-data">
+                <span class="kpi-label">Shortlisted Candidates</span>
+                <h3 class="kpi-value" id="stat-jobs-shortlisted">0</h3>
+                <span class="kpi-subtext" style="color:var(--accent-amber);">Ready for Interview</span>
               </div>
             </div>
           </div>
 
           <!-- TAB BUTTONS -->
-          <div style="display: flex; gap: 8px; border-bottom: 2px solid #e2e8f0; margin-bottom: 18px;">
-            <button type="button" class="btn btn-tab active" id="tab-btn-jobs" style="border-radius: 8px 8px 0 0; padding: 10px 20px; font-weight: 700; border: none; background: #0284c7; color: white; cursor: pointer;">
+          <div class="tab-pills-nav">
+            <button type="button" class="tab-pill active" id="tab-btn-jobs">
               <i class="fa-solid fa-list-check"></i> Job Vacancies (<span id="count-tab-jobs">0</span>)
             </button>
-            <button type="button" class="btn btn-tab" id="tab-btn-applications" style="border-radius: 8px 8px 0 0; padding: 10px 20px; font-weight: 700; border: none; background: #f1f5f9; color: #475569; cursor: pointer;">
+            <button type="button" class="tab-pill" id="tab-btn-applications">
               <i class="fa-solid fa-user-tie"></i> Candidate Applications (<span id="count-tab-apps">0</span>)
             </button>
           </div>
@@ -1141,8 +1285,8 @@
             <div>
               <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
                 <h1 class="view-title">Agriculture &amp; Farmers Q&amp;A Management</h1>
-                <span style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
-                  KISAN MANCH CMS
+                <span class="badge badge-success" style="font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
+                  <i class="fa-solid fa-seedling"></i> Kisan Manch CMS
                 </span>
               </div>
               <p class="view-subtitle">Supervise peer-to-peer agricultural discussions, review photo and video solutions, inspect farmer queries, and remove inappropriate submissions.</p>
@@ -1155,48 +1299,48 @@
           </div>
 
           <!-- Agriculture KPI Metrics Cards -->
-          <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px;">
-            <div class="stat-card" style="border-left: 4px solid #16a34a;">
-              <div class="stat-icon" style="background: #dcfce7; color: #16a34a;">
+          <div class="kpi-grid">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-emerald);">
+              <div class="kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald);">
                 <i class="fa-solid fa-circle-question"></i>
               </div>
-              <div class="stat-details">
-                <span class="stat-label">Total Questions</span>
-                <h3 class="stat-value" id="stat-agri-questions-total">0</h3>
-                <span class="stat-trend positive"><i class="fa-solid fa-seedling"></i> Farmer Inquiries</span>
+              <div class="kpi-data">
+                <span class="kpi-label">Total Questions</span>
+                <h3 class="kpi-value" id="stat-agri-questions-total">0</h3>
+                <span class="kpi-subtext" style="color:var(--accent-emerald);"><i class="fa-solid fa-seedling"></i> Farmer Inquiries</span>
               </div>
             </div>
 
-            <div class="stat-card" style="border-left: 4px solid #0284c7;">
-              <div class="stat-icon" style="background: #e0f2fe; color: #0284c7;">
+            <div class="kpi-card" style="border-left: 4px solid #0284c7;">
+              <div class="kpi-icon" style="background: rgba(2, 132, 199, 0.15); color: #0284c7;">
                 <i class="fa-solid fa-comments"></i>
               </div>
-              <div class="stat-details">
-                <span class="stat-label">Total Answers</span>
-                <h3 class="stat-value" id="stat-agri-answers-total">0</h3>
-                <span class="stat-trend positive"><i class="fa-solid fa-user-check"></i> Community Solutions</span>
+              <div class="kpi-data">
+                <span class="kpi-label">Total Answers</span>
+                <h3 class="kpi-value" id="stat-agri-answers-total">0</h3>
+                <span class="kpi-subtext" style="color:#0284c7;"><i class="fa-solid fa-user-check"></i> Community Solutions</span>
               </div>
             </div>
 
-            <div class="stat-card" style="border-left: 4px solid #f59e0b;">
-              <div class="stat-icon" style="background: #fef3c7; color: #f59e0b;">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-amber);">
+              <div class="kpi-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber);">
                 <i class="fa-solid fa-tags"></i>
               </div>
-              <div class="stat-details">
-                <span class="stat-label">Active Domains</span>
-                <h3 class="stat-value" id="stat-agri-categories-total">6</h3>
-                <span class="stat-trend"><i class="fa-solid fa-layer-group"></i> Agriculture Topics</span>
+              <div class="kpi-data">
+                <span class="kpi-label">Active Domains</span>
+                <h3 class="kpi-value" id="stat-agri-categories-total">6</h3>
+                <span class="kpi-subtext" style="color:var(--accent-amber);"><i class="fa-solid fa-layer-group"></i> Agriculture Topics</span>
               </div>
             </div>
 
-            <div class="stat-card" style="border-left: 4px solid #ec4899;">
-              <div class="stat-icon" style="background: #fce7f3; color: #ec4899;">
+            <div class="kpi-card" style="border-left: 4px solid var(--secondary);">
+              <div class="kpi-icon" style="background: rgba(168, 85, 247, 0.15); color: var(--secondary);">
                 <i class="fa-solid fa-heart"></i>
               </div>
-              <div class="stat-details">
-                <span class="stat-label">Helpful Likes</span>
-                <h3 class="stat-value" id="stat-agri-likes-total">0</h3>
-                <span class="stat-trend positive"><i class="fa-solid fa-thumbs-up"></i> Positive Feedback</span>
+              <div class="kpi-data">
+                <span class="kpi-label">Helpful Likes</span>
+                <h3 class="kpi-value" id="stat-agri-likes-total">0</h3>
+                <span class="kpi-subtext" style="color:var(--secondary);"><i class="fa-solid fa-thumbs-up"></i> Positive Feedback</span>
               </div>
             </div>
           </div>
@@ -1234,10 +1378,10 @@
             <div>
               <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
                 <h1 class="view-title">Law &amp; Judiciary - Pending Court Cases</h1>
-                <span style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
+                <span class="badge badge-warning" style="font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
                   <i class="fa-solid fa-lock" style="font-size: 10px; margin-right: 4px;"></i> Strictly Confidential
                 </span>
-                <span style="background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
+                <span class="badge badge-primary" style="font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
                   Legal Aid Taskforce
                 </span>
               </div>
@@ -1246,48 +1390,48 @@
           </div>
 
           <!-- KPI Cards Grid -->
-          <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px;">
-            <div class="kpi-card" style="border-left: 4px solid #d97706;">
-              <div class="kpi-icon" style="background: #fef3c7; color: #d97706;">
+          <div class="kpi-grid">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-amber);">
+              <div class="kpi-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber);">
                 <i class="fa-solid fa-scale-balanced"></i>
               </div>
               <div class="kpi-data">
                 <span class="kpi-label">Total Registered Cases</span>
                 <h3 class="kpi-value" id="kpi-law-total">0</h3>
-                <span class="kpi-subtext" style="color:#d97706; font-weight:600;">Court grievances</span>
+                <span class="kpi-subtext" style="color:var(--accent-amber); font-weight:600;">Court grievances</span>
               </div>
             </div>
 
-            <div class="kpi-card" style="border-left: 4px solid #ef4444;">
-              <div class="kpi-icon" style="background: #fee2e2; color: #dc2626;">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-rose);">
+              <div class="kpi-icon" style="background: rgba(239, 68, 68, 0.15); color: var(--accent-rose);">
                 <i class="fa-solid fa-hourglass-end"></i>
               </div>
               <div class="kpi-data">
                 <span class="kpi-label">Severe Delays (>25 Vaidas)</span>
                 <h3 class="kpi-value" id="kpi-law-stalled">0</h3>
-                <span class="kpi-subtext" style="color:#dc2626; font-weight:600;">Chronic stalls</span>
+                <span class="kpi-subtext" style="color:var(--accent-rose); font-weight:600;">Chronic stalls</span>
               </div>
             </div>
 
-            <div class="kpi-card" style="border-left: 4px solid #2563eb;">
-              <div class="kpi-icon" style="background: #dbeafe; color: #2563eb;">
+            <div class="kpi-card" style="border-left: 4px solid #0284c7;">
+              <div class="kpi-icon" style="background: rgba(2, 132, 199, 0.15); color: #0284c7;">
                 <i class="fa-solid fa-user-tie"></i>
               </div>
               <div class="kpi-data">
                 <span class="kpi-label">Advocate Assigned</span>
                 <h3 class="kpi-value" id="kpi-law-assigned">0</h3>
-                <span class="kpi-subtext" style="color:#2563eb; font-weight:600;">Under active counsel</span>
+                <span class="kpi-subtext" style="color:#0284c7; font-weight:600;">Under active counsel</span>
               </div>
             </div>
 
-            <div class="kpi-card" style="border-left: 4px solid #16a34a;">
-              <div class="kpi-icon" style="background: #dcfce7; color: #16a34a;">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-emerald);">
+              <div class="kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald);">
                 <i class="fa-solid fa-handshake"></i>
               </div>
               <div class="kpi-data">
                 <span class="kpi-label">In Mediation / Lok Adalat</span>
                 <h3 class="kpi-value" id="kpi-law-mediation">0</h3>
-                <span class="kpi-subtext" style="color:#16a34a; font-weight:600;">Fast-track resolution</span>
+                <span class="kpi-subtext" style="color:var(--accent-emerald); font-weight:600;">Fast-track resolution</span>
               </div>
             </div>
           </div>
@@ -1352,10 +1496,10 @@
             <div>
               <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
                 <h1 class="view-title">Marriages Support &amp; Social Harmony Cell</h1>
-                <span style="background: #fdf2f8; color: #db2777; border: 1px solid #fbcfe8; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
+                <span class="badge badge-purple" style="font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
                   <i class="fa-solid fa-lock" style="font-size: 10px; margin-right: 4px;"></i> Strictly Confidential
                 </span>
-                <span style="background: #fce7f3; color: #be185d; border: 1px solid #f472b6; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
+                <span class="badge badge-primary" style="font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
                   Special Marriage Act &amp; Social Aid
                 </span>
               </div>
@@ -1364,9 +1508,9 @@
           </div>
 
           <!-- KPI Cards Grid -->
-          <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px;">
+          <div class="kpi-grid">
             <div class="kpi-card" style="border-left: 4px solid #db2777;">
-              <div class="kpi-icon" style="background: #fdf2f8; color: #db2777;">
+              <div class="kpi-icon" style="background: rgba(219, 39, 119, 0.15); color: #db2777;">
                 <i class="fa-solid fa-heart"></i>
               </div>
               <div class="kpi-data">
@@ -1376,36 +1520,36 @@
               </div>
             </div>
 
-            <div class="kpi-card" style="border-left: 4px solid #eab308;">
-              <div class="kpi-icon" style="background: #fef9c3; color: #ca8a04;">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-amber);">
+              <div class="kpi-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber);">
                 <i class="fa-solid fa-user-clock"></i>
               </div>
               <div class="kpi-data">
                 <span class="kpi-label">Under Verification</span>
                 <h3 class="kpi-value" id="kpi-marriages-verification">0</h3>
-                <span class="kpi-subtext" style="color:#ca8a04; font-weight:600;">Initial evaluation</span>
+                <span class="kpi-subtext" style="color:var(--accent-amber); font-weight:600;">Initial evaluation</span>
               </div>
             </div>
 
-            <div class="kpi-card" style="border-left: 4px solid #ef4444;">
-              <div class="kpi-icon" style="background: #fee2e2; color: #dc2626;">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-rose);">
+              <div class="kpi-icon" style="background: rgba(239, 68, 68, 0.15); color: var(--accent-rose);">
                 <i class="fa-solid fa-triangle-exclamation"></i>
               </div>
               <div class="kpi-data">
                 <span class="kpi-label">High Threat / Urgency</span>
                 <h3 class="kpi-value" id="kpi-marriages-threats">0</h3>
-                <span class="kpi-subtext" style="color:#dc2626; font-weight:600;">Police / Legal shelter</span>
+                <span class="kpi-subtext" style="color:var(--accent-rose); font-weight:600;">Police / Legal shelter</span>
               </div>
             </div>
 
-            <div class="kpi-card" style="border-left: 4px solid #16a34a;">
-              <div class="kpi-icon" style="background: #dcfce7; color: #16a34a;">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-emerald);">
+              <div class="kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald);">
                 <i class="fa-solid fa-ring"></i>
               </div>
               <div class="kpi-data">
                 <span class="kpi-label">Sanctioned / Solemnized</span>
                 <h3 class="kpi-value" id="kpi-marriages-solemnized">0</h3>
-                <span class="kpi-subtext" style="color:#16a34a; font-weight:600;">Protected unions</span>
+                <span class="kpi-subtext" style="color:var(--accent-emerald); font-weight:600;">Protected unions</span>
               </div>
             </div>
           </div>
@@ -1469,37 +1613,37 @@
             <div>
               <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
                 <h1 class="view-title">SOS Emergency Command &amp; Citizen Action Cell</h1>
-                <span style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
+                <span class="badge badge-critical pulse-critical" style="font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
                   <i class="fa-solid fa-tower-broadcast" style="font-size: 10px; margin-right: 4px;"></i> 24/7 Live Monitoring
                 </span>
-                <span style="background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
+                <span class="badge badge-primary" style="font-size: 11.5px; font-weight: 800; text-transform: uppercase;">
                   Statutory Petitions &amp; Rescue Taskforce
                 </span>
               </div>
               <p class="view-subtitle">Confidential real-time monitoring of natural disasters, life threats, violent crimes &amp; urgent statutory petition dispatch to SP and District Magistrate.</p>
             </div>
             <div style="display: flex; gap: 10px;">
-              <button class="btn btn-primary" id="btn-refresh-emergencies" style="background: #dc2626; border-color: #dc2626;">
+              <button class="btn btn-primary" id="btn-refresh-emergencies" style="background: var(--accent-rose); border-color: var(--accent-rose);">
                 <i class="fa-solid fa-rotate"></i> Refresh SOS Queue
               </button>
             </div>
           </div>
 
           <!-- KPI Cards Grid -->
-          <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px;">
-            <div class="kpi-card" style="border-left: 4px solid #dc2626;">
-              <div class="kpi-icon" style="background: #fee2e2; color: #dc2626;">
+          <div class="kpi-grid">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-rose);">
+              <div class="kpi-icon" style="background: rgba(239, 68, 68, 0.15); color: var(--accent-rose);">
                 <i class="fa-solid fa-triangle-exclamation"></i>
               </div>
               <div class="kpi-data">
                 <span class="kpi-label">Total SOS Alerts</span>
                 <h3 class="kpi-value" id="kpi-emergency-total">0</h3>
-                <span class="kpi-subtext" style="color:#dc2626; font-weight:600;">Recorded incidents</span>
+                <span class="kpi-subtext" style="color:var(--accent-rose); font-weight:600;">Recorded incidents</span>
               </div>
             </div>
 
             <div class="kpi-card" style="border-left: 4px solid #ea580c;">
-              <div class="kpi-icon" style="background: #ffedd5; color: #ea580c;">
+              <div class="kpi-icon" style="background: rgba(249, 115, 22, 0.15); color: #ea580c;">
                 <i class="fa-solid fa-bolt"></i>
               </div>
               <div class="kpi-data">
@@ -1509,25 +1653,25 @@
               </div>
             </div>
 
-            <div class="kpi-card" style="border-left: 4px solid #2563eb;">
-              <div class="kpi-icon" style="background: #dbeafe; color: #2563eb;">
+            <div class="kpi-card" style="border-left: 4px solid #0284c7;">
+              <div class="kpi-icon" style="background: rgba(2, 132, 199, 0.15); color: #0284c7;">
                 <i class="fa-solid fa-file-contract"></i>
               </div>
               <div class="kpi-data">
                 <span class="kpi-label">Petitions Dispatched</span>
                 <h3 class="kpi-value" id="kpi-emergency-petitions">0</h3>
-                <span class="kpi-subtext" style="color:#2563eb; font-weight:600;">To SP / DC / SDRF</span>
+                <span class="kpi-subtext" style="color:#0284c7; font-weight:600;">To SP / DC / SDRF</span>
               </div>
             </div>
 
-            <div class="kpi-card" style="border-left: 4px solid #16a34a;">
-              <div class="kpi-icon" style="background: #dcfce7; color: #16a34a;">
+            <div class="kpi-card" style="border-left: 4px solid var(--accent-emerald);">
+              <div class="kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald);">
                 <i class="fa-solid fa-shield-halved"></i>
               </div>
               <div class="kpi-data">
                 <span class="kpi-label">Rescued &amp; Resolved</span>
                 <h3 class="kpi-value" id="kpi-emergency-resolved">0</h3>
-                <span class="kpi-subtext" style="color:#16a34a; font-weight:600;">Protected citizens</span>
+                <span class="kpi-subtext" style="color:var(--accent-emerald); font-weight:600;">Protected citizens</span>
               </div>
             </div>
           </div>

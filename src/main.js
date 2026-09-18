@@ -2731,17 +2731,65 @@ function renderNewsletterGrid() {
     });
   }
 
+  // Wire Search and Filter
+  const searchInput = document.getElementById('input-search-newsletter');
+  const catFilter = document.getElementById('filter-newsletter-category');
+
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => renderNewsletterGrid());
+  }
+
+  if (catFilter && !catFilter.dataset.bound) {
+    catFilter.dataset.bound = 'true';
+    catFilter.addEventListener('change', () => renderNewsletterGrid());
+  }
+
+  // Update KPI counters
+  const newsletters = appData.newsletters || [];
+  const kpiTotal = document.getElementById('kpi-newsletter-total');
+  const kpiPress = document.getElementById('kpi-newsletter-press');
+  const kpiDocs = document.getElementById('kpi-newsletter-docs');
+  const kpiBulletins = document.getElementById('kpi-newsletter-bulletins');
+
+  if (kpiTotal) kpiTotal.textContent = newsletters.length;
+  if (kpiPress) kpiPress.textContent = newsletters.filter(n => (n.category || '').toLowerCase().includes('press')).length;
+  if (kpiDocs) kpiDocs.textContent = newsletters.filter(n => Boolean(n.doc_url)).length;
+  if (kpiBulletins) kpiBulletins.textContent = newsletters.filter(n => (n.category || '').toLowerCase().includes('bulletin') || (n.category || '').toLowerCase().includes('gazette')).length;
+
   if (!container) return;
   container.innerHTML = '';
 
-  if (!appData.newsletters || appData.newsletters.length === 0) {
-    container.innerHTML = `<div style="grid-column:1/-1; padding:40px; text-align:center; color:var(--text-muted);">No news letters or press meets published yet. Click "Add News Letter" above.</div>`;
+  const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+  const selectedCat = catFilter ? catFilter.value : 'ALL';
+
+  let filtered = [...newsletters];
+  if (selectedCat !== 'ALL') {
+    filtered = filtered.filter(n => (n.category || '').toLowerCase() === selectedCat.toLowerCase());
+  }
+  if (query) {
+    filtered = filtered.filter(n =>
+      (n.title && n.title.toLowerCase().includes(query)) ||
+      (n.subtitle && n.subtitle.toLowerCase().includes(query)) ||
+      (n.author && n.author.toLowerCase().includes(query)) ||
+      (n.description && n.description.toLowerCase().includes(query))
+    );
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column:1/-1; padding:48px 20px; text-align:center; color:var(--text-muted);">
+        <i class="fa-solid fa-newspaper" style="font-size:38px; color:var(--text-muted); opacity:0.6; margin-bottom:12px;"></i>
+        <h3 style="font-size:16px; color:var(--text-main); margin-bottom:4px;">No Newsletters Found</h3>
+        <p style="font-size:13px;">No communiques match your search or selected category filter.</p>
+      </div>
+    `;
     return;
   }
 
-  appData.newsletters.forEach(item => {
+  filtered.forEach(item => {
     const card = document.createElement('div');
-    card.className = 'post-admin-card';
+    card.className = 'media-admin-card';
 
     const hasMedia = Boolean(item.media_url);
     const isVideo = item.media_type === 'video';
@@ -2752,41 +2800,59 @@ function renderNewsletterGrid() {
     if (hasMedia) {
       if (isVideo) {
         mediaHtml = `
-          <div style="position:relative; width:100%; height:180px; background:#000; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+          <div class="media-preview-container" style="height:190px;">
             <video src="${item.media_url}" style="width:100%; height:100%; object-fit:cover;" preload="metadata"></video>
-            <div style="position:absolute; width:44px; height:44px; background:rgba(2,132,199,0.85); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff;">
+            <div style="position:absolute; width:44px; height:44px; background:rgba(2,132,199,0.9); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff;">
               <i class="fa-solid fa-play"></i>
             </div>
+            <span class="media-badge-tag"><i class="fa-solid fa-video"></i> Video Press Meet</span>
           </div>
         `;
       } else {
-        mediaHtml = `<img src="${item.media_url}" class="post-card-image" alt="${item.title}" onError="this.onerror=null;this.src='/images/banner.jpg';" />`;
+        mediaHtml = `
+          <div class="media-preview-container" style="height:190px;">
+            <img src="${item.media_url}" style="width:100%; height:100%; object-fit:cover;" alt="${escapeHtml(item.title)}" onError="this.onerror=null;this.src='/images/banner.jpg';" />
+            <span class="media-badge-tag"><i class="fa-solid fa-camera"></i> Media Release</span>
+          </div>
+        `;
       }
     }
 
     card.innerHTML = `
-      <div class="post-card-header">
-        <span class="pill-tag" style="background:rgba(2,132,199,0.15); color:#0284c7; font-weight:700;">
-          <i class="fa-solid fa-microphone-lines"></i> ${item.category || 'Press Meet'}
-        </span>
-        <button class="btn btn-sm btn-outline btn-delete-newsletter" data-id="${item.id}" style="color:var(--accent-rose);">
-          <i class="fa-solid fa-trash"></i> Delete
-        </button>
-      </div>
       ${mediaHtml}
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:11px; color:var(--text-muted);">
-        <span><i class="fa-regular fa-calendar"></i> ${publishDate}</span>
-        <span><i class="fa-solid fa-user-tie"></i> ${item.author ? item.author.split('-')[0].trim() : 'PPPI President'}</span>
-      </div>
-      <h3 style="font-size:15px; font-weight:700; color:var(--text-primary); margin-top:6px; line-height:1.35;">${item.title}</h3>
-      ${item.subtitle ? `<p style="font-size:12px; font-weight:600; color:#0284c7; margin-bottom:4px;">${item.subtitle}</p>` : ''}
-      <p class="post-desc" style="max-height:80px; overflow:hidden; text-overflow:ellipsis;">${item.description || ''}</p>
-      ${hasDoc ? `
-        <div style="margin-top:10px; padding:6px 12px; background:rgba(16,185,129,0.1); border-radius:6px; display:flex; align-items:center; justify-content:space-between;">
-          <span style="font-size:12px; font-weight:700; color:#059669;"><i class="fa-solid fa-file-pdf"></i> ${item.doc_name || 'Attached Document'}</span>
-          <a href="${item.doc_url}" target="_blank" download class="btn btn-sm btn-outline" style="padding:2px 8px; font-size:11px; color:#059669; border-color:#059669;">Download</a>
+      <div style="padding:18px; display:flex; flex-direction:column; flex:1;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span class="badge badge-info" style="font-size:11px; padding:3px 10px; border-radius:12px;">
+            <i class="fa-solid fa-microphone-lines"></i> ${escapeHtml(item.category || 'Press Meet')}
+          </span>
+          <button class="btn btn-sm btn-outline btn-delete-newsletter" data-id="${item.id}" style="color:var(--accent-rose); border-color:rgba(239,68,68,0.3); padding:3px 8px; font-size:11.5px;">
+            <i class="fa-solid fa-trash"></i> Delete
+          </button>
         </div>
-      ` : ''}
+
+        <h3 style="font-size:15px; font-weight:800; color:var(--text-main); margin-bottom:4px; line-height:1.4;">${escapeHtml(item.title)}</h3>
+        ${item.subtitle ? `<p style="font-size:12.5px; font-weight:600; color:var(--primary); margin-bottom:8px;">${escapeHtml(item.subtitle)}</p>` : ''}
+        
+        <p style="font-size:12.5px; color:var(--text-muted); line-height:1.55; margin-bottom:12px; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;">
+          ${escapeHtml(item.description || '')}
+        </p>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:12px; border-top:1px solid var(--border-color); font-size:11.5px; color:var(--text-muted);">
+          <span><i class="fa-regular fa-calendar"></i> ${publishDate}</span>
+          <span style="font-weight:600; color:var(--text-main);"><i class="fa-solid fa-user-tie" style="color:var(--primary);"></i> ${escapeHtml(item.author ? item.author.split('-')[0].trim() : 'PPPI Media Bureau')}</span>
+        </div>
+
+        ${hasDoc ? `
+          <div style="margin-top:12px; padding:8px 12px; background:rgba(2,132,199,0.08); border:1px solid rgba(2,132,199,0.2); border-radius:8px; display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:12px; font-weight:700; color:#0284c7; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+              <i class="fa-solid fa-file-pdf"></i> ${escapeHtml(item.doc_name || 'Official Communique PDF')}
+            </span>
+            <a href="${item.doc_url}" target="_blank" download class="btn btn-sm btn-outline" style="padding:3px 10px; font-size:11px; color:#0284c7; border-color:#0284c7; font-weight:700;">
+              Download
+            </a>
+          </div>
+        ` : ''}
+      </div>
     `;
     container.appendChild(card);
   });
@@ -2870,76 +2936,137 @@ function renderPublicityGrid() {
     });
   }
 
+  // Wire Search and Filter
+  const searchInput = document.getElementById('input-search-publicity');
+  const catFilter = document.getElementById('filter-publicity-category');
+  const formatFilter = document.getElementById('filter-publicity-format');
+
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => renderPublicityGrid());
+  }
+
+  if (catFilter && !catFilter.dataset.bound) {
+    catFilter.dataset.bound = 'true';
+    catFilter.addEventListener('change', () => renderPublicityGrid());
+  }
+
+  if (formatFilter && !formatFilter.dataset.bound) {
+    formatFilter.dataset.bound = 'true';
+    formatFilter.addEventListener('change', () => renderPublicityGrid());
+  }
+
+  // Update KPI counters
+  const publicities = appData.publicities || [];
+  const kpiTotal = document.getElementById('kpi-publicity-total');
+  const kpiPosters = document.getElementById('kpi-publicity-posters');
+  const kpiFlex = document.getElementById('kpi-publicity-flex');
+  const kpiVideos = document.getElementById('kpi-publicity-videos');
+
+  if (kpiTotal) kpiTotal.textContent = publicities.length;
+  if (kpiPosters) kpiPosters.textContent = publicities.filter(p => p.orientation === 'portrait' || (p.category || '').toLowerCase().includes('poster')).length;
+  if (kpiFlex) kpiFlex.textContent = publicities.filter(p => p.orientation === 'landscape' || (p.category || '').toLowerCase().includes('banner')).length;
+  if (kpiVideos) kpiVideos.textContent = publicities.filter(p => p.media_type === 'video' || (p.category || '').toLowerCase().includes('video')).length;
+
   if (!container) return;
   container.innerHTML = '';
 
-  if (!appData.publicities || appData.publicities.length === 0) {
-    container.innerHTML = `<div style="grid-column:1/-1; padding:40px; text-align:center; color:var(--text-muted);">No publicity posters or flex banners published yet. Click "Add Poster / Banner" above.</div>`;
+  const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+  const selectedCat = catFilter ? catFilter.value : 'ALL';
+  const selectedFormat = formatFilter ? formatFilter.value : 'ALL';
+
+  let filtered = [...publicities];
+  if (selectedCat !== 'ALL') {
+    filtered = filtered.filter(p => (p.category || '').toLowerCase() === selectedCat.toLowerCase());
+  }
+  if (selectedFormat !== 'ALL') {
+    filtered = filtered.filter(p => (p.media_type || 'image').toLowerCase() === selectedFormat.toLowerCase());
+  }
+  if (query) {
+    filtered = filtered.filter(p =>
+      (p.title && p.title.toLowerCase().includes(query)) ||
+      (p.description && p.description.toLowerCase().includes(query)) ||
+      (p.category && p.category.toLowerCase().includes(query))
+    );
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column:1/-1; padding:48px 20px; text-align:center; color:var(--text-muted);">
+        <i class="fa-solid fa-photo-film" style="font-size:38px; color:var(--text-muted); opacity:0.6; margin-bottom:12px;"></i>
+        <h3 style="font-size:16px; color:var(--text-main); margin-bottom:4px;">No Publicity Materials Found</h3>
+        <p style="font-size:13px;">No posters or flex banners match your search or filter options.</p>
+      </div>
+    `;
     return;
   }
 
-  appData.publicities.forEach(item => {
+  filtered.forEach(item => {
     const card = document.createElement('div');
-    card.className = 'post-admin-card';
-    card.style.display = 'flex';
-    card.style.flexDirection = 'column';
+    card.className = 'media-admin-card';
 
     const isVideo = item.media_type === 'video';
     const isPdf = item.media_type === 'pdf';
     const isPortrait = item.orientation === 'portrait';
     const dateStr = item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent';
+    const mediaHeight = isPortrait ? '300px' : '180px';
 
     let mediaHtml = '';
-    const mediaHeight = isPortrait ? '300px' : '170px';
-
     if (isVideo) {
       mediaHtml = `
-        <div style="position:relative; width:100%; height:${mediaHeight}; background:#0f172a; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+        <div class="media-preview-container" style="height:${mediaHeight};">
           <video src="${item.media_url}" style="width:100%; height:100%; object-fit:cover;" preload="metadata"></video>
-          <div style="position:absolute; width:48px; height:48px; background:rgba(5,150,105,0.88); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px;">
+          <div style="position:absolute; width:48px; height:48px; background:rgba(5,150,105,0.9); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px;">
             <i class="fa-solid fa-play"></i>
           </div>
-          <span style="position:absolute; bottom:8px; left:8px; background:rgba(0,0,0,0.7); color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px;">VIDEO REEL</span>
+          <span class="media-badge-tag"><i class="fa-solid fa-video"></i> Video Reel</span>
         </div>
       `;
     } else if (isPdf) {
       mediaHtml = `
-        <div style="position:relative; width:100%; height:${mediaHeight}; background:linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border:1.5px dashed #10b981; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;">
-          <i class="fa-solid fa-file-pdf" style="font-size:48px; color:#059669;"></i>
-          <span style="font-size:12px; font-weight:700; color:#065f46;">PDF Document / Flyer</span>
+        <div class="media-preview-container" style="height:${mediaHeight}; background:rgba(5,150,105,0.08); border-bottom:1px dashed var(--border-color); flex-direction:column; gap:8px;">
+          <i class="fa-solid fa-file-pdf" style="font-size:44px; color:var(--accent-emerald);"></i>
+          <span style="font-size:12px; font-weight:800; color:var(--accent-emerald);">PDF Document / Flyer</span>
         </div>
       `;
     } else {
       mediaHtml = `
-        <div style="position:relative; width:100%; height:${mediaHeight}; background:#0f172a; border-radius:8px; overflow:hidden;">
-          <img src="${item.media_url}" style="width:100%; height:100%; object-fit:${isPortrait ? 'contain' : 'cover'}; background:#1e293b;" alt="${item.title}" onError="this.onerror=null;this.src='/images/banner.jpg';" />
-          <span style="position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.75); color:#fbbf24; font-size:10px; font-weight:800; padding:3px 8px; border-radius:4px; text-transform:uppercase;">
-            ${isPortrait ? 'PORTRAIT POSTER' : 'FLEX BANNER'}
+        <div class="media-preview-container" style="height:${mediaHeight};">
+          <img src="${item.media_url}" style="width:100%; height:100%; object-fit:${isPortrait ? 'contain' : 'cover'}; background:var(--bg-main);" alt="${escapeHtml(item.title)}" onError="this.onerror=null;this.src='/images/banner.jpg';" />
+          <span class="media-badge-tag">
+            ${isPortrait ? '<i class="fa-solid fa-mobile-screen"></i> Portrait Poster' : '<i class="fa-solid fa-panorama"></i> Flex Banner'}
           </span>
         </div>
       `;
     }
 
     card.innerHTML = `
-      <div class="post-card-header" style="margin-bottom:8px;">
-        <span class="pill-tag" style="background:rgba(5,150,105,0.15); color:#059669; font-weight:700;">
-          <i class="fa-solid fa-bullhorn"></i> ${item.category || 'Campaign Poster'}
-        </span>
-        <button class="btn btn-sm btn-outline btn-delete-publicity" data-id="${item.id}" style="color:var(--accent-rose);">
-          <i class="fa-solid fa-trash"></i> Delete
-        </button>
-      </div>
       ${mediaHtml}
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:11px; color:var(--text-muted);">
-        <span><i class="fa-regular fa-calendar"></i> ${dateStr}</span>
-        <span style="color:#059669; font-weight:700;"><i class="fa-solid fa-download"></i> ${item.download_count || 0} Downloads</span>
-      </div>
-      <h3 style="font-size:15px; font-weight:800; color:var(--text-primary); margin-top:6px; line-height:1.35;">${item.title}</h3>
-      <p class="post-desc" style="max-height:60px; overflow:hidden; text-overflow:ellipsis; font-size:12px; margin-top:4px;">${item.description || ''}</p>
-      <div style="margin-top:auto; padding-top:12px; display:flex; gap:8px;">
-        <a href="${item.media_url}" download target="_blank" class="btn btn-sm btn-outline" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px; color:#059669; border-color:#059669; font-weight:700; text-decoration:none;">
-          <i class="fa-solid fa-download"></i> Download Asset
-        </a>
+      <div style="padding:18px; display:flex; flex-direction:column; flex:1;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span class="badge badge-success" style="font-size:11px; padding:3px 10px; border-radius:12px;">
+            <i class="fa-solid fa-bullhorn"></i> ${escapeHtml(item.category || 'Campaign Poster')}
+          </span>
+          <button class="btn btn-sm btn-outline btn-delete-publicity" data-id="${item.id}" style="color:var(--accent-rose); border-color:rgba(239,68,68,0.3); padding:3px 8px; font-size:11.5px;">
+            <i class="fa-solid fa-trash"></i> Delete
+          </button>
+        </div>
+
+        <h3 style="font-size:15px; font-weight:800; color:var(--text-main); margin-bottom:6px; line-height:1.4;">${escapeHtml(item.title)}</h3>
+        <p style="font-size:12.5px; color:var(--text-muted); line-height:1.55; margin-bottom:12px; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;">
+          ${escapeHtml(item.description || '')}
+        </p>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:12px; border-top:1px solid var(--border-color); font-size:11.5px; color:var(--text-muted);">
+          <span><i class="fa-regular fa-calendar"></i> ${dateStr}</span>
+          <span style="color:var(--accent-emerald); font-weight:700;"><i class="fa-solid fa-download"></i> ${item.download_count || 0} Downloads</span>
+        </div>
+
+        <div style="margin-top:14px;">
+          <a href="${item.media_url}" download target="_blank" class="btn btn-sm btn-outline" style="width:100%; display:flex; align-items:center; justify-content:center; gap:6px; color:var(--accent-emerald); border-color:var(--accent-emerald); font-weight:700; text-decoration:none; padding:8px 12px; border-radius:8px;">
+            <i class="fa-solid fa-cloud-arrow-down"></i> Download High-Res Asset
+          </a>
+        </div>
       </div>
     `;
     container.appendChild(card);
@@ -3032,39 +3159,39 @@ function renderComplaintsTable() {
     const hasGps = Boolean(item.latitude && item.longitude);
     const mapsLink = hasGps ? `https://maps.google.com/?q=${item.latitude},${item.longitude}` : '#';
 
-    let statusBadgeStyle = 'background: rgba(245, 158, 11, 0.15); color: #b45309;';
-    if (item.status === 'RESOLVED') statusBadgeStyle = 'background: rgba(16, 185, 129, 0.15); color: #059669;';
-    if (item.status === 'ACTION_TAKEN') statusBadgeStyle = 'background: rgba(2, 132, 199, 0.15); color: #0284c7;';
-    if (item.status === 'REJECTED') statusBadgeStyle = 'background: rgba(239, 68, 68, 0.15); color: #dc2626;';
+    let statusBadgeClass = 'badge-warning';
+    if (item.status === 'RESOLVED') statusBadgeClass = 'badge-success';
+    if (item.status === 'ACTION_TAKEN') statusBadgeClass = 'badge-info';
+    if (item.status === 'REJECTED') statusBadgeClass = 'badge-critical';
 
     tableHtml += `
       <tr>
         <td>
-          <div style="font-weight: 800; color: var(--text-primary); font-family: monospace; font-size: 12.5px;">${item.complaint_no}</div>
+          <div style="font-weight: 800; color: var(--text-main); font-family: monospace; font-size: 13px;">${escapeHtml(item.complaint_no)}</div>
           <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;"><i class="fa-regular fa-clock"></i> ${dateStr}</div>
-          <span class="pill-tag" style="background:#fef2f2; color:#b91c1c; font-size:10px; font-weight:800; padding:1px 6px; margin-top:3px;">
-            ${item.priority || 'HIGH'} PRIORITY
+          <span class="badge badge-critical" style="font-size:10px; margin-top:4px;">
+            ${escapeHtml(item.priority || 'HIGH')} PRIORITY
           </span>
         </td>
         <td>
-          <div style="font-weight: 700; color: var(--text-primary);">${item.complainer_name}</div>
-          ${item.father_or_spouse ? `<div style="font-size: 11px; color: var(--text-muted);">C/O ${item.father_or_spouse}</div>` : ''}
-          <div style="font-size: 12px; color: #0284c7; font-weight: 600; margin-top: 2px;">
-            <a href="tel:${item.phone}" style="color:inherit; text-decoration:none;"><i class="fa-solid fa-phone"></i> ${item.phone}</a>
+          <div style="font-weight: 700; color: var(--text-main);">${escapeHtml(item.complainer_name)}</div>
+          ${item.father_or_spouse ? `<div style="font-size: 11.5px; color: var(--text-muted);">C/O ${escapeHtml(item.father_or_spouse)}</div>` : ''}
+          <div style="font-size: 12px; color: var(--primary); font-weight: 600; margin-top: 2px;">
+            <a href="tel:${item.phone}" style="color:inherit; text-decoration:none;"><i class="fa-solid fa-phone"></i> ${escapeHtml(item.phone)}</a>
           </div>
         </td>
         <td>
-          <div class="pill-tag" style="background: rgba(239, 68, 68, 0.1); color: #b91c1c; font-weight: 700; font-size: 11px; margin-bottom: 3px;">
-            ${item.category}
-          </div>
-          <div style="font-size: 12px; color: var(--text-secondary); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${item.incident_location || 'Location in description'}
+          <span class="badge badge-critical" style="font-size: 11px; margin-bottom: 4px;">
+            ${escapeHtml(item.category)}
+          </span>
+          <div style="font-size: 12px; color: var(--text-muted); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${escapeHtml(item.incident_location || 'Location in description')}
           </div>
         </td>
         <td>
-          <div style="font-weight: 600; color: var(--text-primary); font-size: 12.5px;">${item.district || 'Karnataka'}, ${item.taluk || ''}</div>
+          <div style="font-weight: 600; color: var(--text-main); font-size: 12.5px;">${escapeHtml(item.district || 'Karnataka')}, ${escapeHtml(item.taluk || '')}</div>
           ${hasGps ? `
-            <a href="${mapsLink}" target="_blank" rel="noopener noreferrer" style="font-size: 11px; color: #059669; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-top: 2px;">
+            <a href="${mapsLink}" target="_blank" rel="noopener noreferrer" style="font-size: 11px; color: var(--accent-emerald); font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-top: 3px;">
               <i class="fa-solid fa-location-crosshairs"></i> GPS: ${item.latitude.toFixed(4)}, ${item.longitude.toFixed(4)}
             </a>
           ` : `<span style="font-size: 11px; color: var(--text-muted);">Manual Address</span>`}
@@ -3072,27 +3199,27 @@ function renderComplaintsTable() {
         <td>
           <div style="display: flex; align-items: center; gap: 8px;">
             ${item.selfie_url ? `
-              <img src="${item.selfie_url}" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid #10b981;" alt="Selfie" onError="this.onerror=null;this.src='/images/founder.jpg';" />
+              <img src="${item.selfie_url}" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-emerald);" alt="Selfie" onError="this.onerror=null;this.src='/images/founder.jpg';" />
             ` : `
-              <div style="width: 38px; height: 38px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #94a3b8;"><i class="fa-solid fa-user"></i></div>
+              <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--bg-main); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; color: var(--text-muted);"><i class="fa-solid fa-user"></i></div>
             `}
             <div>
-              <span class="pill-tag" style="background:#ecfdf5; color:#065f46; font-size:10px; font-weight:800; padding:2px 6px;">
+              <span class="badge badge-success" style="font-size:10px;">
                 <i class="fa-solid fa-id-card"></i> AADHAAR VERIFIED
               </span>
               ${item.pan_no ? `
-                <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; margin-top: 2px;">PAN: ${item.pan_no}</div>
+                <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; margin-top: 2px;">PAN: ${escapeHtml(item.pan_no)}</div>
               ` : ''}
             </div>
           </div>
         </td>
         <td>
-          <span class="pill-tag" style="${statusBadgeStyle} font-weight: 800; font-size: 11px;">
-            ${item.status}
+          <span class="badge ${statusBadgeClass}" style="font-size: 11px;">
+            ${escapeHtml(item.status)}
           </span>
         </td>
         <td style="text-align: right;">
-          <button type="button" class="btn btn-sm btn-primary btn-open-dossier" data-id="${item.id}" style="background: #1e1b4b; border-color: #1e1b4b; padding: 6px 12px; font-size: 12px; font-weight: 700;">
+          <button type="button" class="btn btn-sm btn-primary btn-open-dossier" data-id="${item.id}" style="padding: 6px 14px; font-size: 12px; font-weight: 700;">
             <i class="fa-solid fa-folder-open"></i> View Dossier
           </button>
         </td>
@@ -3136,82 +3263,84 @@ function openComplaintDossierModal(id) {
   if (bodyEl) {
     bodyEl.innerHTML = `
       <!-- TOP STATUS & PRIORITY RIBBON -->
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <span style="font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase;">Tracking Ref:</span>
-          <span style="font-family: monospace; font-size: 15px; font-weight: 900; color: #1e1b4b;">${item.complaint_no}</span>
-          <span class="pill-tag" style="background:#fee2e2; color:#b91c1c; font-weight:800; font-size:11px;">${item.priority || 'HIGH'} PRIORITY</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 10px; font-size: 12px; color: #64748b;">
-          <span><i class="fa-regular fa-clock"></i> Filed On: <strong>${dateStr}</strong></span>
-          <span class="pill-tag" style="background:#ecfdf5; color:#065f46; font-weight:800;"><i class="fa-solid fa-shield-halved"></i> LEGALLY SEALED</span>
+      <div class="dossier-box" style="margin-bottom: 20px;">
+        <div class="dossier-header-row">
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <span class="dossier-prop-label">Tracking Ref:</span>
+            <span style="font-family: monospace; font-size: 16px; font-weight: 900; color: var(--text-main);">${escapeHtml(item.complaint_no)}</span>
+            <span class="badge badge-critical">${escapeHtml(item.priority || 'HIGH')} PRIORITY</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-muted); flex-wrap: wrap;">
+            <span><i class="fa-regular fa-clock"></i> Filed On: <strong style="color:var(--text-main);">${dateStr}</strong></span>
+            <span class="badge badge-success"><i class="fa-solid fa-shield-halved"></i> Legally Sealed</span>
+          </div>
         </div>
       </div>
 
       <!-- 2-COLUMN DOSSIER GRID -->
-      <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; align-items: start;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; align-items: start;">
         
         <!-- LEFT COLUMN: CITIZEN CREDENTIALS & LOCATION -->
         <div>
           <!-- CITIZEN / COMPLAINER CARD -->
-          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
-            <h4 style="font-size: 13px; font-weight: 800; color: #1e1b4b; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 8px;">
-              <i class="fa-solid fa-user-check" style="color: #0284c7;"></i> Complainer / Citizen Credentials
+          <div class="dossier-box">
+            <h4 style="font-size: 13px; font-weight: 800; color: var(--text-main); text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+              <i class="fa-solid fa-user-check" style="color: var(--primary);"></i> Complainer / Citizen Credentials
             </h4>
             <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
-              <div style="display: flex; justify-content: space-between;"><span style="color:#64748b; font-weight:600;">Full Name:</span> <strong style="color:#0f172a;">${item.complainer_name}</strong></div>
-              ${item.father_or_spouse ? `<div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">Father/Spouse:</span> <span>${item.father_or_spouse}</span></div>` : ''}
-              <div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">Mobile:</span> <a href="tel:${item.phone}" style="color:#0284c7; font-weight:700; text-decoration:none;">${item.phone}</a></div>
-              ${item.alternate_phone ? `<div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">Alt Contact:</span> <span>${item.alternate_phone}</span></div>` : ''}
-              ${item.email ? `<div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">Email:</span> <span>${item.email}</span></div>` : ''}
-              <div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">Gender / Age:</span> <span>${item.gender || 'N/A'}, ${item.age ? item.age + ' Yrs' : 'N/A'}</span></div>
-              <div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">Aadhaar Card:</span> <strong style="color:#065f46; font-family:monospace;">${item.aadhaar_no}</strong></div>
-              ${item.pan_no ? `<div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">PAN Card:</span> <strong style="color:#0284c7; font-family:monospace;">${item.pan_no}</strong></div>` : ''}
-              <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e2e8f0;">
-                <span style="color:#64748b; font-size:12px; display:block; margin-bottom:2px;">Residential Address:</span>
-                <div style="color:#334155; font-size:12.5px; line-height:1.4;">${item.address}, ${item.taluk ? item.taluk + ', ' : ''}${item.district}, ${item.state} - ${item.pincode}</div>
+              <div style="display: flex; justify-content: space-between;"><span class="dossier-prop-label">Full Name:</span> <strong style="color:var(--text-main);">${escapeHtml(item.complainer_name)}</strong></div>
+              ${item.father_or_spouse ? `<div style="display: flex; justify-content: space-between;"><span class="dossier-prop-label">Father/Spouse:</span> <span style="color:var(--text-main);">${escapeHtml(item.father_or_spouse)}</span></div>` : ''}
+              <div style="display: flex; justify-content: space-between;"><span class="dossier-prop-label">Mobile:</span> <a href="tel:${item.phone}" style="color:var(--primary); font-weight:700; text-decoration:none;">${escapeHtml(item.phone)}</a></div>
+              ${item.alternate_phone ? `<div style="display: flex; justify-content: space-between;"><span class="dossier-prop-label">Alt Contact:</span> <span style="color:var(--text-main);">${escapeHtml(item.alternate_phone)}</span></div>` : ''}
+              ${item.email ? `<div style="display: flex; justify-content: space-between;"><span class="dossier-prop-label">Email:</span> <span style="color:var(--text-main);">${escapeHtml(item.email)}</span></div>` : ''}
+              <div style="display: flex; justify-content: space-between;"><span class="dossier-prop-label">Gender / Age:</span> <span style="color:var(--text-main);">${escapeHtml(item.gender || 'N/A')}, ${item.age ? item.age + ' Yrs' : 'N/A'}</span></div>
+              <div style="display: flex; justify-content: space-between;"><span class="dossier-prop-label">Aadhaar Card:</span> <strong style="color:var(--accent-emerald); font-family:monospace;">${escapeHtml(item.aadhaar_no || 'N/A')}</strong></div>
+              ${item.pan_no ? `<div style="display: flex; justify-content: space-between;"><span class="dossier-prop-label">PAN Card:</span> <strong style="color:var(--primary); font-family:monospace;">${escapeHtml(item.pan_no)}</strong></div>` : ''}
+              <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border-color);">
+                <span class="dossier-prop-label" style="display:block; margin-bottom:2px;">Residential Address:</span>
+                <div style="color:var(--text-muted); font-size:12.5px; line-height:1.4;">${escapeHtml(item.address || '')}, ${item.taluk ? escapeHtml(item.taluk) + ', ' : ''}${escapeHtml(item.district || '')}, ${escapeHtml(item.state || '')} - ${escapeHtml(item.pincode || '')}</div>
               </div>
             </div>
           </div>
 
           <!-- VICTIM STATUS CARD -->
-          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
-            <h4 style="font-size: 13px; font-weight: 800; color: #1e1b4b; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-              <i class="fa-solid fa-hospital-user" style="color: #e11d48;"></i> Victim Information
+          <div class="dossier-box">
+            <h4 style="font-size: 13px; font-weight: 800; color: var(--text-main); text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-hospital-user" style="color: var(--accent-rose);"></i> Victim Information
             </h4>
             ${item.is_victim ? `
-              <div class="pill-tag" style="background:#f0fdf4; color:#059669; font-weight:700; font-size:12px;">
+              <div class="badge badge-success" style="padding: 6px 12px; font-size:12px;">
                 <i class="fa-solid fa-check"></i> Complainer is the direct primary victim
               </div>
             ` : `
-              <div style="font-size: 12.5px; line-height: 1.5; color: #334155;">
-                <div><strong>Victim Name:</strong> ${item.victim_name || 'Not provided'}</div>
-                <div><strong>Relation to Complainer:</strong> ${item.victim_relation || 'Not specified'}</div>
-                <div><strong>Contact:</strong> ${item.victim_contact || 'N/A'}</div>
-                <div><strong>Address:</strong> ${item.victim_address || 'N/A'}</div>
+              <div style="font-size: 12.5px; line-height: 1.5; color: var(--text-muted);">
+                <div><strong style="color:var(--text-main);">Victim Name:</strong> ${escapeHtml(item.victim_name || 'Not provided')}</div>
+                <div><strong style="color:var(--text-main);">Relation to Complainer:</strong> ${escapeHtml(item.victim_relation || 'Not specified')}</div>
+                <div><strong style="color:var(--text-main);">Contact:</strong> ${escapeHtml(item.victim_contact || 'N/A')}</div>
+                <div><strong style="color:var(--text-main);">Address:</strong> ${escapeHtml(item.victim_address || 'N/A')}</div>
               </div>
             `}
           </div>
 
           <!-- VERIFICATION SELFIE & GPS CARD -->
-          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px;">
-            <h4 style="font-size: 13px; font-weight: 800; color: #1e1b4b; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 8px;">
-              <i class="fa-solid fa-camera-retro" style="color: #059669;"></i> Live Selfie &amp; Geolocation Verification
+          <div class="dossier-box">
+            <h4 style="font-size: 13px; font-weight: 800; color: var(--text-main); text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+              <i class="fa-solid fa-camera-retro" style="color: var(--accent-emerald);"></i> Live Selfie &amp; Geolocation Verification
             </h4>
             <div style="display: flex; gap: 14px; align-items: center;">
               ${item.selfie_url ? `
-                <div style="width: 100px; height: 100px; border-radius: 10px; overflow: hidden; border: 2px solid #10b981; flex-shrink: 0; background: #000;">
+                <div style="width: 90px; height: 90px; border-radius: 10px; overflow: hidden; border: 2px solid var(--accent-emerald); flex-shrink: 0; background: #000;">
                   <img src="${item.selfie_url}" style="width: 100%; height: 100%; object-fit: cover;" alt="Verification Selfie" onError="this.onerror=null;this.src='/images/founder.jpg';" />
                 </div>
               ` : `
-                <div style="width: 100px; height: 100px; border-radius: 10px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #94a3b8;">No Selfie</div>
+                <div style="width: 90px; height: 90px; border-radius: 10px; background: var(--bg-main); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; color: var(--text-muted);">No Selfie</div>
               `}
               <div style="flex: 1; font-size: 12px; line-height: 1.5;">
-                <div style="font-weight: 800; color: #065f46;"><i class="fa-solid fa-circle-check"></i> Biometric Selfie Authenticated</div>
-                <div style="color: #64748b; margin-top: 4px;">Captured live via Citizen Camera stream</div>
+                <div style="font-weight: 800; color: var(--accent-emerald);"><i class="fa-solid fa-circle-check"></i> Biometric Selfie Authenticated</div>
+                <div style="color: var(--text-muted); margin-top: 4px;">Captured live via Citizen Camera stream</div>
                 ${hasGps ? `
                   <div style="margin-top: 8px;">
-                    <a href="${mapsLink}" target="_blank" class="btn btn-sm btn-outline" style="color: #059669; border-color: #059669; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                    <a href="${mapsLink}" target="_blank" class="btn btn-sm btn-outline" style="color: var(--accent-emerald); border-color: var(--accent-emerald); font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
                       <i class="fa-solid fa-map-location-dot"></i> View Incident GPS on Google Maps
                     </a>
                   </div>
@@ -3219,8 +3348,8 @@ function openComplaintDossierModal(id) {
               </div>
             </div>
             ${item.gps_address ? `
-              <div style="margin-top: 10px; font-size: 11.5px; color: #475569; background: #f8fafc; padding: 8px 10px; border-radius: 6px;">
-                <i class="fa-solid fa-location-dot" style="color:#ef4444;"></i> <strong>GPS Reverse Address:</strong> ${item.gps_address}
+              <div style="margin-top: 10px; font-size: 11.5px; color: var(--text-muted); background: var(--bg-main); padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color);">
+                <i class="fa-solid fa-location-dot" style="color:var(--accent-rose);"></i> <strong style="color:var(--text-main);">GPS Reverse Address:</strong> ${escapeHtml(item.gps_address)}
               </div>
             ` : ''}
           </div>
@@ -3229,47 +3358,47 @@ function openComplaintDossierModal(id) {
         <!-- RIGHT COLUMN: INCIDENT, TRANSCRIPT, EVIDENCE & CASE ACTION -->
         <div>
           <!-- INCIDENT PARTICULARS -->
-          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 20px;">
-            <h4 style="font-size: 13px; font-weight: 800; color: #1e1b4b; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 8px;">
-              <i class="fa-solid fa-triangle-exclamation" style="color: #b91c1c;"></i> Incident Particulars &amp; Accused Details
+          <div class="dossier-box">
+            <h4 style="font-size: 13px; font-weight: 800; color: var(--text-main); text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+              <i class="fa-solid fa-triangle-exclamation" style="color: var(--accent-rose);"></i> Incident Particulars &amp; Accused Details
             </h4>
             <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
-              <div style="display: flex; justify-content: space-between;"><span style="color:#64748b; font-weight:600;">Category:</span> <strong style="color:#b91c1c;">${item.category}</strong></div>
-              <div style="display: flex; justify-content: space-between;"><span style="color:#64748b;">Incident Date:</span> <span>${incidentDateStr}</span></div>
-              <div><span style="color:#64748b; display:block; margin-bottom:2px;">Incident Location / Jurisdiction:</span> <strong>${item.incident_location}</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span class="dossier-prop-label">Category:</span> <strong style="color:var(--accent-rose);">${escapeHtml(item.category)}</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span class="dossier-prop-label">Incident Date:</span> <span style="color:var(--text-main);">${incidentDateStr}</span></div>
+              <div><span class="dossier-prop-label" style="display:block; margin-bottom:2px;">Incident Location / Jurisdiction:</span> <strong style="color:var(--text-main);">${escapeHtml(item.incident_location || '')}</strong></div>
               ${item.accused_details ? `
-                <div style="background: #fff1f2; border: 1px solid #fecdd3; padding: 8px 12px; border-radius: 6px; margin-top: 4px;">
-                  <span style="color: #9f1239; font-weight: 800; font-size: 11.5px; text-transform: uppercase; display:block; margin-bottom: 2px;">Accused Individual(s) / Organization:</span>
-                  <div style="color: #881337; font-size: 12.5px;">${item.accused_details}</div>
+                <div style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); padding: 10px 12px; border-radius: 8px; margin-top: 4px;">
+                  <span style="color: var(--accent-rose); font-weight: 800; font-size: 11.5px; text-transform: uppercase; display:block; margin-bottom: 2px;">Accused Individual(s) / Organization:</span>
+                  <div style="color: var(--text-main); font-size: 12.5px;">${escapeHtml(item.accused_details)}</div>
                 </div>
               ` : ''}
             </div>
           </div>
 
           <!-- FULL COMPLAINT NARRATIVE STATEMENT -->
-          <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 20px;">
-            <h4 style="font-size: 13px; font-weight: 800; color: #1e1b4b; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-              <i class="fa-solid fa-file-lines" style="color: #0284c7;"></i> Citizen Statement &amp; Case Narrative
+          <div class="dossier-box">
+            <h4 style="font-size: 13px; font-weight: 800; color: var(--text-main); text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-file-lines" style="color: var(--primary);"></i> Citizen Statement &amp; Case Narrative
             </h4>
-            <div style="background: #f8fafc; border-left: 4px solid #0284c7; padding: 12px 16px; border-radius: 6px; font-size: 13px; line-height: 1.65; color: #1e293b; text-align: justify; max-height: 220px; overflow-y: auto;">
-              ${(item.description || '').replace(/\n/g, '<br/>')}
+            <div style="background: var(--bg-main); border-left: 4px solid var(--primary); padding: 12px 16px; border-radius: 6px; font-size: 13px; line-height: 1.65; color: var(--text-main); text-align: justify; max-height: 220px; overflow-y: auto;">
+              ${escapeHtml(item.description || '').replace(/\n/g, '<br/>')}
             </div>
             ${item.evidence_urls ? `
-              <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 12px; font-weight: 700; color: #059669;"><i class="fa-solid fa-paperclip"></i> Supporting Evidence Files Attached</span>
-                <a href="${item.evidence_urls}" target="_blank" download class="btn btn-sm btn-outline" style="color: #059669; border-color: #059669; font-size: 11px;">Download Evidence</a>
+              <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 12px; font-weight: 700; color: var(--accent-emerald);"><i class="fa-solid fa-paperclip"></i> Supporting Evidence Files Attached</span>
+                <a href="${item.evidence_urls}" target="_blank" download class="btn btn-sm btn-outline" style="color: var(--accent-emerald); border-color: var(--accent-emerald); font-size: 11px;">Download Evidence</a>
               </div>
             ` : ''}
           </div>
 
           <!-- ADMIN CASE CONTROLS -->
-          <div style="background: #faf5ff; border: 1.5px solid #d8b4fe; border-radius: 10px; padding: 18px;">
-            <h4 style="font-size: 13px; font-weight: 800; color: #6b21a8; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <div class="dossier-box" style="border: 1.5px solid var(--primary); background: var(--bg-card);">
+            <h4 style="font-size: 13px; font-weight: 800; color: var(--primary); text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
               <i class="fa-solid fa-gavel"></i> Admin Grievance Action &amp; Status Controls
             </h4>
-            <div style="display: flex; gap: 12px; margin-bottom: 12px;">
-              <div style="flex: 1;">
-                <label style="display:block; font-size: 11.5px; font-weight: 700; color: #581c87; margin-bottom: 4px;">Update Status</label>
+            <div style="display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+              <div style="flex: 1; min-width: 180px;">
+                <label style="display:block; font-size: 11.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Update Status</label>
                 <select id="dossier-status-select" class="form-select" style="width: 100%; font-size: 12.5px;">
                   <option value="PENDING" ${item.status === 'PENDING' ? 'selected' : ''}>PENDING VERIFICATION</option>
                   <option value="UNDER_REVIEW" ${item.status === 'UNDER_REVIEW' ? 'selected' : ''}>UNDER REVIEW / INVESTIGATION</option>
@@ -3278,20 +3407,20 @@ function openComplaintDossierModal(id) {
                   <option value="REJECTED" ${item.status === 'REJECTED' ? 'selected' : ''}>REJECTED / INVALID</option>
                 </select>
               </div>
-              <div style="flex: 1;">
-                <label style="display:block; font-size: 11.5px; font-weight: 700; color: #581c87; margin-bottom: 4px;">Assigned Legal Officer / Convener</label>
-                <input type="text" id="dossier-officer-input" class="form-control" style="font-size: 12.5px;" value="${item.action_taken_by || 'PPPI Legal Action Cell'}" />
+              <div style="flex: 1; min-width: 180px;">
+                <label style="display:block; font-size: 11.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Assigned Legal Officer / Convener</label>
+                <input type="text" id="dossier-officer-input" class="form-control" style="font-size: 12.5px;" value="${escapeHtml(item.action_taken_by || 'PPPI Legal Action Cell')}" />
               </div>
             </div>
             <div style="margin-bottom: 14px;">
-              <label style="display:block; font-size: 11.5px; font-weight: 700; color: #581c87; margin-bottom: 4px;">Internal Case Notes &amp; Action Taken</label>
-              <textarea id="dossier-notes-textarea" class="form-control" rows="3" style="font-size: 12.5px;" placeholder="Document legal notices sent, district administration response, ground inspections, and resolution details...">${item.admin_notes || ''}</textarea>
+              <label style="display:block; font-size: 11.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Internal Case Notes &amp; Action Taken</label>
+              <textarea id="dossier-notes-textarea" class="form-control" rows="3" style="font-size: 12.5px;" placeholder="Document legal notices sent, district administration response, ground inspections, and resolution details...">${escapeHtml(item.admin_notes || '')}</textarea>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
               <button type="button" class="btn btn-sm btn-outline" id="btn-delete-dossier" style="color: var(--accent-rose); border-color: var(--accent-rose); font-size: 12px;">
                 <i class="fa-solid fa-trash"></i> Delete Case
               </button>
-              <button type="button" class="btn btn-sm btn-primary" id="btn-save-dossier-action" style="background: #6b21a8; border-color: #6b21a8; font-size: 12.5px; font-weight: 700;">
+              <button type="button" class="btn btn-sm btn-primary" id="btn-save-dossier-action" style="font-size: 12.5px; font-weight: 700;">
                 <i class="fa-solid fa-floppy-disk"></i> Save Case Updates
               </button>
             </div>
@@ -3352,7 +3481,7 @@ function openComplaintDossierModal(id) {
     }
   }
 
-  modal.classList.add('active');
+  if (modal) modal.classList.add('active');
 }
 
 function renderMaintenanceView() {
@@ -3670,20 +3799,20 @@ function renderEmploymentView() {
   if (btnTabJobs && btnTabApps) {
     btnTabJobs.onclick = () => {
       activeEmploymentTab = 'jobs';
-      btnTabJobs.style.background = '#0284c7';
-      btnTabJobs.style.color = '#ffffff';
-      btnTabApps.style.background = '#f1f5f9';
-      btnTabApps.style.color = '#475569';
+      btnTabJobs.classList.add('active');
+      btnTabApps.classList.remove('active');
+      btnTabJobs.removeAttribute('style');
+      btnTabApps.removeAttribute('style');
       if (paneJobs) paneJobs.style.display = 'block';
       if (paneApps) paneApps.style.display = 'none';
     };
 
     btnTabApps.onclick = () => {
       activeEmploymentTab = 'apps';
-      btnTabApps.style.background = '#0284c7';
-      btnTabApps.style.color = '#ffffff';
-      btnTabJobs.style.background = '#f1f5f9';
-      btnTabJobs.style.color = '#475569';
+      btnTabApps.classList.add('active');
+      btnTabJobs.classList.remove('active');
+      btnTabJobs.removeAttribute('style');
+      btnTabApps.removeAttribute('style');
       if (paneJobs) paneJobs.style.display = 'none';
       if (paneApps) paneApps.style.display = 'block';
       renderApplicationsTable();
@@ -3694,7 +3823,7 @@ function renderEmploymentView() {
   const filterAppsJob = document.getElementById('filter-apps-job');
   if (filterAppsJob) {
     filterAppsJob.innerHTML = '<option value="ALL">All Job Vacancies</option>' +
-      visibleJobs.map(j => `<option value="${j.id}" ${String(selectedJobFilterForApps) === String(j.id) ? 'selected' : ''}>${j.title} (${j.company_name})</option>`).join('');
+      visibleJobs.map(j => `<option value="${j.id}" ${String(selectedJobFilterForApps) === String(j.id) ? 'selected' : ''}>${escapeHtml(j.title)} (${escapeHtml(j.company_name)})</option>`).join('');
   }
 
   renderJobsTable(visibleJobs);
@@ -3729,8 +3858,8 @@ function renderJobsTable(jobsList = appData.jobs) {
   if (filtered.length === 0) {
     container.innerHTML = `
       <div style="text-align:center; padding: 48px 20px; color: var(--text-muted);">
-        <i class="fa-solid fa-briefcase" style="font-size:42px; margin-bottom:12px; color: #cbd5e1;"></i>
-        <h3 style="font-size:16px; font-weight:700; color:var(--text-primary); margin-bottom:6px;">No Job Vacancies Found</h3>
+        <i class="fa-solid fa-briefcase" style="font-size:42px; margin-bottom:12px; color: var(--text-muted); opacity:0.6;"></i>
+        <h3 style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:6px;">No Job Vacancies Found</h3>
         <p style="font-size:13px; margin:0;">Click "Post New Vacancy" above to publish your company's hiring requirements.</p>
       </div>
     `;
@@ -3758,24 +3887,24 @@ function renderJobsTable(jobsList = appData.jobs) {
           return `
             <tr>
               <td>
-                <div style="font-weight: 800; color: var(--text-primary); font-size: 13.5px;">${job.title}</div>
-                <div style="font-size: 12px; color: #0284c7; font-weight: 600;"><i class="fa-solid fa-building"></i> ${job.company_name}</div>
+                <div style="font-weight: 800; color: var(--text-main); font-size: 13.5px;">${escapeHtml(job.title)}</div>
+                <div style="font-size: 12px; color: var(--primary); font-weight: 600;"><i class="fa-solid fa-building"></i> ${escapeHtml(job.company_name)}</div>
               </td>
               <td>
-                <div style="font-size: 12.5px; font-weight: 600; color: #334155;">${job.department || 'General'}</div>
-                <span class="badge" style="background:#f1f5f9; color:#475569; font-size:11px;">${job.job_type || 'Full-time'} • ${job.workplace_type || 'On-site'}</span>
+                <span class="badge badge-info" style="font-size:11px; margin-bottom:4px;">${escapeHtml(job.department || 'General')}</span>
+                <div style="font-size: 11.5px; color: var(--text-muted);">${escapeHtml(job.job_type || 'Full-time')} • ${escapeHtml(job.workplace_type || 'On-site')}</div>
               </td>
               <td>
-                <div style="font-size: 12.5px; color: #475569;"><i class="fa-solid fa-location-dot" style="color:#ef4444;"></i> ${job.location}</div>
+                <div style="font-size: 12.5px; color: var(--text-muted);"><i class="fa-solid fa-location-dot" style="color:var(--accent-rose);"></i> ${escapeHtml(job.location)}</div>
               </td>
               <td>
-                <strong style="color: #059669; font-size: 12.5px;">${job.salary_range}</strong>
+                <strong style="color: var(--accent-emerald); font-size: 12.5px;">${escapeHtml(job.salary_range)}</strong>
               </td>
               <td>
-                <span class="badge" style="background: #eff6ff; color: #1d4ed8; font-weight:800;">${job.vacancies_count || 1} Openings</span>
+                <span class="badge badge-primary">${job.vacancies_count || 1} Openings</span>
               </td>
               <td>
-                <span class="badge" style="background: ${isActive ? '#ecfdf5' : '#fee2e2'}; color: ${isActive ? '#065f46' : '#991b1b'}; font-weight:800;">
+                <span class="badge ${isActive ? 'badge-success' : 'badge-critical'}">
                   ${isActive ? 'ACTIVE' : 'CLOSED'}
                 </span>
               </td>
@@ -3789,10 +3918,10 @@ function renderJobsTable(jobsList = appData.jobs) {
                   <button type="button" class="btn btn-sm btn-outline btn-edit-job" data-job-id="${job.id}" title="Edit Vacancy" style="padding: 4px 8px; font-size: 11.5px;">
                     <i class="fa-solid fa-pen-to-square"></i>
                   </button>
-                  <button type="button" class="btn btn-sm btn-outline btn-toggle-job-status" data-job-id="${job.id}" data-current-status="${job.status || 'ACTIVE'}" title="Toggle Active/Closed" style="padding: 4px 8px; font-size: 11.5px; color: #d97706;">
+                  <button type="button" class="btn btn-sm btn-outline btn-toggle-job-status" data-job-id="${job.id}" data-current-status="${job.status || 'ACTIVE'}" title="Toggle Active/Closed" style="padding: 4px 8px; font-size: 11.5px; color: var(--accent-amber);">
                     <i class="fa-solid fa-power-off"></i>
                   </button>
-                  <button type="button" class="btn btn-sm btn-outline btn-delete-job" data-job-id="${job.id}" title="Delete Vacancy" style="padding: 4px 8px; font-size: 11.5px; color: #dc2626;">
+                  <button type="button" class="btn btn-sm btn-outline btn-delete-job" data-job-id="${job.id}" title="Delete Vacancy" style="padding: 4px 8px; font-size: 11.5px; color: var(--accent-rose);">
                     <i class="fa-solid fa-trash"></i>
                   </button>
                 </div>
@@ -3888,8 +4017,8 @@ function renderApplicationsTable(appsList = appData.applications) {
   if (filtered.length === 0) {
     container.innerHTML = `
       <div style="text-align:center; padding: 48px 20px; color: var(--text-muted);">
-        <i class="fa-solid fa-user-tie" style="font-size:42px; margin-bottom:12px; color: #cbd5e1;"></i>
-        <h3 style="font-size:16px; font-weight:700; color:var(--text-primary); margin-bottom:6px;">No Candidate Applications Found</h3>
+        <i class="fa-solid fa-user-tie" style="font-size:42px; margin-bottom:12px; color: var(--text-muted); opacity:0.6;"></i>
+        <h3 style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:6px;">No Candidate Applications Found</h3>
         <p style="font-size:13px; margin:0;">Applications submitted by job seekers on the website will be listed here.</p>
       </div>
     `;
@@ -3912,44 +4041,35 @@ function renderApplicationsTable(appsList = appData.applications) {
       <tbody>
         ${filtered.map(app => {
           const parentJob = app.job || appData.jobs.find(j => String(j.id) === String(app.job_id)) || { title: 'General Application', company_name: 'PPPI' };
-          const statusColors = {
-            SUBMITTED: { bg: '#e0f2fe', text: '#0369a1' },
-            REVIEWING: { bg: '#fef3c7', text: '#b45309' },
-            SHORTLISTED: { bg: '#dcfce7', text: '#15803d' },
-            INTERVIEW_SCHEDULED: { bg: '#ede9fe', text: '#6d28d9' },
-            HIRED: { bg: '#d1fae5', text: '#065f46' },
-            REJECTED: { bg: '#fee2e2', text: '#b91c1c' }
-          };
-          const color = statusColors[app.status] || statusColors.SUBMITTED;
 
           return `
             <tr>
               <td>
-                <div style="font-weight: 800; color: var(--text-primary); font-size: 13.5px;">${app.candidate_name}</div>
-                <div style="font-size: 11.5px; color: #64748b;"><i class="fa-solid fa-phone"></i> ${app.candidate_phone}</div>
-                <div style="font-size: 11.5px; color: #64748b;"><i class="fa-solid fa-envelope"></i> ${app.candidate_email}</div>
+                <div style="font-weight: 800; color: var(--text-main); font-size: 13.5px;">${escapeHtml(app.candidate_name)}</div>
+                <div style="font-size: 11.5px; color: var(--text-muted);"><i class="fa-solid fa-phone"></i> ${escapeHtml(app.candidate_phone)}</div>
+                <div style="font-size: 11.5px; color: var(--text-muted);"><i class="fa-solid fa-envelope"></i> ${escapeHtml(app.candidate_email)}</div>
               </td>
               <td>
-                <div style="font-weight: 700; color: #0284c7; font-size: 13px;">${parentJob.title}</div>
-                <div style="font-size: 11.5px; color: #475569;">${parentJob.company_name}</div>
+                <div style="font-weight: 700; color: var(--primary); font-size: 13px;">${escapeHtml(parentJob.title)}</div>
+                <div style="font-size: 11.5px; color: var(--text-muted);">${escapeHtml(parentJob.company_name)}</div>
               </td>
               <td>
-                <div style="font-size: 12.5px; font-weight: 600; color: #1e293b;">${app.qualification}</div>
-                <div style="font-size: 11.5px; color: #64748b;">Exp: ${app.experience_years || 'Fresher'}</div>
+                <div style="font-size: 12.5px; font-weight: 600; color: var(--text-main);">${escapeHtml(app.qualification)}</div>
+                <div style="font-size: 11.5px; color: var(--text-muted);">Exp: ${escapeHtml(app.experience_years || 'Fresher')}</div>
               </td>
               <td>
-                <div style="font-size: 12px; color: #334155;">${app.current_location}</div>
-                <div style="font-size: 11.5px; color: #059669; font-weight:700;">Exp: ${app.expected_salary || 'As per norms'}</div>
+                <div style="font-size: 12px; color: var(--text-muted);">${escapeHtml(app.current_location)}</div>
+                <div style="font-size: 11.5px; color: var(--accent-emerald); font-weight:700;">Exp: ${escapeHtml(app.expected_salary || 'As per norms')}</div>
               </td>
               <td>
                 ${app.resume_url ? `
-                  <a href="${app.resume_url}" target="_blank" download="Resume_${app.candidate_name.replace(/\s+/g, '_')}" class="btn btn-sm btn-outline" style="font-size: 11px; padding: 4px 8px; color: #0284c7;">
+                  <a href="${app.resume_url}" target="_blank" download="Resume_${app.candidate_name.replace(/\s+/g, '_')}" class="btn btn-sm btn-outline" style="font-size: 11px; padding: 4px 8px; color: var(--primary); border-color: var(--primary);">
                     <i class="fa-solid fa-file-pdf"></i> Download Resume
                   </a>
-                ` : `<span style="color:#94a3b8; font-size:11px;">Not Uploaded</span>`}
+                ` : `<span style="color:var(--text-muted); font-size:11px;">Not Uploaded</span>`}
               </td>
               <td>
-                <select class="form-select select-app-status" data-app-id="${app.id}" style="font-size: 11.5px; font-weight:700; padding: 4px 8px; background: ${color.bg}; color: ${color.text}; border: 1px solid ${color.text}40;">
+                <select class="form-select select-app-status" data-app-id="${app.id}" style="font-size: 11.5px; font-weight:700; padding: 4px 8px; width: auto;">
                   <option value="SUBMITTED" ${app.status === 'SUBMITTED' ? 'selected' : ''}>SUBMITTED</option>
                   <option value="REVIEWING" ${app.status === 'REVIEWING' ? 'selected' : ''}>REVIEWING</option>
                   <option value="SHORTLISTED" ${app.status === 'SHORTLISTED' ? 'selected' : ''}>SHORTLISTED</option>
@@ -3959,7 +4079,7 @@ function renderApplicationsTable(appsList = appData.applications) {
                 </select>
               </td>
               <td style="text-align:right;">
-                <button type="button" class="btn btn-sm btn-primary btn-inspect-applicant" data-app-id="${app.id}" style="font-size: 11.5px; padding: 5px 10px; background: #0284c7; border-color:#0284c7;">
+                <button type="button" class="btn btn-sm btn-primary btn-inspect-applicant" data-app-id="${app.id}" style="font-size: 11.5px; padding: 6px 12px;">
                   <i class="fa-solid fa-eye"></i> Review Dossier
                 </button>
               </td>
@@ -4018,8 +4138,8 @@ function openJobEditorModal(job = null) {
 
   document.getElementById('job-input-id').value = job ? job.id : '';
   document.getElementById('job-modal-title').innerHTML = job
-    ? '<i class="fa-solid fa-pen-to-square" style="color:#0284c7;"></i> Edit Job Vacancy'
-    : '<i class="fa-solid fa-briefcase" style="color:#0284c7;"></i> Post New Job Vacancy';
+    ? '<i class="fa-solid fa-pen-to-square" style="color:var(--primary);"></i> Edit Job Vacancy'
+    : '<i class="fa-solid fa-briefcase" style="color:var(--primary);"></i> Post New Job Vacancy';
 
   document.getElementById('job-input-title').value = job ? job.title : '';
   document.getElementById('job-input-company').value = job ? job.company_name : defaultCompany;
@@ -4051,59 +4171,59 @@ function openApplicantDossierModal(app) {
 
   body.innerHTML = `
     <div style="margin-bottom: 20px;">
-      <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 16px;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+      <div class="dossier-box">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
           <div>
-            <h3 style="margin:0 0 4px 0; font-size:18px; font-weight:800; color:#0f172a;">${app.candidate_name}</h3>
-            <span style="font-size:13px; color:#0284c7; font-weight:700;">Candidate Application for: ${parentJob.title}</span>
+            <h3 style="margin:0 0 4px 0; font-size:18px; font-weight:800; color:var(--text-main);">${escapeHtml(app.candidate_name)}</h3>
+            <span style="font-size:13px; color:var(--primary); font-weight:700;">Candidate Application for: ${escapeHtml(parentJob.title)}</span>
           </div>
-          <span class="badge" style="background: #0284c7; color: white; padding: 6px 12px; font-weight:800; font-size:12px;">
+          <span class="badge badge-primary" style="padding: 6px 12px; font-size:12px;">
             ID #APP-${app.id}
           </span>
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; font-size:13px; color:#334155;">
-          <div><strong>Mobile Phone:</strong> <a href="tel:${app.candidate_phone}" style="color:#0284c7; font-weight:700;">${app.candidate_phone}</a></div>
-          <div><strong>Email Address:</strong> <a href="mailto:${app.candidate_email}" style="color:#0284c7; font-weight:700;">${app.candidate_email}</a></div>
-          <div><strong>Qualification:</strong> ${app.qualification}</div>
-          <div><strong>Experience:</strong> ${app.experience_years || 'Fresher'}</div>
-          <div><strong>Current Location:</strong> ${app.current_location}</div>
-          <div><strong>Expected Salary:</strong> ${app.expected_salary || 'Negotiable'}</div>
-          <div><strong>Applied On:</strong> ${new Date(app.created_at || Date.now()).toLocaleString('en-IN')}</div>
+        <div class="dossier-grid-2">
+          <div class="dossier-prop"><span class="dossier-prop-label">Mobile Phone</span><a href="tel:${app.candidate_phone}" style="color:var(--primary); font-weight:700;">${escapeHtml(app.candidate_phone)}</a></div>
+          <div class="dossier-prop"><span class="dossier-prop-label">Email Address</span><a href="mailto:${app.candidate_email}" style="color:var(--primary); font-weight:700;">${escapeHtml(app.candidate_email)}</a></div>
+          <div class="dossier-prop"><span class="dossier-prop-label">Qualification</span><span class="dossier-prop-value">${escapeHtml(app.qualification)}</span></div>
+          <div class="dossier-prop"><span class="dossier-prop-label">Experience</span><span class="dossier-prop-value">${escapeHtml(app.experience_years || 'Fresher')}</span></div>
+          <div class="dossier-prop"><span class="dossier-prop-label">Current Location</span><span class="dossier-prop-value">${escapeHtml(app.current_location)}</span></div>
+          <div class="dossier-prop"><span class="dossier-prop-label">Expected Salary</span><span class="dossier-prop-value" style="color:var(--accent-emerald); font-weight:800;">${escapeHtml(app.expected_salary || 'Negotiable')}</span></div>
+          <div class="dossier-prop" style="grid-column: span 2;"><span class="dossier-prop-label">Applied On</span><span class="dossier-prop-value">${new Date(app.created_at || Date.now()).toLocaleString('en-IN')}</span></div>
         </div>
       </div>
 
       ${app.cover_note ? `
-        <div style="background:#fffbeb; border-left:4px solid #f59e0b; padding:12px 16px; border-radius:0 8px 8px 0; font-size:13px; color:#92400e; margin-bottom:16px;">
-          <strong>Candidate Cover Note:</strong><br/>
-          ${app.cover_note}
+        <div style="background:rgba(245,158,11,0.08); border-left:4px solid var(--accent-amber); padding:12px 16px; border-radius:0 8px 8px 0; font-size:13px; color:var(--text-main); margin-bottom:16px;">
+          <strong style="color:var(--accent-amber);">Candidate Cover Note:</strong><br/>
+          ${escapeHtml(app.cover_note)}
         </div>
       ` : ''}
 
-      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:18px; display:flex; align-items:center; justify-content:space-between;">
+      <div class="dossier-box" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
         <div style="display:flex; align-items:center; gap:12px;">
-          <i class="fa-solid fa-file-pdf" style="font-size:32px; color:#ef4444;"></i>
+          <i class="fa-solid fa-file-pdf" style="font-size:32px; color:var(--accent-rose);"></i>
           <div>
-            <h4 style="margin:0 0 2px 0; font-size:14px; font-weight:800; color:#0f172a;">Candidate Resume / Curriculum Vitae</h4>
-            <span style="font-size:12px; color:#64748b;">PDF / Word Document attached by candidate</span>
+            <h4 style="margin:0 0 2px 0; font-size:14px; font-weight:800; color:var(--text-main);">Candidate Resume / Curriculum Vitae</h4>
+            <span style="font-size:12px; color:var(--text-muted);">PDF document attached by candidate</span>
           </div>
         </div>
         ${app.resume_url ? `
-          <a href="${app.resume_url}" target="_blank" download class="btn btn-sm btn-primary" style="background:#0284c7; border-color:#0284c7; font-weight:700;">
+          <a href="${app.resume_url}" target="_blank" download class="btn btn-sm btn-primary" style="font-weight:700;">
             <i class="fa-solid fa-download"></i> Download Resume
           </a>
-        ` : `<span style="color:#94a3b8; font-size:12px;">No document attached</span>`}
+        ` : `<span style="color:var(--text-muted); font-size:12px;">No document attached</span>`}
       </div>
 
       <!-- STATUS & RECRUITER NOTES -->
-      <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:10px; padding:18px;">
-        <h4 style="margin:0 0 12px 0; font-size:14px; font-weight:800; color:#166534;">
+      <div class="dossier-box" style="border: 1.5px solid var(--accent-emerald); background: var(--bg-card);">
+        <h4 style="margin:0 0 12px 0; font-size:14px; font-weight:800; color:var(--accent-emerald);">
           <i class="fa-solid fa-sliders"></i> Recruiter Action &amp; Application Status
         </h4>
 
         <div style="display:flex; gap:12px; margin-bottom:12px;">
           <div style="flex:1;">
-            <label style="display:block; font-size:12px; font-weight:700; color:#166534; margin-bottom:4px;">Application Status</label>
+            <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:4px;">Application Status</label>
             <select id="modal-app-status-select" class="form-select" style="width:100%; font-weight:700;">
               <option value="SUBMITTED" ${app.status === 'SUBMITTED' ? 'selected' : ''}>SUBMITTED</option>
               <option value="REVIEWING" ${app.status === 'REVIEWING' ? 'selected' : ''}>REVIEWING</option>
@@ -4116,12 +4236,12 @@ function openApplicantDossierModal(app) {
         </div>
 
         <div style="margin-bottom:14px;">
-          <label style="display:block; font-size:12px; font-weight:700; color:#166534; margin-bottom:4px;">Internal Recruiter Notes / Interview Feedback</label>
-          <textarea id="modal-app-notes-textarea" class="form-control" rows="3" placeholder="Document interview date, technical ratings, or joining details...">${app.employer_notes || ''}</textarea>
+          <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:4px;">Internal Recruiter Notes / Interview Feedback</label>
+          <textarea id="modal-app-notes-textarea" class="form-control" rows="3" placeholder="Document interview date, technical ratings, or joining details...">${escapeHtml(app.employer_notes || '')}</textarea>
         </div>
 
         <div style="text-align:right;">
-          <button type="button" class="btn btn-sm btn-primary" id="btn-save-applicant-action" style="background:#166534; border-color:#166534; font-weight:700; padding:8px 18px;">
+          <button type="button" class="btn btn-sm btn-primary" id="btn-save-applicant-action" style="font-weight:700; padding:8px 18px;">
             <i class="fa-solid fa-check"></i> Save Application Updates
           </button>
         </div>
@@ -4264,111 +4384,128 @@ function renderAgricultureView() {
 
   if (filtered.length === 0) {
     container.innerHTML = `
-      <div style="text-align:center; padding: 40px 20px; color: var(--text-muted);">
-        <i class="fa-solid fa-seedling" style="font-size: 36px; color: #16a34a; margin-bottom: 12px; display:block;"></i>
-        <h4 style="font-size:16px; font-weight:700; color:var(--text-primary); margin-bottom:4px;">No Questions Found</h4>
-        <p style="font-size:13px;">No agricultural discussions match your search or category filter.</p>
+      <div style="text-align:center; padding: 48px 20px; color: var(--text-muted);">
+        <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(16, 185, 129, 0.12); color: var(--accent-emerald); display: inline-flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 14px;">
+          <i class="fa-solid fa-seedling"></i>
+        </div>
+        <h4 style="font-size:16px; font-weight:700; color:var(--text-main); margin-bottom:6px;">No Questions Found</h4>
+        <p style="font-size:13px; max-width: 360px; margin: 0 auto;">No agricultural discussions match your current search keyword or category filter.</p>
       </div>
     `;
     return;
   }
 
   container.innerHTML = `
-    <div style="display:flex; flex-direction:column; gap:16px;">
+    <div style="display:flex; flex-direction:column; gap:20px;">
       ${filtered.map(q => {
         const answers = (q.answers || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        const userInitial = (q.user_name || 'F').charAt(0).toUpperCase();
         return `
-          <div class="card" style="border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; background: var(--bg-card); box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+          <div class="agri-card">
             <!-- Question Header Row -->
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 12px; flex-wrap:wrap; gap:10px;">
-              <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
-                <span class="pill-tag" style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; padding:4px 10px; border-radius:20px;">
-                  <i class="fa-solid fa-tag"></i> ${escapeHtml(q.category || 'Farming')}
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 14px; flex-wrap:wrap; gap:12px;">
+              <div style="display:flex; align-items:center; flex-wrap:wrap; gap:10px;">
+                <span class="badge badge-success" style="font-size:11.5px; font-weight:800; padding:4px 10px; border-radius:8px;">
+                  <i class="fa-solid fa-seedling"></i> ${escapeHtml(q.category || 'Farming')}
                 </span>
-                <span style="font-size:13px; font-weight:800; color:var(--text-primary);">
-                  <i class="fa-solid fa-user-circle"></i> ${escapeHtml(q.user_name || 'Farmer')}
+                <div style="display:inline-flex; align-items:center; gap:8px;">
+                  <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;">
+                    ${userInitial}
+                  </div>
+                  <strong style="font-size:13.5px; color:var(--text-main); font-weight:700;">
+                    ${escapeHtml(q.user_name || 'Farmer')}
+                  </strong>
+                </div>
+                <span style="font-size:12px; color:var(--text-muted); background:var(--bg-main); border: 1px solid var(--border-color); padding:3px 10px; border-radius:6px; font-weight:600;">
+                  <i class="fa-solid fa-phone" style="font-size:10px; color:var(--accent-emerald); margin-right:4px;"></i> ${escapeHtml(q.user_mobile || 'N/A')}
                 </span>
-                <span style="font-size:12px; color:var(--text-muted); background:var(--bg-body, #f1f5f9); padding:2px 8px; border-radius:6px;">
-                  <i class="fa-solid fa-phone"></i> ${escapeHtml(q.user_mobile || 'N/A')}
-                </span>
-                <span style="font-size:11.5px; color:var(--text-muted); margin-left:6px;">
-                  <i class="fa-regular fa-clock"></i> ${q.created_at ? new Date(q.created_at).toLocaleDateString('en-IN') : 'Recent'}
+                <span style="font-size:12px; color:var(--text-muted);">
+                  <i class="fa-regular fa-clock" style="margin-right:4px;"></i> ${q.created_at ? new Date(q.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent'}
                 </span>
               </div>
               <div>
-                <button type="button" class="btn btn-sm btn-outline-danger btn-delete-agri-q" data-qid="${q.id}" style="color:#ef4444; border-color:#fca5a5; font-size:12px; font-weight:700; padding:5px 12px;">
+                <button type="button" class="btn btn-sm btn-outline-danger btn-delete-agri-q" data-qid="${q.id}" style="font-size:12px; font-weight:700; padding:6px 12px; display:inline-flex; align-items:center; gap:6px;">
                   <i class="fa-solid fa-trash"></i> Delete Question
                 </button>
               </div>
             </div>
 
             <!-- Question Title & Description -->
-            <h4 style="font-size:16px; font-weight:800; color:var(--text-primary); margin-bottom:8px; line-height:1.4;">
+            <h4 style="font-size:16px; font-weight:800; color:var(--text-main); margin-bottom:8px; line-height:1.45; font-family:var(--font-heading);">
               ${escapeHtml(q.question)}
             </h4>
             ${q.description ? `
-              <p style="font-size:13.5px; color:var(--text-muted); line-height:1.6; margin-bottom:14px;">
+              <p style="font-size:13.5px; color:var(--text-muted); line-height:1.6; margin-bottom:16px;">
                 ${escapeHtml(q.description)}
               </p>
             ` : ''}
 
             <!-- Answers Sub-Thread -->
-            <div style="background:var(--bg-body, #f8fafc); border:1px dashed var(--border-color); border-radius:10px; padding:14px; margin-top:12px;">
-              <div style="font-size:13px; font-weight:800; color:var(--text-primary); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-                <span><i class="fa-solid fa-comments" style="color:#0284c7;"></i> Community Answers (${answers.length})</span>
-                <span style="font-size:11.5px; color:#15803d; font-weight:700;">Recent answers at top</span>
+            <div class="agri-answers-box">
+              <div style="font-size:13px; font-weight:800; color:var(--text-main); margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="display:inline-flex; align-items:center; gap:8px;">
+                  <i class="fa-solid fa-comments" style="color:#0284c7;"></i> Community Answers (${answers.length})
+                </span>
+                <span style="font-size:11.5px; color:var(--accent-emerald); font-weight:700;">
+                  <i class="fa-solid fa-check-double"></i> Verified Discussions
+                </span>
               </div>
 
               ${answers.length === 0 ? `
-                <div style="font-size:12.5px; color:var(--text-muted); font-style:italic; padding:6px 0;">
-                  No answers submitted yet for this question.
+                <div style="font-size:12.5px; color:var(--text-muted); font-style:italic; padding:10px 0; text-align:center;">
+                  No solutions or answers submitted yet for this question.
                 </div>
               ` : `
                 <div style="display:flex; flex-direction:column; gap:12px;">
-                  ${answers.map((ans, aIdx) => `
-                    <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; padding:12px 14px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-                      <div style="flex:1;">
-                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
-                          <strong style="font-size:13.5px; color:var(--text-primary);">${escapeHtml(ans.author_name || 'Contributor')}</strong>
-                          <span style="font-size:11.5px; color:#0284c7; background:#e0f2fe; padding:2px 8px; border-radius:6px; font-weight:700;">
+                  ${answers.map(ans => {
+                    const ansInitial = (ans.author_name || 'C').charAt(0).toUpperCase();
+                    return `
+                    <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:14px 16px; display:flex; justify-content:space-between; align-items:flex-start; gap:14px; box-shadow:var(--shadow-sm);">
+                      <div style="flex:1; min-width:0;">
+                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap;">
+                          <div style="width: 26px; height: 26px; border-radius: 50%; background: rgba(2, 132, 199, 0.15); color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;">
+                            ${ansInitial}
+                          </div>
+                          <strong style="font-size:13.5px; color:var(--text-main); font-weight:700;">${escapeHtml(ans.author_name || 'Contributor')}</strong>
+                          <span class="badge badge-info" style="font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px;">
                             <i class="fa-solid fa-certificate"></i> ${escapeHtml(ans.author_profession || 'Agricultural Specialist')}
                           </span>
-                          <span style="font-size:11px; color:var(--text-muted);">
-                            ${ans.created_at ? new Date(ans.created_at).toLocaleString('en-IN') : ''}
+                          <span style="font-size:11.5px; color:var(--text-muted);">
+                            ${ans.created_at ? new Date(ans.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
                           </span>
                         </div>
 
-                        <div style="font-size:13px; color:var(--text-primary); line-height:1.55; margin-bottom:8px;">
+                        <div style="font-size:13.5px; color:var(--text-main); line-height:1.6; margin-bottom:10px; word-break:break-word;">
                           ${escapeHtml(ans.answer_text)}
                         </div>
 
                         ${ans.media_url ? `
-                          <div style="margin:8px 0; font-size:12px;">
+                          <div style="margin:10px 0;">
                             ${ans.media_type === 'VIDEO' ? `
-                              <a href="${escapeHtml(ans.media_url)}" target="_blank" style="display:inline-flex; align-items:center; gap:6px; color:#0284c7; font-weight:700; background:#f0f9ff; padding:4px 10px; border-radius:6px; text-decoration:none; border:1px solid #bae6fd;">
-                                <i class="fa-solid fa-video"></i> Open Video Demonstration
+                              <a href="${escapeHtml(ans.media_url)}" target="_blank" style="display:inline-flex; align-items:center; gap:6px; color:#0284c7; font-weight:700; font-size:12px; background:rgba(2, 132, 199, 0.1); padding:5px 12px; border-radius:6px; text-decoration:none; border:1px solid rgba(2, 132, 199, 0.25);">
+                                <i class="fa-solid fa-circle-play"></i> Watch Video Demonstration
                               </a>
                             ` : `
-                              <a href="${escapeHtml(ans.media_url)}" target="_blank" style="display:inline-flex; align-items:center; gap:6px; color:#15803d; font-weight:700; background:#f0fdf4; padding:4px 10px; border-radius:6px; text-decoration:none; border:1px solid #bbf7d0;">
+                              <a href="${escapeHtml(ans.media_url)}" target="_blank" style="display:inline-flex; align-items:center; gap:6px; color:var(--accent-emerald); font-weight:700; font-size:12px; background:rgba(16, 185, 129, 0.1); padding:5px 12px; border-radius:6px; text-decoration:none; border:1px solid rgba(16, 185, 129, 0.25);">
                                 <i class="fa-solid fa-image"></i> View Demonstration Photo
                               </a>
                             `}
                           </div>
                         ` : ''}
 
-                        <div style="font-size:12px; color:var(--text-muted); display:flex; gap:16px; align-items:center;">
-                          <span><i class="fa-solid fa-thumbs-up" style="color:#16a34a;"></i> <strong>${ans.likes_count || 0}</strong> Helpful Likes</span>
-                          <span><i class="fa-solid fa-thumbs-down" style="color:#ef4444;"></i> <strong>${ans.dislikes_count || 0}</strong> Dislikes</span>
+                        <div style="font-size:12px; color:var(--text-muted); display:flex; gap:18px; align-items:center;">
+                          <span><i class="fa-solid fa-thumbs-up" style="color:var(--accent-emerald); margin-right:4px;"></i> <strong style="color:var(--text-main);">${ans.likes_count || 0}</strong> Helpful</span>
+                          <span><i class="fa-solid fa-thumbs-down" style="color:var(--accent-rose); margin-right:4px;"></i> <strong style="color:var(--text-main);">${ans.dislikes_count || 0}</strong> Dislikes</span>
                         </div>
                       </div>
 
                       <div>
-                        <button type="button" class="btn btn-sm btn-outline-danger btn-delete-agri-ans" data-ansid="${ans.id}" title="Remove this answer" style="color:#ef4444; border-color:#fca5a5; font-size:11.5px; padding:4px 10px; font-weight:700;">
-                          <i class="fa-solid fa-trash"></i> Delete
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-delete-agri-ans" data-ansid="${ans.id}" title="Remove this answer" style="font-size:11.5px; padding:4px 10px; font-weight:700;">
+                          <i class="fa-solid fa-trash"></i>
                         </button>
                       </div>
                     </div>
-                  `).join('')}
+                  `}).join('')}
                 </div>
               `}
             </div>
@@ -4390,21 +4527,8 @@ function renderAgricultureView() {
         await apiDeleteAgriQuestion(qid);
         alert('Question and associated answers have been removed by administrator.');
         appData.agriQuestions = await apiGetAgriQuestions();
-    try {
-      appData.legalCases = await apiGetLegalCases();
-    try {
-      appData.marriageApplications = await apiGetMarriageApplications();
-    appData.emergencyAlerts = await apiGetEmergencyAlerts();
-    } catch(e) {
-      console.warn('apiGetMarriageApplications fallback notice:', e);
-    }
-    } catch(e) {
-      console.warn('apiGetLegalCases fallback notice:', e);
-    }
         updateBadges();
         renderAgricultureView();
-    renderLawView();
-    renderMarriagesView();
       } catch (err) {
         alert('Failed to delete question: ' + err.message);
       }
@@ -4521,9 +4645,12 @@ function renderLawView() {
   if (filtered.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align: center; padding: 36px 16px; color: #64748b;">
-          <i class="fa-solid fa-scale-unbalanced" style="font-size: 28px; margin-bottom: 8px; display: block; color: #cbd5e1;"></i>
-          No pending court cases matching your search filters.
+        <td colspan="7" style="text-align: center; padding: 48px 16px; color: var(--text-muted);">
+          <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(99, 102, 241, 0.1); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 12px;">
+            <i class="fa-solid fa-scale-unbalanced"></i>
+          </div>
+          <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">No Judicial Cases Found</h4>
+          <p style="font-size: 13px; margin: 0;">No pending court cases matching your search filters.</p>
         </td>
       </tr>
     `;
@@ -4535,24 +4662,28 @@ function renderLawView() {
     return `
       <tr>
         <td>
-          <div style="font-family: monospace; font-size: 11.5px; font-weight: 800; color: #1e3a5f;">${escapeHtml(c.case_ref_no || '')}</div>
-          <strong style="color: #0f172a; font-size: 13.5px;">${escapeHtml(c.litigant_name || 'Anonymous')}</strong>
-          <div style="font-size: 11px; color: #64748b;">${escapeHtml(c.litigant_role || 'Petitioner')}</div>
+          <div style="font-family: monospace; font-size: 11.5px; font-weight: 800; color: var(--primary); letter-spacing: 0.5px;">${escapeHtml(c.case_ref_no || '')}</div>
+          <strong style="color: var(--text-main); font-size: 13.5px; display: block; margin-top: 2px;">${escapeHtml(c.litigant_name || 'Anonymous')}</strong>
+          <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">${escapeHtml(c.litigant_role || 'Petitioner')}</span>
         </td>
         <td>
-          <div><i class="fa-solid fa-phone" style="font-size: 10px; color: #16a34a; margin-right: 4px;"></i>${escapeHtml(c.phone || 'N/A')}</div>
-          <div style="font-size: 11px; color: #64748b;"><i class="fa-solid fa-location-dot" style="font-size: 10px; margin-right: 3px;"></i>${escapeHtml(c.district || 'Kolar')}, ${escapeHtml(c.state || 'Karnataka')}</div>
+          <div style="font-size: 12.5px; font-weight: 600; color: var(--text-main);">
+            <i class="fa-solid fa-phone" style="font-size: 11px; color: var(--accent-emerald); margin-right: 5px;"></i>${escapeHtml(c.phone || 'N/A')}
+          </div>
+          <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+            <i class="fa-solid fa-location-dot" style="font-size: 10px; margin-right: 4px;"></i>${escapeHtml(c.district || 'Kolar')}, ${escapeHtml(c.state || 'Karnataka')}
+          </div>
         </td>
         <td>
-          <strong style="font-size: 12.5px; color: #1e293b;">${escapeHtml(c.case_number || 'N/A')}</strong>
-          <div style="font-size: 11px; color: #0284c7; font-weight: 600;">${escapeHtml(c.case_type || 'Civil Suit')}</div>
-          <div style="font-size: 10.5px; color: #64748b; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          <strong style="font-size: 12.5px; color: var(--text-main);">${escapeHtml(c.case_number || 'N/A')}</strong>
+          <div style="font-size: 11px; color: #0284c7; font-weight: 700;">${escapeHtml(c.case_type || 'Civil Suit')}</div>
+          <div style="font-size: 11px; color: var(--text-muted); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(c.court_name || '')}">
             ${escapeHtml(c.court_name || '')}
           </div>
         </td>
         <td>
-          <span style="display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 800; ${isSevere ? 'background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5;' : 'background: #fef3c7; color: #b45309; border: 1px solid #fde68a;'}">
-            ${isSevere ? '<i class="fa-solid fa-triangle-exclamation" style="font-size: 10px; margin-right: 3px;"></i>' : ''}${escapeHtml(c.hearings_count || '10+ Hearings')}
+          <span class="${isSevere ? 'badge badge-critical' : 'badge badge-warning'}" style="padding: 4px 8px; font-size: 11.5px;">
+            ${isSevere ? '<i class="fa-solid fa-triangle-exclamation" style="margin-right: 4px;"></i>' : ''}${escapeHtml(c.hearings_count || '10+ Hearings')}
           </span>
         </td>
         <td>
@@ -4561,24 +4692,24 @@ function renderLawView() {
               ${(c.status || 'PENDING_REVIEW').replace(/_/g, ' ')}
             </span>
           </div>
-          <small style="color: #64748b; font-size: 10.5px; display: block; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          <small style="color: var(--text-muted); font-size: 11px; display: block; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             ${escapeHtml(c.case_stage || '')}
           </small>
         </td>
         <td>
           ${c.assigned_advocate ? `
-            <div style="font-weight: 700; color: #1d4ed8; font-size: 12px;">
-              <i class="fa-solid fa-user-tie" style="margin-right: 4px;"></i>${escapeHtml(c.assigned_advocate)}
+            <div style="font-weight: 700; color: var(--primary); font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
+              <i class="fa-solid fa-user-tie"></i> ${escapeHtml(c.assigned_advocate)}
             </div>
           ` : `
-            <span style="font-size: 11px; color: #94a3b8; font-style: italic;">Awaiting Assignment</span>
+            <span style="font-size: 11.5px; color: var(--text-muted); font-style: italic;">Awaiting Assignment</span>
           `}
         </td>
         <td style="text-align: right; white-space: nowrap;">
-          <button type="button" class="btn btn-sm btn-outline-primary btn-view-law-dossier" data-id="${c.id}" title="Review Case Dossier" style="margin-right: 4px;">
+          <button type="button" class="btn btn-sm btn-outline-primary btn-view-law-dossier" data-id="${c.id}" title="Review Case Dossier" style="margin-right: 4px; padding: 4px 10px;">
             <i class="fa-solid fa-eye"></i> View
           </button>
-          <button type="button" class="btn btn-sm btn-outline-danger btn-delete-law-case" data-id="${c.id}" title="Delete Case">
+          <button type="button" class="btn btn-sm btn-outline-danger btn-delete-law-case" data-id="${c.id}" title="Delete Case" style="padding: 4px 8px;">
             <i class="fa-solid fa-trash"></i>
           </button>
         </td>
@@ -4587,7 +4718,7 @@ function renderLawView() {
   }).join('');
 
   // Bind View Dossier buttons
-  document.querySelectorAll('.btn-view-law-dossier').forEach(btn => {
+  tbody.querySelectorAll('.btn-view-law-dossier').forEach(btn => {
     btn.onclick = () => {
       const id = btn.getAttribute('data-id');
       const item = cases.find(x => String(x.id) === String(id));
@@ -4596,7 +4727,7 @@ function renderLawView() {
   });
 
   // Bind Delete buttons
-  document.querySelectorAll('.btn-delete-law-case').forEach(btn => {
+  tbody.querySelectorAll('.btn-delete-law-case').forEach(btn => {
     btn.onclick = async () => {
       const id = btn.getAttribute('data-id');
       if (!confirm('Are you sure you want to remove this confidential legal case from the registry?')) return;
@@ -4621,13 +4752,15 @@ function openLawDossierModal(item) {
     modalDiv.className = 'modal';
     modalDiv.style.display = 'none';
     modalDiv.innerHTML = `
-      <div class="modal-dialog" style="max-width: 780px;">
-        <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
-          <div class="modal-header" style="background: #1e3a5f; color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
-            <h3 class="modal-title" style="margin: 0; font-size: 16px;"><i class="fa-solid fa-scale-balanced" style="margin-right: 8px;"></i>Confidential Judicial Dossier Review</h3>
-            <button type="button" id="btn-close-law-dossier-x" style="color: white; background: none; border: none; font-size: 20px; cursor: pointer;">&times;</button>
+      <div class="modal-dialog" style="max-width: 820px;">
+        <div class="modal-content" style="border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); background: var(--bg-card);">
+          <div class="modal-header" style="background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <h3 class="modal-title" style="margin: 0; font-size: 16px; color: white; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-scale-balanced" style="color: #60a5fa;"></i> Confidential Judicial Dossier Review
+            </h3>
+            <button type="button" id="btn-close-law-dossier-x" style="color: white; background: none; border: none; font-size: 24px; cursor: pointer; line-height: 1; opacity: 0.8;">&times;</button>
           </div>
-          <div class="modal-body" id="law-modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;"></div>
+          <div class="modal-body" id="law-modal-body" style="padding: 20px; max-height: 78vh; overflow-y: auto;"></div>
         </div>
       </div>
     `;
@@ -4642,75 +4775,164 @@ function openLawDossierModal(item) {
   const body = document.getElementById('law-modal-body');
   if (!body) return;
 
+  const isSevere = String(item.hearings_count || '').includes('25') || String(item.hearings_count || '').includes('42') || String(item.hearings_count || '').includes('50');
+
   body.innerHTML = `
-    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+    <!-- Top Summary Dossier Box -->
+    <div class="dossier-box">
+      <div class="dossier-header-row">
         <div>
-          <span style="font-family: monospace; font-size: 15px; font-weight: 800; color: #1e3a5f;">${escapeHtml(item.case_ref_no || '')}</span>
-          <span style="background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; margin-left: 8px;">STRICTLY CONFIDENTIAL</span>
+          <span style="font-family: monospace; font-size: 15px; font-weight: 800; color: var(--primary);">${escapeHtml(item.case_ref_no || '')}</span>
+          <span class="badge badge-warning" style="margin-left: 8px; font-size: 11px; font-weight: 800;">
+            <i class="fa-solid fa-lock" style="font-size: 10px; margin-right: 3px;"></i> STRICTLY CONFIDENTIAL
+          </span>
         </div>
-        <span class="badge ${item.status === 'ADVOCATE_ASSIGNED' ? 'badge-primary' : 'badge-warning'}">${(item.status || 'PENDING_REVIEW').replace(/_/g, ' ')}</span>
+        <span class="badge ${item.status === 'ADVOCATE_ASSIGNED' ? 'badge-primary' : item.status === 'RESOLVED' ? 'badge-success' : 'badge-warning'}">
+          ${(item.status || 'PENDING_REVIEW').replace(/_/g, ' ')}
+        </span>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
-        <div><strong>Litigant Name:</strong> ${escapeHtml(item.litigant_name || '')} (${escapeHtml(item.litigant_role || 'Petitioner')})</div>
-        <div><strong>Contact Mobile:</strong> <a href="tel:${item.phone}" style="color: #16a34a; font-weight: bold;">${escapeHtml(item.phone || '')}</a></div>
-        <div><strong>Father/Spouse:</strong> ${escapeHtml(item.father_or_spouse || 'Not specified')}</div>
-        <div><strong>Email:</strong> ${escapeHtml(item.email || 'N/A')}</div>
-        <div><strong>Aadhaar / ID:</strong> ${escapeHtml(item.aadhaar_no || 'N/A')}</div>
-        <div><strong>District / State:</strong> ${escapeHtml(item.district || 'Kolar')}, ${escapeHtml(item.state || 'Karnataka')}</div>
-        <div style="grid-column: span 2;"><strong>Residential Address:</strong> ${escapeHtml(item.address || 'N/A')}</div>
+      <div class="dossier-grid-2">
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Litigant Name</span>
+          <span class="dossier-prop-value">${escapeHtml(item.litigant_name || '')} (${escapeHtml(item.litigant_role || 'Petitioner')})</span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Contact Mobile</span>
+          <span class="dossier-prop-value">
+            <a href="tel:${item.phone}" style="color: var(--accent-emerald); font-weight: 700; text-decoration: none;">
+              <i class="fa-solid fa-phone" style="font-size: 10px; margin-right: 4px;"></i>${escapeHtml(item.phone || '')}
+            </a>
+          </span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Father / Spouse</span>
+          <span class="dossier-prop-value">${escapeHtml(item.father_or_spouse || 'Not specified')}</span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Email Address</span>
+          <span class="dossier-prop-value">${escapeHtml(item.email || 'N/A')}</span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Aadhaar / ID</span>
+          <span class="dossier-prop-value">${escapeHtml(item.aadhaar_no || 'N/A')}</span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">District &amp; State</span>
+          <span class="dossier-prop-value">${escapeHtml(item.district || 'Kolar')}, ${escapeHtml(item.state || 'Karnataka')}</span>
+        </div>
+        <div class="dossier-prop" style="grid-column: 1 / -1;">
+          <span class="dossier-prop-label">Residential Address</span>
+          <span class="dossier-prop-value">${escapeHtml(item.address || 'N/A')}</span>
+        </div>
       </div>
     </div>
 
-    <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
-      <h4 style="margin: 0 0 12px 0; color: #1e3a5f; font-size: 14px;"><i class="fa-solid fa-gavel" style="margin-right: 6px;"></i>Court &amp; Proceedings Particulars</h4>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
-        <div><strong>Court Name:</strong> ${escapeHtml(item.court_name || '')}</div>
-        <div><strong>Court Tier:</strong> ${escapeHtml(item.court_tier || 'District Court')}</div>
-        <div><strong>Case / Suit No:</strong> ${escapeHtml(item.case_number || '')}</div>
-        <div><strong>Year Filed:</strong> ${escapeHtml(item.year_filed || '')}</div>
-        <div><strong>Case Type:</strong> ${escapeHtml(item.case_type || '')}</div>
-        <div><strong>CNR Number:</strong> ${escapeHtml(item.cnr_number || 'N/A')}</div>
-        <div><strong>Opposite Party:</strong> ${escapeHtml(item.opposite_party_name || '')}</div>
-        <div><strong>Opposite Advocate:</strong> ${escapeHtml(item.opposite_advocate || 'N/A')}</div>
-        <div><strong>Hearings / Vaidas Attended:</strong> <span style="color: #dc2626; font-weight: bold;">${escapeHtml(item.hearings_count || '')}</span></div>
-        <div><strong>Current Stage:</strong> ${escapeHtml(item.case_stage || '')}</div>
-        <div><strong>Next Hearing Date:</strong> ${item.next_hearing_date ? new Date(item.next_hearing_date).toLocaleDateString('en-IN') : 'Not scheduled'}</div>
-        <div><strong>Relief Requested:</strong> ${escapeHtml(item.legal_aid_required || '')}</div>
+    <!-- Court & Proceedings Particulars Box -->
+    <div class="dossier-box">
+      <h4 style="margin: 0 0 14px 0; color: var(--text-main); font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-gavel" style="color: var(--primary);"></i> Court &amp; Proceedings Particulars
+      </h4>
+      <div class="dossier-grid-2">
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Court Name</span>
+          <span class="dossier-prop-value">${escapeHtml(item.court_name || '')}</span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Court Tier</span>
+          <span class="dossier-prop-value">${escapeHtml(item.court_tier || 'District Court')}</span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Case / Suit No</span>
+          <span class="dossier-prop-value" style="font-weight: 800;">${escapeHtml(item.case_number || '')}</span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Year Filed</span>
+          <span class="dossier-prop-value">${escapeHtml(item.year_filed || '')}</span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Case Type</span>
+          <span class="dossier-prop-value" style="color: #0284c7;">${escapeHtml(item.case_type || '')}</span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">CNR Number</span>
+          <span class="dossier-prop-value" style="font-family: monospace;">${escapeHtml(item.cnr_number || 'N/A')}</span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Opposite Party</span>
+          <span class="dossier-prop-value">${escapeHtml(item.opposite_party_name || '')}</span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Opposite Advocate</span>
+          <span class="dossier-prop-value">${escapeHtml(item.opposite_advocate || 'N/A')}</span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Hearings / Vaidas Attended</span>
+          <span class="dossier-prop-value">
+            <span class="${isSevere ? 'badge badge-critical' : 'badge badge-warning'}" style="padding: 2px 8px; font-size: 12px;">
+              ${escapeHtml(item.hearings_count || '10+ Hearings')}
+            </span>
+          </span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Current Stage</span>
+          <span class="dossier-prop-value">${escapeHtml(item.case_stage || '')}</span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Next Hearing Date</span>
+          <span class="dossier-prop-value">${item.next_hearing_date ? new Date(item.next_hearing_date).toLocaleDateString('en-IN') : 'Not scheduled'}</span>
+        </div>
+        <div class="dossier-prop">
+          <span class="dossier-prop-label">Relief Requested</span>
+          <span class="dossier-prop-value">${escapeHtml(item.legal_aid_required || '')}</span>
+        </div>
       </div>
     </div>
 
-    <div style="margin-bottom: 20px;">
-      <h4 style="margin: 0 0 6px 0; color: #1e3a5f; font-size: 14px;">Reasons for Repeated Adjournments / Stall:</h4>
-      <p style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #92400e; margin: 0;">
+    <!-- Reasons for Delay Callout -->
+    <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px;">
+      <h4 style="margin: 0 0 6px 0; color: var(--accent-amber); font-size: 13.5px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+        <i class="fa-solid fa-triangle-exclamation"></i> Reasons for Repeated Adjournments / Stall:
+      </h4>
+      <p style="font-size: 13px; color: var(--text-main); margin: 0; line-height: 1.55;">
         ${escapeHtml(item.delay_reasons || 'Frequent adjournments requested by opposite party.')}
       </p>
     </div>
 
-    <div style="margin-bottom: 20px;">
-      <h4 style="margin: 0 0 6px 0; color: #1e3a5f; font-size: 14px;">Detailed Dispute Summary &amp; Hardship Faced:</h4>
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #334155; line-height: 1.5;">
+    <!-- Dispute Summary & Hardship Box -->
+    <div class="dossier-box">
+      <h4 style="margin: 0 0 8px 0; color: var(--text-main); font-size: 14px; font-weight: 700;">Detailed Dispute Summary &amp; Hardship Faced:</h4>
+      <div style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
         ${escapeHtml(item.dispute_summary || '')}
-        ${item.hardship_details ? `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1; color: #b91c1c;"><strong>Specific Hardship:</strong> ${escapeHtml(item.hardship_details)}</div>` : ''}
+        ${item.hardship_details ? `
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color); color: var(--accent-rose);">
+            <strong>Specific Hardship:</strong> ${escapeHtml(item.hardship_details)}
+          </div>
+        ` : ''}
       </div>
     </div>
 
     ${item.document_urls ? `
-      <div style="margin-bottom: 20px;">
-        <h4 style="margin: 0 0 6px 0; color: #1e3a5f; font-size: 14px;">Attached Court Documents:</h4>
-        <a href="${item.document_urls}" target="_blank" class="btn btn-sm btn-outline-secondary" style="display: inline-flex; align-items: center; gap: 6px;">
-          <i class="fa-solid fa-file-pdf"></i> View Attached Case Document
+      <div class="dossier-box" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <h4 style="margin: 0 0 4px 0; color: var(--text-main); font-size: 13.5px; font-weight: 700;">Attached Court Documents:</h4>
+          <span style="font-size: 12px; color: var(--text-muted);">Verified petition memo or order sheets</span>
+        </div>
+        <a href="${item.document_urls}" target="_blank" class="btn btn-sm btn-outline" style="display: inline-flex; align-items: center; gap: 6px;">
+          <i class="fa-solid fa-file-pdf" style="color: var(--accent-rose);"></i> View Attached Document
         </a>
       </div>
     ` : ''}
 
-    <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px; padding: 16px;">
-      <h4 style="margin: 0 0 12px 0; color: #1e1b4b; font-size: 14px;"><i class="fa-solid fa-user-gear" style="margin-right: 6px;"></i>Admin Legal Action &amp; Advocate Assignment</h4>
+    <!-- Admin Legal Action & Advocate Assignment Box -->
+    <div class="dossier-box" style="border-left: 4px solid var(--primary); background: var(--bg-card);">
+      <h4 style="margin: 0 0 14px 0; color: var(--text-main); font-size: 14.5px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-user-gear" style="color: var(--primary);"></i> Admin Legal Action &amp; Advocate Assignment
+      </h4>
       <form id="form-update-law-status">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
           <div>
-            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Legal Case Status:</label>
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Legal Case Status:</label>
             <select id="modal-law-status" class="form-control" style="width: 100%;">
               <option value="PENDING_REVIEW" ${item.status === 'PENDING_REVIEW' ? 'selected' : ''}>PENDING REVIEW</option>
               <option value="ADVOCATE_ASSIGNED" ${item.status === 'ADVOCATE_ASSIGNED' ? 'selected' : ''}>ADVOCATE ASSIGNED</option>
@@ -4721,16 +4943,16 @@ function openLawDossierModal(item) {
             </select>
           </div>
           <div>
-            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Assigned PPPI Advocate:</label>
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Assigned PPPI Advocate:</label>
             <input type="text" id="modal-law-advocate" class="form-control" value="${escapeHtml(item.assigned_advocate || '')}" placeholder="e.g. Adv. B. R. Sreenivasa Murthy" style="width: 100%;" />
           </div>
         </div>
-        <div style="margin-bottom: 14px;">
-          <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Advocate / Admin Action Notes:</label>
+        <div style="margin-bottom: 16px;">
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Advocate / Admin Action Notes:</label>
           <textarea id="modal-law-notes" class="form-control" rows="3" placeholder="Enter legal notes, next steps, court memo details..." style="width: 100%;">${escapeHtml(item.admin_notes || '')}</textarea>
         </div>
         <div style="text-align: right;">
-          <button type="submit" class="btn btn-primary" id="btn-save-law-status" style="background: #1e3a5f; border-color: #1e3a5f;">
+          <button type="submit" class="btn btn-primary" id="btn-save-law-status" style="font-weight: 700;">
             <i class="fa-solid fa-floppy-disk" style="margin-right: 6px;"></i> Save Legal Actions
           </button>
         </div>
@@ -4838,9 +5060,12 @@ function renderMarriagesView() {
   if (filtered.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align: center; padding: 36px 16px; color: #64748b;">
-          <i class="fa-solid fa-heart-crack" style="font-size: 28px; margin-bottom: 8px; display: block; color: #cbd5e1;"></i>
-          No couple marriage support applications matching your search filters.
+        <td colspan="7" style="text-align: center; padding: 48px 16px; color: var(--text-muted);">
+          <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(219, 39, 119, 0.1); color: #db2777; display: inline-flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 12px;">
+            <i class="fa-solid fa-heart-crack"></i>
+          </div>
+          <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">No Marriage Applications Found</h4>
+          <p style="font-size: 13px; margin: 0;">No couple dossiers matching your search criteria.</p>
         </td>
       </tr>
     `;
@@ -4852,21 +5077,33 @@ function renderMarriagesView() {
     return `
       <tr>
         <td>
-          <div style="font-family: monospace; font-size: 11.5px; font-weight: 800; color: #be123c;">${escapeHtml(a.application_no || '')}</div>
-          <strong style="color: #0f172a; font-size: 13.5px;">${escapeHtml(a.groom_name || '')} &amp; ${escapeHtml(a.bride_name || '')}</strong>
-          <div style="font-size: 11px; color: #64748b;">${escapeHtml(a.relationship_years || 'Couple')} in love</div>
+          <div style="font-family: monospace; font-size: 11.5px; font-weight: 800; color: #db2777; letter-spacing: 0.5px;">${escapeHtml(a.application_no || '')}</div>
+          <strong style="color: var(--text-main); font-size: 13.5px; display: block; margin-top: 2px;">
+            ${escapeHtml(a.groom_name || '')} &amp; ${escapeHtml(a.bride_name || '')}
+          </strong>
+          <span class="badge badge-purple" style="font-size: 10.5px; padding: 1px 6px; margin-top: 3px;">
+            ${escapeHtml(a.relationship_years || 'Couple')} in love
+          </span>
         </td>
         <td>
-          <div style="font-size: 12px;"><i class="fa-solid fa-mars" style="color:#0284c7; margin-right:4px;"></i>${escapeHtml(a.groom_phone || 'N/A')} (${escapeHtml(a.groom_district || 'Kolar')})</div>
-          <div style="font-size: 12px; margin-top:2px;"><i class="fa-solid fa-venus" style="color:#db2777; margin-right:4px;"></i>${escapeHtml(a.bride_phone || 'N/A')} (${escapeHtml(a.bride_district || 'Kolar')})</div>
+          <div style="font-size: 12px; font-weight: 600; color: var(--text-main);">
+            <i class="fa-solid fa-mars" style="color: #0284c7; margin-right: 5px;"></i>
+            <a href="tel:${a.groom_phone}" style="color: inherit; text-decoration: none;">${escapeHtml(a.groom_phone || 'N/A')}</a>
+            <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(${escapeHtml(a.groom_district || 'Kolar')})</span>
+          </div>
+          <div style="font-size: 12px; font-weight: 600; color: var(--text-main); margin-top: 4px;">
+            <i class="fa-solid fa-venus" style="color: #db2777; margin-right: 5px;"></i>
+            <a href="tel:${a.bride_phone}" style="color: inherit; text-decoration: none;">${escapeHtml(a.bride_phone || 'N/A')}</a>
+            <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(${escapeHtml(a.bride_district || 'Kolar')})</span>
+          </div>
         </td>
         <td>
-          <div style="font-weight: 600; color: #881337; font-size: 12.5px;">${escapeHtml(a.barrier_type || 'Social Barrier')}</div>
-          <small style="color: #64748b; font-size: 11px;">${escapeHtml(a.assistance_required || 'Counseling')}</small>
+          <div style="font-weight: 700; color: var(--text-main); font-size: 12.5px;">${escapeHtml(a.barrier_type || 'Social Barrier')}</div>
+          <small style="color: var(--text-muted); font-size: 11px; display: block; margin-top: 2px;">${escapeHtml(a.assistance_required || 'Counseling')}</small>
         </td>
         <td>
-          <span style="display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; ${isUrgent ? 'background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5;' : 'background: #fef9c3; color: #854d0e; border: 1px solid #fde047;'}">
-            ${isUrgent ? '<i class="fa-solid fa-triangle-exclamation" style="margin-right:3px;"></i>' : ''}${escapeHtml(a.threat_level || 'MEDIUM')}
+          <span class="${isUrgent ? 'badge badge-critical' : 'badge badge-warning'}" style="padding: 4px 8px; font-size: 11px;">
+            ${isUrgent ? '<i class="fa-solid fa-triangle-exclamation" style="margin-right: 3px;"></i>' : ''}${escapeHtml(a.threat_level || 'MEDIUM')}
           </span>
         </td>
         <td>
@@ -4876,18 +5113,18 @@ function renderMarriagesView() {
         </td>
         <td>
           ${a.assigned_officer ? `
-            <div style="font-weight: 700; color: #be123c; font-size: 12px;">
-              <i class="fa-solid fa-user-shield" style="margin-right: 4px;"></i>${escapeHtml(a.assigned_officer)}
+            <div style="font-weight: 700; color: #db2777; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
+              <i class="fa-solid fa-user-shield"></i> ${escapeHtml(a.assigned_officer)}
             </div>
           ` : `
-            <span style="font-size: 11px; color: #94a3b8; font-style: italic;">Awaiting Assignment</span>
+            <span style="font-size: 11.5px; color: var(--text-muted); font-style: italic;">Awaiting Assignment</span>
           `}
         </td>
         <td style="text-align: right; white-space: nowrap;">
-          <button type="button" class="btn btn-sm btn-outline-primary btn-view-marriage-dossier" data-id="${a.id}" title="Review Couple Dossier" style="margin-right: 4px;">
+          <button type="button" class="btn btn-sm btn-outline-primary btn-view-marriage-dossier" data-id="${a.id}" title="Review Couple Dossier" style="margin-right: 4px; padding: 4px 10px;">
             <i class="fa-solid fa-eye"></i> View
           </button>
-          <button type="button" class="btn btn-sm btn-outline-danger btn-delete-marriage-app" data-id="${a.id}" title="Delete Application">
+          <button type="button" class="btn btn-sm btn-outline-danger btn-delete-marriage-app" data-id="${a.id}" title="Delete Application" style="padding: 4px 8px;">
             <i class="fa-solid fa-trash"></i>
           </button>
         </td>
@@ -4896,7 +5133,7 @@ function renderMarriagesView() {
   }).join('');
 
   // Bind View Dossier buttons
-  document.querySelectorAll('.btn-view-marriage-dossier').forEach(btn => {
+  tbody.querySelectorAll('.btn-view-marriage-dossier').forEach(btn => {
     btn.onclick = () => {
       const id = btn.getAttribute('data-id');
       const item = applications.find(x => String(x.id) === String(id));
@@ -4905,7 +5142,7 @@ function renderMarriagesView() {
   });
 
   // Bind Delete buttons
-  document.querySelectorAll('.btn-delete-marriage-app').forEach(btn => {
+  tbody.querySelectorAll('.btn-delete-marriage-app').forEach(btn => {
     btn.onclick = async () => {
       const id = btn.getAttribute('data-id');
       if (!confirm('Are you sure you want to remove this confidential marriage support application?')) return;
@@ -4930,13 +5167,15 @@ function openMarriageDossierModal(item) {
     modalDiv.className = 'modal';
     modalDiv.style.display = 'none';
     modalDiv.innerHTML = `
-      <div class="modal-dialog" style="max-width: 840px;">
-        <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
-          <div class="modal-header" style="background: #881337; color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
-            <h3 class="modal-title" style="margin: 0; font-size: 16px;"><i class="fa-solid fa-heart" style="margin-right: 8px;"></i>Confidential Couple Dossier &amp; Social Aid Review</h3>
-            <button type="button" id="btn-close-marriage-dossier-x" style="color: white; background: none; border: none; font-size: 20px; cursor: pointer;">&times;</button>
+      <div class="modal-dialog" style="max-width: 860px;">
+        <div class="modal-content" style="border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); background: var(--bg-card);">
+          <div class="modal-header" style="background: linear-gradient(135deg, #881337 0%, #4c0519 100%); color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <h3 class="modal-title" style="margin: 0; font-size: 16px; color: white; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-heart" style="color: #f472b6;"></i> Confidential Couple Dossier &amp; Social Aid Review
+            </h3>
+            <button type="button" id="btn-close-marriage-dossier-x" style="color: white; background: none; border: none; font-size: 24px; cursor: pointer; line-height: 1; opacity: 0.8;">&times;</button>
           </div>
-          <div class="modal-body" id="marriage-modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;"></div>
+          <div class="modal-body" id="marriage-modal-body" style="padding: 20px; max-height: 78vh; overflow-y: auto;"></div>
         </div>
       </div>
     `;
@@ -4951,77 +5190,146 @@ function openMarriageDossierModal(item) {
   const body = document.getElementById('marriage-modal-body');
   if (!body) return;
 
+  const isUrgent = item.threat_level === 'URGENT' || item.threat_level === 'HIGH';
+
   body.innerHTML = `
-    <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-      <div>
-        <span style="font-family: monospace; font-size: 15px; font-weight: 800; color: #881337;">${escapeHtml(item.application_no || '')}</span>
-        <span style="background: #fdf2f8; color: #db2777; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; margin-left: 8px;">STRICTLY CONFIDENTIAL</span>
-      </div>
-      <div>
-        <span class="badge badge-warning" style="margin-right: 6px;">Threat: ${escapeHtml(item.threat_level || 'MEDIUM')}</span>
-        <span class="badge badge-primary">${(item.status || 'UNDER_VERIFICATION').replace(/_/g, ' ')}</span>
+    <!-- Top Summary Banner -->
+    <div class="dossier-box">
+      <div class="dossier-header-row">
+        <div>
+          <span style="font-family: monospace; font-size: 15px; font-weight: 800; color: #db2777;">${escapeHtml(item.application_no || '')}</span>
+          <span class="badge badge-purple" style="margin-left: 8px; font-size: 11px; font-weight: 800;">
+            <i class="fa-solid fa-lock" style="font-size: 10px; margin-right: 3px;"></i> STRICTLY CONFIDENTIAL
+          </span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span class="${isUrgent ? 'badge badge-critical' : 'badge badge-warning'}">
+            Threat: ${escapeHtml(item.threat_level || 'MEDIUM')}
+          </span>
+          <span class="badge ${item.status === 'MARRIAGE_SOLEMNIZED' ? 'badge-success' : 'badge-primary'}">
+            ${(item.status || 'UNDER_VERIFICATION').replace(/_/g, ' ')}
+          </span>
+        </div>
       </div>
     </div>
 
     <!-- DUAL COLUMN COMPARISON: GROOM VS BRIDE -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
       <!-- Groom Card -->
-      <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; padding: 14px;">
-        <h4 style="margin: 0 0 10px 0; color: #0369a1; font-size: 14px; border-bottom: 1px solid #e0f2fe; padding-bottom: 6px;">
-          <i class="fa-solid fa-mars" style="margin-right: 6px;"></i>Groom (Boy Side) Details
+      <div class="dossier-box" style="margin-bottom: 0; border-top: 3px solid #0284c7;">
+        <h4 style="margin: 0 0 12px 0; color: #0284c7; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+          <i class="fa-solid fa-mars"></i> Groom (Boy Side) Details
         </h4>
-        <div style="font-size: 12.5px; line-height: 1.6; color: #1e293b;">
-          <div><strong>Name:</strong> ${escapeHtml(item.groom_name || '')} (Age: ${item.groom_age})</div>
-          <div><strong>Father:</strong> ${escapeHtml(item.groom_father || 'N/A')}</div>
-          <div><strong>Phone:</strong> <a href="tel:${item.groom_phone}" style="color: #0284c7; font-weight: bold;">${escapeHtml(item.groom_phone || '')}</a></div>
-          <div><strong>Email:</strong> ${escapeHtml(item.groom_email || 'N/A')}</div>
-          <div><strong>Aadhaar:</strong> ${escapeHtml(item.groom_aadhaar || 'N/A')}</div>
-          <div><strong>PAN Card:</strong> ${escapeHtml(item.groom_pan || 'N/A')}</div>
-          <div><strong>Religion/Caste:</strong> ${escapeHtml(item.groom_religion || '')} - ${escapeHtml(item.groom_caste || 'N/A')}</div>
-          <div><strong>Occupation:</strong> ${escapeHtml(item.groom_occupation || '')} (${escapeHtml(item.groom_income || 'N/A')})</div>
-          <div><strong>Address:</strong> ${escapeHtml(item.groom_address || '')}, ${escapeHtml(item.groom_district || '')}</div>
+        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12.5px;">
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Full Name &amp; Age</span>
+            <span class="dossier-prop-value">${escapeHtml(item.groom_name || '')} (Age: ${item.groom_age || 'N/A'})</span>
+          </div>
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Father's Name</span>
+            <span class="dossier-prop-value">${escapeHtml(item.groom_father || 'N/A')}</span>
+          </div>
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Phone</span>
+            <span class="dossier-prop-value">
+              <a href="tel:${item.groom_phone}" style="color: #0284c7; font-weight: 700; text-decoration: none;">
+                <i class="fa-solid fa-phone" style="font-size: 10px; margin-right: 4px;"></i>${escapeHtml(item.groom_phone || '')}
+              </a>
+            </span>
+          </div>
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Email</span>
+            <span class="dossier-prop-value">${escapeHtml(item.groom_email || 'N/A')}</span>
+          </div>
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Aadhaar &amp; PAN</span>
+            <span class="dossier-prop-value">${escapeHtml(item.groom_aadhaar || 'N/A')} • ${escapeHtml(item.groom_pan || 'N/A')}</span>
+          </div>
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Religion &amp; Caste</span>
+            <span class="dossier-prop-value">${escapeHtml(item.groom_religion || '')} - ${escapeHtml(item.groom_caste || 'N/A')}</span>
+          </div>
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Occupation &amp; Income</span>
+            <span class="dossier-prop-value">${escapeHtml(item.groom_occupation || 'N/A')} (${escapeHtml(item.groom_income || 'N/A')})</span>
+          </div>
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Address</span>
+            <span class="dossier-prop-value">${escapeHtml(item.groom_address || '')}, ${escapeHtml(item.groom_district || '')}</span>
+          </div>
         </div>
       </div>
 
       <!-- Bride Card -->
-      <div style="background: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 10px; padding: 14px;">
-        <h4 style="margin: 0 0 10px 0; color: #be185d; font-size: 14px; border-bottom: 1px solid #fce7f3; padding-bottom: 6px;">
-          <i class="fa-solid fa-venus" style="margin-right: 6px;"></i>Bride (Girl Side) Details
+      <div class="dossier-box" style="margin-bottom: 0; border-top: 3px solid #db2777;">
+        <h4 style="margin: 0 0 12px 0; color: #db2777; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+          <i class="fa-solid fa-venus"></i> Bride (Girl Side) Details
         </h4>
-        <div style="font-size: 12.5px; line-height: 1.6; color: #1e293b;">
-          <div><strong>Name:</strong> ${escapeHtml(item.bride_name || '')} (Age: ${item.bride_age})</div>
-          <div><strong>Father:</strong> ${escapeHtml(item.bride_father || 'N/A')}</div>
-          <div><strong>Phone:</strong> <a href="tel:${item.bride_phone}" style="color: #db2777; font-weight: bold;">${escapeHtml(item.bride_phone || '')}</a></div>
-          <div><strong>Email:</strong> ${escapeHtml(item.bride_email || 'N/A')}</div>
-          <div><strong>Aadhaar:</strong> ${escapeHtml(item.bride_aadhaar || 'N/A')}</div>
-          <div><strong>PAN Card:</strong> ${escapeHtml(item.bride_pan || 'N/A')}</div>
-          <div><strong>Religion/Caste:</strong> ${escapeHtml(item.bride_religion || '')} - ${escapeHtml(item.bride_caste || 'N/A')}</div>
-          <div><strong>Occupation:</strong> ${escapeHtml(item.bride_occupation || '')} (${escapeHtml(item.bride_income || 'N/A')})</div>
-          <div><strong>Address:</strong> ${escapeHtml(item.bride_address || '')}, ${escapeHtml(item.bride_district || '')}</div>
+        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12.5px;">
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Full Name &amp; Age</span>
+            <span class="dossier-prop-value">${escapeHtml(item.bride_name || '')} (Age: ${item.bride_age || 'N/A'})</span>
+          </div>
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Father's Name</span>
+            <span class="dossier-prop-value">${escapeHtml(item.bride_father || 'N/A')}</span>
+          </div>
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Phone</span>
+            <span class="dossier-prop-value">
+              <a href="tel:${item.bride_phone}" style="color: #db2777; font-weight: 700; text-decoration: none;">
+                <i class="fa-solid fa-phone" style="font-size: 10px; margin-right: 4px;"></i>${escapeHtml(item.bride_phone || '')}
+              </a>
+            </span>
+          </div>
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Email</span>
+            <span class="dossier-prop-value">${escapeHtml(item.bride_email || 'N/A')}</span>
+          </div>
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Aadhaar &amp; PAN</span>
+            <span class="dossier-prop-value">${escapeHtml(item.bride_aadhaar || 'N/A')} • ${escapeHtml(item.bride_pan || 'N/A')}</span>
+          </div>
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Religion &amp; Caste</span>
+            <span class="dossier-prop-value">${escapeHtml(item.bride_religion || '')} - ${escapeHtml(item.bride_caste || 'N/A')}</span>
+          </div>
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Occupation &amp; Income</span>
+            <span class="dossier-prop-value">${escapeHtml(item.bride_occupation || 'N/A')} (${escapeHtml(item.bride_income || 'N/A')})</span>
+          </div>
+          <div class="dossier-prop">
+            <span class="dossier-prop-label">Address</span>
+            <span class="dossier-prop-value">${escapeHtml(item.bride_address || '')}, ${escapeHtml(item.bride_district || '')}</span>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Struggle & Opposition Background -->
-    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-bottom: 20px;">
-      <h4 style="margin: 0 0 6px 0; color: #881337; font-size: 13.5px;"><i class="fa-solid fa-circle-exclamation" style="margin-right: 6px;"></i>Dispute, Family Opposition &amp; Struggle Details:</h4>
-      <p style="font-size: 13px; color: #334155; line-height: 1.5; margin: 0 0 8px 0;">
+    <div class="dossier-box">
+      <h4 style="margin: 0 0 8px 0; color: var(--text-main); font-size: 13.5px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+        <i class="fa-solid fa-circle-exclamation" style="color: var(--accent-amber);"></i> Dispute, Family Opposition &amp; Struggle Details:
+      </h4>
+      <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6; margin: 0 0 10px 0;">
         ${escapeHtml(item.dispute_summary || 'No narrative specified.')}
       </p>
-      <div style="display: flex; gap: 16px; font-size: 12px; color: #64748b; border-top: 1px dashed #e2e8f0; padding-top: 8px;">
-        <div><strong>Barrier Category:</strong> ${escapeHtml(item.barrier_type || '')}</div>
-        <div><strong>Relationship Duration:</strong> ${escapeHtml(item.relationship_years || 'N/A')}</div>
-        <div><strong>Assistance Desired:</strong> ${escapeHtml(item.assistance_required || '')}</div>
+      <div style="display: flex; gap: 20px; font-size: 12px; color: var(--text-muted); border-top: 1px dashed var(--border-color); padding-top: 8px; flex-wrap: wrap;">
+        <div><strong>Barrier Category:</strong> <span style="color: var(--text-main);">${escapeHtml(item.barrier_type || '')}</span></div>
+        <div><strong>Relationship Duration:</strong> <span style="color: var(--text-main);">${escapeHtml(item.relationship_years || 'N/A')}</span></div>
+        <div><strong>Assistance Desired:</strong> <span style="color: var(--text-main);">${escapeHtml(item.assistance_required || '')}</span></div>
       </div>
     </div>
 
     <!-- Admin Action & Counselor Assignment -->
-    <div style="background: #fdf4ff; border: 1px solid #f0abfc; border-radius: 10px; padding: 16px;">
-      <h4 style="margin: 0 0 12px 0; color: #701a75; font-size: 14px;"><i class="fa-solid fa-hand-holding-heart" style="margin-right: 6px;"></i>Social Harmony Action &amp; Counselor Assignment</h4>
+    <div class="dossier-box" style="border-left: 4px solid #db2777; background: var(--bg-card);">
+      <h4 style="margin: 0 0 14px 0; color: var(--text-main); font-size: 14.5px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-hand-holding-heart" style="color: #db2777;"></i> Social Harmony Action &amp; Counselor Assignment
+      </h4>
       <form id="form-update-marriage-status">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
           <div>
-            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Application Status:</label>
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Application Status:</label>
             <select id="modal-marriage-status" class="form-control" style="width: 100%;">
               <option value="UNDER_VERIFICATION" ${item.status === 'UNDER_VERIFICATION' ? 'selected' : ''}>UNDER VERIFICATION</option>
               <option value="COUPLE_CONTACTED" ${item.status === 'COUPLE_CONTACTED' ? 'selected' : ''}>COUPLE CONTACTED & VERIFIED</option>
@@ -5033,16 +5341,16 @@ function openMarriageDossierModal(item) {
             </select>
           </div>
           <div>
-            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Assigned Counselor / Officer:</label>
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Assigned Counselor / Officer:</label>
             <input type="text" id="modal-marriage-officer" class="form-control" value="${escapeHtml(item.assigned_officer || '')}" placeholder="e.g. Smt. Kavitha Gowda (Social Harmony)" style="width: 100%;" />
           </div>
         </div>
-        <div style="margin-bottom: 14px;">
-          <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Verification &amp; Social Action Notes:</label>
+        <div style="margin-bottom: 16px;">
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Verification &amp; Social Action Notes:</label>
           <textarea id="modal-marriage-notes" class="form-control" rows="3" placeholder="Enter background check findings, parental contact notes, safety instructions..." style="width: 100%;">${escapeHtml(item.admin_notes || '')}</textarea>
         </div>
         <div style="text-align: right;">
-          <button type="submit" class="btn btn-primary" id="btn-save-marriage-status" style="background: #881337; border-color: #881337;">
+          <button type="submit" class="btn btn-primary" id="btn-save-marriage-status" style="background: #be123c; border-color: #be123c; font-weight: 700;">
             <i class="fa-solid fa-floppy-disk" style="margin-right: 6px;"></i> Save Action &amp; Counselor Notes
           </button>
         </div>
@@ -5231,9 +5539,12 @@ function renderEmergenciesView() {
   if (list.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align:center; padding: 40px; color:#64748b;">
-          <i class="fa-solid fa-shield-check" style="font-size:32px; color:#10b981; margin-bottom:10px; display:block;"></i>
-          No emergency alerts match the selected criteria.
+        <td colspan="7" style="text-align:center; padding: 48px 16px; color: var(--text-muted);">
+          <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(16, 185, 129, 0.12); color: var(--accent-emerald); display: inline-flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 12px;">
+            <i class="fa-solid fa-shield-check"></i>
+          </div>
+          <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">No Active Alerts Found</h4>
+          <p style="font-size: 13px; margin: 0;">No emergency alerts match the selected filter criteria.</p>
         </td>
       </tr>
     `;
@@ -5241,51 +5552,56 @@ function renderEmergenciesView() {
   }
 
   tbody.innerHTML = list.map(item => {
-    const sevBadge = item.severity === 'CRITICAL'
-      ? '<span style="background:#fee2e2; color:#dc2626; border:1px solid #f87171; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:800;">CRITICAL</span>'
+    const isCritical = item.severity === 'CRITICAL';
+    const sevBadge = isCritical
+      ? `<span class="badge badge-critical ${item.status === 'ACTIVE_ALERT' ? 'pulse-critical' : ''}" style="font-size: 11px; padding: 3px 8px;"><i class="fa-solid fa-triangle-exclamation" style="margin-right: 3px;"></i>CRITICAL</span>`
       : item.severity === 'HIGH'
-      ? '<span style="background:#ffedd5; color:#c2410c; border:1px solid #fb923c; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:800;">HIGH</span>'
-      : '<span style="background:#fef9c3; color:#a16207; border:1px solid #facc15; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:800;">MODERATE</span>';
+      ? '<span class="badge badge-high" style="font-size: 11px; padding: 3px 8px;">HIGH</span>'
+      : '<span class="badge badge-warning" style="font-size: 11px; padding: 3px 8px;">MODERATE</span>';
 
     const statusBadge = item.status === 'ACTIVE_ALERT'
-      ? '<span style="background:#fee2e2; color:#dc2626; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">ACTIVE ALERT</span>'
+      ? '<span class="badge badge-critical" style="font-size: 11px;">ACTIVE ALERT</span>'
       : item.status === 'PETITION_FILED'
-      ? '<span style="background:#dbeafe; color:#1d4ed8; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">PETITION FILED</span>'
+      ? '<span class="badge badge-primary" style="font-size: 11px;"><i class="fa-solid fa-file-contract"></i> PETITION FILED</span>'
       : item.status === 'DISPATCHED_TO_AUTHORITIES'
-      ? '<span style="background:#ffedd5; color:#ea580c; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">DISPATCHED</span>'
+      ? '<span class="badge badge-high" style="font-size: 11px;">DISPATCHED</span>'
       : item.status === 'RESOLVED'
-      ? '<span style="background:#dcfce7; color:#15803d; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">RESOLVED</span>'
-      : `<span style="background:#f1f5f9; color:#475569; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:700;">${escapeHtml(item.status || '')}</span>`;
+      ? '<span class="badge badge-success" style="font-size: 11px;">RESOLVED</span>'
+      : `<span class="badge badge-info" style="font-size: 11px;">${escapeHtml(item.status || '')}</span>`;
 
     const petitionBadge = item.petition_status === 'FILED'
-      ? `<div style="margin-top:4px;"><span style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; font-size:10.5px; font-weight:700; padding:1px 6px; border-radius:4px;"><i class="fa-solid fa-file-contract"></i> ${escapeHtml(item.petition_ref_no || 'Petition')}</span></div>`
+      ? `<div style="margin-top: 4px;"><span class="badge badge-info" style="font-size: 10px; font-weight: 700; padding: 1px 6px;"><i class="fa-solid fa-file-signature"></i> ${escapeHtml(item.petition_ref_no || 'Petition')}</span></div>`
       : '';
 
     const gpsLink = (item.latitude && item.longitude)
-      ? `<a href="https://maps.google.com/?q=${item.latitude},${item.longitude}" target="_blank" style="color:#0284c7; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px; margin-top:3px;"><i class="fa-solid fa-map-location-dot"></i> ${item.latitude.toFixed(4)}°, ${item.longitude.toFixed(4)}°</a>`
-      : '<span style="font-size:11px; color:#94a3b8;">Manual Address</span>';
+      ? `<a href="https://maps.google.com/?q=${item.latitude},${item.longitude}" target="_blank" style="color: #0284c7; font-size: 11.5px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-top: 3px;">
+          <i class="fa-solid fa-map-location-dot"></i> ${item.latitude.toFixed(4)}°, ${item.longitude.toFixed(4)}°
+        </a>`
+      : '<span style="font-size: 11px; color: var(--text-muted);">Manual Address</span>';
 
     return `
-      <tr style="${item.severity === 'CRITICAL' && item.status === 'ACTIVE_ALERT' ? 'background: #fff5f5;' : ''}">
+      <tr style="${isCritical && item.status === 'ACTIVE_ALERT' ? 'background: rgba(239, 68, 68, 0.06);' : ''}">
         <td>
-          <span style="font-family:monospace; font-weight:800; color:#991b1b;">${escapeHtml(item.alert_no || '')}</span>
-          <div style="font-size:11.5px; color:#64748b; margin-top:2px;">${new Date(item.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}, ${new Date(item.created_at || Date.now()).toLocaleDateString('en-IN')}</div>
+          <span style="font-family: monospace; font-weight: 800; color: var(--accent-rose); font-size: 12px; letter-spacing: 0.5px;">${escapeHtml(item.alert_no || '')}</span>
+          <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+            <i class="fa-regular fa-clock" style="font-size: 10px; margin-right: 3px;"></i>${new Date(item.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}, ${new Date(item.created_at || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+          </div>
         </td>
         <td>
-          <div style="font-weight:700; color:#0f172a; margin-bottom:4px;">${escapeHtml(item.category || '')}</div>
+          <div style="font-weight: 700; color: var(--text-main); margin-bottom: 4px; font-size: 13px;">${escapeHtml(item.category || '')}</div>
           ${sevBadge}
         </td>
         <td>
-          <div style="font-weight:600; color:#1e293b; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(item.location_name || '')}">
+          <div style="font-weight: 600; color: var(--text-main); max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(item.location_name || '')}">
             ${escapeHtml(item.location_name || '')}
           </div>
-          <div style="font-size:11.5px; color:#64748b;">${escapeHtml(item.landmark || item.district || 'Kolar')}</div>
+          <div style="font-size: 11.5px; color: var(--text-muted);">${escapeHtml(item.landmark || item.district || 'Kolar')}</div>
           ${gpsLink}
         </td>
         <td>
-          <div style="font-weight:700; color:#0f172a;">${escapeHtml(item.informant_name || '')}</div>
-          <a href="tel:${item.informant_phone}" style="color:#dc2626; font-weight:800; font-size:12px; text-decoration:none;">
-            <i class="fa-solid fa-phone" style="font-size:10px; margin-right:4px;"></i>${escapeHtml(item.informant_phone || '')}
+          <div style="font-weight: 700; color: var(--text-main); font-size: 13px;">${escapeHtml(item.informant_name || '')}</div>
+          <a href="tel:${item.informant_phone}" style="color: var(--accent-rose); font-weight: 700; font-size: 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-top: 2px;">
+            <i class="fa-solid fa-phone" style="font-size: 10px;"></i>${escapeHtml(item.informant_phone || '')}
           </a>
         </td>
         <td>
@@ -5293,16 +5609,18 @@ function renderEmergenciesView() {
           ${petitionBadge}
         </td>
         <td>
-          <div style="font-size:12.5px; font-weight:600; color:#334155;">${escapeHtml(item.assigned_officer || 'Unassigned')}</div>
+          <div style="font-size: 12.5px; font-weight: 600; color: var(--text-main); display: inline-flex; align-items: center; gap: 5px;">
+            <i class="fa-solid fa-shield-halved" style="color: var(--primary); font-size: 11px;"></i>${escapeHtml(item.assigned_officer || 'Unassigned')}
+          </div>
         </td>
         <td style="text-align: right; white-space: nowrap;">
-          <button class="btn btn-sm btn-outline btn-view-emergency-dossier" data-id="${item.id}" title="Inspect Dossier" style="padding:4px 8px; margin-right:4px;">
-            <i class="fa-solid fa-eye"></i>
+          <button class="btn btn-sm btn-outline-primary btn-view-emergency-dossier" data-id="${item.id}" title="Inspect Dossier" style="padding: 4px 10px; margin-right: 4px;">
+            <i class="fa-solid fa-eye"></i> View
           </button>
-          <button class="btn btn-sm btn-primary btn-file-emergency-petition" data-id="${item.id}" title="Draft & File Petition" style="background:#2563eb; border-color:#2563eb; padding:4px 10px; margin-right:4px;">
+          <button class="btn btn-sm btn-primary btn-file-emergency-petition" data-id="${item.id}" title="Draft & File Petition" style="padding: 4px 10px; margin-right: 4px;">
             <i class="fa-solid fa-file-signature"></i> Petition
           </button>
-          <button class="btn btn-sm btn-outline btn-delete-emergency" data-id="${item.id}" title="Dismiss Alert" style="color:#ef4444; border-color:#fca5a5; padding:4px 8px;">
+          <button class="btn btn-sm btn-outline-danger btn-delete-emergency" data-id="${item.id}" title="Dismiss Alert" style="padding: 4px 8px;">
             <i class="fa-solid fa-trash"></i>
           </button>
         </td>
@@ -5353,28 +5671,28 @@ function openEmergencyDossierModal(item, initialTab = 'dossier') {
     modalDiv.style.display = 'none';
     modalDiv.innerHTML = `
       <div class="modal-dialog" style="max-width: 880px;">
-        <div class="modal-content" style="border-radius: 12px; overflow: hidden; border-top: 5px solid #dc2626;">
-          <div class="modal-header" style="background: #7f1d1d; color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+        <div class="modal-content" style="border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); background: var(--bg-card); border-top: 4px solid var(--accent-rose);">
+          <div class="modal-header" style="background: linear-gradient(135deg, #991b1b 0%, #450a0a 100%); color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1);">
             <div>
-              <h3 class="modal-title" style="margin: 0; font-size: 16px; color: white;">
-                <i class="fa-solid fa-triangle-exclamation" style="margin-right: 8px; color: #f87171;"></i>
+              <h3 class="modal-title" style="margin: 0; font-size: 16px; color: white; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-triangle-exclamation" style="color: #f87171;"></i>
                 SOS Emergency Incident &amp; Statutory Petition Cell
               </h3>
-              <span id="emergency-modal-subhdr" style="font-size: 12px; color: #fecaca;"></span>
+              <span id="emergency-modal-subhdr" style="font-size: 12px; color: #fecaca; margin-top: 2px; display: block;"></span>
             </div>
-            <button type="button" id="btn-close-emergency-dossier-x" style="color: white; background: none; border: none; font-size: 24px; cursor: pointer; line-height: 1;">&times;</button>
+            <button type="button" id="btn-close-emergency-dossier-x" style="color: white; background: none; border: none; font-size: 24px; cursor: pointer; line-height: 1; opacity: 0.8;">&times;</button>
           </div>
 
-          <!-- TABS ROW -->
-          <div style="display: flex; border-bottom: 1px solid #e2e8f0; background: #f8fafc; padding: 0 16px;">
-            <button type="button" class="tab-btn active" id="tab-btn-dossier" style="padding: 12px 18px; font-weight: 700; border: none; background: none; cursor: pointer; border-bottom: 3px solid #dc2626; color: #dc2626;">
-              <i class="fa-solid fa-file-lines" style="margin-right: 6px;"></i> 1. Incident Dossier &amp; Ground Facts
+          <!-- TABS NAVIGATION -->
+          <div style="display: flex; border-bottom: 1px solid var(--border-color); background: var(--bg-main); padding: 0 16px; gap: 8px;">
+            <button type="button" class="tab-btn active" id="tab-btn-dossier" style="padding: 12px 18px; font-weight: 700; font-size: 13px; border: none; background: none; cursor: pointer; border-bottom: 3px solid var(--accent-rose); color: var(--accent-rose); display: inline-flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-file-lines"></i> 1. Incident Dossier &amp; Ground Facts
             </button>
-            <button type="button" class="tab-btn" id="tab-btn-petition" style="padding: 12px 18px; font-weight: 700; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent; color: #64748b;">
-              <i class="fa-solid fa-file-signature" style="margin-right: 6px;"></i> 2. Draft &amp; File Emergency Petition
+            <button type="button" class="tab-btn" id="tab-btn-petition" style="padding: 12px 18px; font-weight: 700; font-size: 13px; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-file-signature"></i> 2. Draft &amp; File Emergency Petition
             </button>
-            <button type="button" class="tab-btn" id="tab-btn-dispatch" style="padding: 12px 18px; font-weight: 700; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent; color: #64748b;">
-              <i class="fa-solid fa-person-running" style="margin-right: 6px;"></i> 3. Status &amp; Officer Dispatch
+            <button type="button" class="tab-btn" id="tab-btn-dispatch" style="padding: 12px 18px; font-weight: 700; font-size: 13px; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-person-running"></i> 3. Status &amp; Officer Dispatch
             </button>
           </div>
 
@@ -5404,79 +5722,118 @@ function openEmergencyDossierModal(item, initialTab = 'dossier') {
       const btn = document.getElementById(`tab-btn-${t}`);
       if (btn) {
         if (t === tabName) {
-          btn.style.borderBottom = '3px solid #dc2626';
-          btn.style.color = '#dc2626';
+          btn.style.borderBottom = '3px solid var(--accent-rose)';
+          btn.style.color = 'var(--accent-rose)';
         } else {
           btn.style.borderBottom = '3px solid transparent';
-          btn.style.color = '#64748b';
+          btn.style.color = 'var(--text-muted)';
         }
       }
     });
 
     if (tabName === 'dossier') {
       body.innerHTML = `
-        <!-- Alert Status Banner -->
-        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-          <div>
-            <span style="font-family: monospace; font-size: 16px; font-weight: 900; color: #991b1b;">${escapeHtml(item.alert_no || '')}</span>
-            <span style="background: #dc2626; color: white; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; margin-left: 8px;">${escapeHtml(item.severity || 'CRITICAL')}</span>
-            <span style="background: #fee2e2; color: #991b1b; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; margin-left: 6px;">${escapeHtml(item.category || '')}</span>
-          </div>
-          <div>
-            <span class="badge badge-primary">${(item.status || 'ACTIVE_ALERT').replace(/_/g, ' ')}</span>
-          </div>
-        </div>
-
-        <!-- Location & GPS Coordinates Card -->
-        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px; margin-bottom: 18px;">
-          <h4 style="margin: 0 0 10px 0; color: #166534; font-size: 14px;"><i class="fa-solid fa-location-dot" style="margin-right: 6px;"></i>Location &amp; Geolocation Coordinates</h4>
-          <div style="font-size: 13px; line-height: 1.6; color: #1e293b;">
-            <div><strong>Location:</strong> ${escapeHtml(item.location_name || '')}</div>
-            <div><strong>Landmark:</strong> ${escapeHtml(item.landmark || 'N/A')}</div>
-            <div><strong>District / State:</strong> ${escapeHtml(item.district || 'Kolar')}, ${escapeHtml(item.state || 'Karnataka')}</div>
-            ${(item.latitude && item.longitude) ? `
-              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #86efac;">
-                <strong>GPS Coordinates:</strong> Lat ${item.latitude.toFixed(5)}°, Long ${item.longitude.toFixed(5)}° (Accuracy: ±${Math.round(item.gps_accuracy || 10)}m)
-                <br />
-                <a href="https://maps.google.com/?q=${item.latitude},${item.longitude}" target="_blank" class="btn btn-sm btn-outline" style="background:#ffffff; color:#15803d; border-color:#86efac; font-weight:700; margin-top:6px; display:inline-flex; align-items:center; gap:6px;">
-                  <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Live Location in Google Maps
-                </a>
-              </div>
-            ` : '<div style="color: #64748b; font-size: 12px; margin-top: 4px;">No GPS coordinates captured. Citizen provided manual landmark address.</div>'}
+        <!-- Alert Status Dossier Box -->
+        <div class="dossier-box">
+          <div class="dossier-header-row">
+            <div>
+              <span style="font-family: monospace; font-size: 16px; font-weight: 900; color: var(--accent-rose);">${escapeHtml(item.alert_no || '')}</span>
+              <span class="badge badge-critical" style="margin-left: 8px;">${escapeHtml(item.severity || 'CRITICAL')}</span>
+              <span class="badge badge-info" style="margin-left: 6px;">${escapeHtml(item.category || '')}</span>
+            </div>
+            <div>
+              <span class="badge ${item.status === 'RESOLVED' ? 'badge-success' : 'badge-primary'}">${(item.status || 'ACTIVE_ALERT').replace(/_/g, ' ')}</span>
+            </div>
           </div>
         </div>
 
-        <!-- Incident Narrative -->
-        <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 18px;">
-          <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 15px;">${escapeHtml(item.title || item.category)}</h4>
-          <p style="font-size: 13.5px; color: #334155; line-height: 1.6; margin: 0 0 10px 0; white-space: pre-wrap;">${escapeHtml(item.description || 'No description.')}</p>
+        <!-- Location & Geolocation Box -->
+        <div class="dossier-box" style="border-left: 4px solid var(--accent-emerald);">
+          <h4 style="margin: 0 0 12px 0; color: var(--text-main); font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-location-dot" style="color: var(--accent-emerald);"></i> Location &amp; Geolocation Coordinates
+          </h4>
+          <div class="dossier-grid-2">
+            <div class="dossier-prop">
+              <span class="dossier-prop-label">Reported Location</span>
+              <span class="dossier-prop-value">${escapeHtml(item.location_name || '')}</span>
+            </div>
+            <div class="dossier-prop">
+              <span class="dossier-prop-label">Landmark</span>
+              <span class="dossier-prop-value">${escapeHtml(item.landmark || 'N/A')}</span>
+            </div>
+            <div class="dossier-prop">
+              <span class="dossier-prop-label">District &amp; State</span>
+              <span class="dossier-prop-value">${escapeHtml(item.district || 'Kolar')}, ${escapeHtml(item.state || 'Karnataka')}</span>
+            </div>
+            <div class="dossier-prop">
+              <span class="dossier-prop-label">GPS Fix</span>
+              <span class="dossier-prop-value">
+                ${(item.latitude && item.longitude)
+                  ? `Lat ${item.latitude.toFixed(5)}°, Long ${item.longitude.toFixed(5)}° (±${Math.round(item.gps_accuracy || 10)}m)`
+                  : 'Manual Address Given'}
+              </span>
+            </div>
+          </div>
+          ${(item.latitude && item.longitude) ? `
+            <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border-color);">
+              <a href="https://maps.google.com/?q=${item.latitude},${item.longitude}" target="_blank" class="btn btn-sm btn-outline" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700;">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Live Location in Google Maps
+              </a>
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Incident Narrative Box -->
+        <div class="dossier-box">
+          <h4 style="margin: 0 0 10px 0; color: var(--text-main); font-size: 15px; font-weight: 800;">${escapeHtml(item.title || item.category)}</h4>
+          <p style="font-size: 13.5px; color: var(--text-main); line-height: 1.6; margin: 0 0 10px 0; white-space: pre-wrap;">${escapeHtml(item.description || 'No description provided.')}</p>
           ${item.victim_condition ? `
-            <div style="background: #fff1f2; border-left: 4px solid #e11d48; padding: 8px 12px; font-size: 12.5px; color: #9f1239;">
+            <div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--accent-rose); padding: 10px 14px; font-size: 13px; color: var(--accent-rose); border-radius: 4px;">
               <strong>Victim Condition:</strong> ${escapeHtml(item.victim_condition)}
             </div>
           ` : ''}
         </div>
 
-        <!-- Informant Details -->
-        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; margin-bottom: 18px;">
-          <h4 style="margin: 0 0 10px 0; color: #334155; font-size: 14px;"><i class="fa-solid fa-address-card" style="margin-right: 6px;"></i>Informant / Reporting Person</h4>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
-            <div><strong>Name:</strong> ${escapeHtml(item.informant_name || '')}</div>
-            <div><strong>Primary Mobile:</strong> <a href="tel:${item.informant_phone}" style="color: #dc2626; font-weight: 800;">${escapeHtml(item.informant_phone || '')}</a></div>
-            <div><strong>Alternate Phone:</strong> ${escapeHtml(item.informant_alt_phone || 'None')}</div>
-            <div><strong>Logged At:</strong> ${new Date(item.created_at || Date.now()).toLocaleString('en-IN')}</div>
+        <!-- Informant Details Box -->
+        <div class="dossier-box">
+          <h4 style="margin: 0 0 12px 0; color: var(--text-main); font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-address-card" style="color: var(--primary);"></i> Informant / Reporting Person
+          </h4>
+          <div class="dossier-grid-2">
+            <div class="dossier-prop">
+              <span class="dossier-prop-label">Informant Name</span>
+              <span class="dossier-prop-value">${escapeHtml(item.informant_name || 'Anonymous')}</span>
+            </div>
+            <div class="dossier-prop">
+              <span class="dossier-prop-label">Primary Mobile</span>
+              <span class="dossier-prop-value">
+                <a href="tel:${item.informant_phone}" style="color: var(--accent-rose); font-weight: 800; text-decoration: none;">
+                  <i class="fa-solid fa-phone" style="font-size: 10px; margin-right: 4px;"></i>${escapeHtml(item.informant_phone || '')}
+                </a>
+              </span>
+            </div>
+            <div class="dossier-prop">
+              <span class="dossier-prop-label">Alternate Phone</span>
+              <span class="dossier-prop-value">${escapeHtml(item.informant_alt_phone || 'None')}</span>
+            </div>
+            <div class="dossier-prop">
+              <span class="dossier-prop-label">Logged At</span>
+              <span class="dossier-prop-value">${new Date(item.created_at || Date.now()).toLocaleString('en-IN')}</span>
+            </div>
           </div>
         </div>
 
         ${item.photo_url ? `
-          <div style="margin-bottom: 18px;">
-            <h4 style="margin: 0 0 8px 0; font-size: 13.5px; color: #334155;"><i class="fa-solid fa-camera" style="margin-right: 6px;"></i>Attached Incident Evidence Photo</h4>
-            <img src="${item.photo_url}" alt="Evidence" style="max-height: 220px; border-radius: 8px; border: 1px solid #cbd5e1; object-fit: cover;" />
+          <div class="dossier-box">
+            <h4 style="margin: 0 0 10px 0; font-size: 13.5px; color: var(--text-main); font-weight: 700; display: flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-camera"></i> Attached Incident Evidence Photo
+            </h4>
+            <img src="${item.photo_url}" alt="Evidence" style="max-height: 240px; border-radius: 8px; border: 1px solid var(--border-color); object-fit: cover;" />
           </div>
         ` : ''}
 
-        <div style="text-align: right; margin-top: 10px;">
-          <button type="button" class="btn btn-primary" id="btn-goto-petition-tab" style="background: #2563eb; border-color: #2563eb;">
+        <div style="text-align: right; margin-top: 14px;">
+          <button type="button" class="btn btn-primary" id="btn-goto-petition-tab" style="font-weight: 700;">
             <i class="fa-solid fa-file-signature" style="margin-right: 6px;"></i> Proceed to Draft Official Statutory Petition &rarr;
           </button>
         </div>
@@ -5532,16 +5889,18 @@ PPPI Rapid Emergency Command & Citizen Protection Cell
 Contact Helpline: +91 7259798393`;
 
       body.innerHTML = `
-        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 18px; margin-bottom: 18px;">
-          <h4 style="margin: 0 0 6px 0; color: #1e40af; font-size: 14px;"><i class="fa-solid fa-scroll" style="margin-right: 6px;"></i>Administrative &amp; Police Action Petition Generator</h4>
-          <p style="margin: 0; font-size: 12.5px; color: #3b82f6;">
-            Review and customize the formal petition below. Once filed, it will be recorded with an official PPPI Petition Reference Number and can be printed or dispatched via police wireless / WhatsApp messenger.
+        <div class="dossier-box" style="border-left: 4px solid var(--primary);">
+          <h4 style="margin: 0 0 6px 0; color: var(--text-main); font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-scroll" style="color: var(--primary);"></i> Administrative &amp; Police Action Petition Generator
+          </h4>
+          <p style="margin: 0; font-size: 12.5px; color: var(--text-muted);">
+            Review and customize the formal petition representation below. Once filed, it will be recorded with an official PPPI Petition Reference Number and can be printed or dispatched via police wireless or WhatsApp messenger.
           </p>
         </div>
 
         <form id="form-file-emergency-petition">
-          <div style="margin-bottom: 12px;">
-            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Target Statutory Authority: <span style="color:#dc2626;">*</span></label>
+          <div style="margin-bottom: 14px;">
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Target Statutory Authority: <span style="color:var(--accent-rose);">*</span></label>
             <select id="modal-petition-target" class="form-control" style="width: 100%;">
               <option value="Superintendent of Police (SP), Kolar District" ${targetAuth.includes('Superintendent') ? 'selected' : ''}>Superintendent of Police (SP), Kolar District</option>
               <option value="Deputy Commissioner & District Magistrate (DDMA), Kolar District" ${targetAuth.includes('Deputy Commissioner') ? 'selected' : ''}>Deputy Commissioner & District Magistrate (DDMA), Kolar District</option>
@@ -5551,26 +5910,26 @@ Contact Helpline: +91 7259798393`;
             </select>
           </div>
 
-          <div style="margin-bottom: 12px;">
-            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Petition Subject Line: <span style="color:#dc2626;">*</span></label>
+          <div style="margin-bottom: 14px;">
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Petition Subject Line: <span style="color:var(--accent-rose);">*</span></label>
             <input type="text" id="modal-petition-subject" class="form-control" value="${escapeHtml(defaultSubject)}" style="width: 100%; font-weight: 600;" required />
           </div>
 
-          <div style="margin-bottom: 14px;">
-            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Complete Petition Representation Body: <span style="color:#dc2626;">*</span></label>
-            <textarea id="modal-petition-body" class="form-control" rows="12" style="font-family: inherit; font-size: 12.5px; line-height: 1.55; width: 100%;" required>${escapeHtml(defaultText)}</textarea>
+          <div style="margin-bottom: 16px;">
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Complete Petition Representation Body: <span style="color:var(--accent-rose);">*</span></label>
+            <textarea id="modal-petition-body" class="form-control" rows="12" style="font-family: monospace; font-size: 12.5px; line-height: 1.55; width: 100%;" required>${escapeHtml(defaultText)}</textarea>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-            <div style="display: flex; gap: 8px;">
-              <button type="button" class="btn btn-outline" id="btn-print-petition" style="border-color: #cbd5e1;">
-                <i class="fa-solid fa-print" style="margin-right: 4px;"></i> Print / Export Petition
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; gap: 10px;">
+              <button type="button" class="btn btn-outline" id="btn-print-petition">
+                <i class="fa-solid fa-print" style="margin-right: 4px;"></i> Print / Export
               </button>
-              <button type="button" class="btn btn-outline" id="btn-copy-petition-text" style="border-color: #cbd5e1;">
+              <button type="button" class="btn btn-outline" id="btn-copy-petition-text">
                 <i class="fa-solid fa-copy" style="margin-right: 4px;"></i> Copy Petition Text
               </button>
             </div>
-            <button type="submit" class="btn btn-primary" id="btn-submit-file-petition" style="background: #2563eb; border-color: #2563eb; padding: 10px 20px; font-weight: 800;">
+            <button type="submit" class="btn btn-primary" id="btn-submit-file-petition" style="font-weight: 800; padding: 10px 22px;">
               <i class="fa-solid fa-stamp" style="margin-right: 6px;"></i> Submit &amp; Mark Petition Filed
             </button>
           </div>
@@ -5585,7 +5944,7 @@ Contact Helpline: +91 7259798393`;
           navigator.clipboard.writeText(txt).then(() => {
             btnCopy.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
             setTimeout(() => {
-              btnCopy.innerHTML = '<i class="fa-solid fa-copy"></i> Copy Petition Text';
+              btnCopy.innerHTML = '<i class="fa-solid fa-copy" style="margin-right: 4px;"></i> Copy Petition Text';
             }, 2000);
           });
         };
@@ -5664,17 +6023,19 @@ Contact Helpline: +91 7259798393`;
       }
     } else if (tabName === 'dispatch') {
       body.innerHTML = `
-        <div style="background: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 10px; padding: 14px 18px; margin-bottom: 18px;">
-          <h4 style="margin: 0 0 6px 0; color: #9d174d; font-size: 14px;"><i class="fa-solid fa-user-shield" style="margin-right: 6px;"></i>Officer Assignment &amp; Ground Dispatch Controls</h4>
-          <p style="margin: 0; font-size: 12.5px; color: #be185d;">
-            Update incident stage, assign response coordinators, or mark resolved once police or disaster teams confirm safety.
+        <div class="dossier-box" style="border-left: 4px solid var(--secondary);">
+          <h4 style="margin: 0 0 6px 0; color: var(--text-main); font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-user-shield" style="color: var(--secondary);"></i> Officer Assignment &amp; Ground Dispatch Controls
+          </h4>
+          <p style="margin: 0; font-size: 12.5px; color: var(--text-muted);">
+            Update incident stage, assign response coordinators, or mark resolved once police or disaster teams confirm citizen safety.
           </p>
         </div>
 
         <form id="form-update-emergency-status">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
             <div>
-              <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Incident Alert Status: <span style="color:#dc2626;">*</span></label>
+              <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Incident Alert Status: <span style="color:var(--accent-rose);">*</span></label>
               <select id="modal-emergency-status" class="form-control" style="width: 100%;">
                 <option value="ACTIVE_ALERT" ${item.status === 'ACTIVE_ALERT' ? 'selected' : ''}>ACTIVE ALERT (Live Danger)</option>
                 <option value="INVESTIGATING" ${item.status === 'INVESTIGATING' ? 'selected' : ''}>INVESTIGATING / CALLING VICTIM</option>
@@ -5685,23 +6046,23 @@ Contact Helpline: +91 7259798393`;
               </select>
             </div>
             <div>
-              <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Assigned Response Commander:</label>
+              <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Assigned Response Commander:</label>
               <input type="text" id="modal-emergency-officer" class="form-control" value="${escapeHtml(item.assigned_officer || '')}" placeholder="e.g. Adv. S. K. Venkatesh (Citizen Legal Taskforce)" style="width: 100%;" />
             </div>
           </div>
 
           <div style="margin-bottom: 14px;">
-            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Action Taken Log:</label>
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Action Taken Log:</label>
             <textarea id="modal-emergency-action" class="form-control" rows="3" placeholder="Log details of police deployment, volunteer rescue, ambulance dispatch, or FIR registration..." style="width: 100%;">${escapeHtml(item.action_taken || '')}</textarea>
           </div>
 
           <div style="margin-bottom: 16px;">
-            <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Internal Administrative Notes:</label>
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Internal Administrative Notes:</label>
             <textarea id="modal-emergency-notes" class="form-control" rows="2" placeholder="Internal remarks, victim follow-up instructions..." style="width: 100%;">${escapeHtml(item.admin_notes || '')}</textarea>
           </div>
 
           <div style="text-align: right;">
-            <button type="submit" class="btn btn-primary" id="btn-save-emergency-status" style="background: #991b1b; border-color: #991b1b;">
+            <button type="submit" class="btn btn-primary" id="btn-save-emergency-status" style="background: #991b1b; border-color: #991b1b; font-weight: 700;">
               <i class="fa-solid fa-floppy-disk" style="margin-right: 6px;"></i> Save Status &amp; Dispatch Updates
             </button>
           </div>
