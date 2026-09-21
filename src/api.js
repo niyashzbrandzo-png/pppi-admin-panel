@@ -771,25 +771,44 @@ export async function apiDeleteJoinRequest(id) {
 
 
 /* 9. CLOUDINARY FILE UPLOAD API */
-export async function apiUploadMediaFile(file) {
+export async function apiUploadMediaFile(fileOrDataUrl, folder = 'pppi_uploads') {
   const token = getAdminToken();
-  const formData = new FormData();
-  formData.append('file', file);
+  let res;
 
-  const res = await fetch(`${API_BASE_URL}/upload`, {
-    method: 'POST',
-    headers: {
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-    },
-    body: formData
-  });
+  if (typeof fileOrDataUrl === 'string') {
+    if (fileOrDataUrl.startsWith('http://') || fileOrDataUrl.startsWith('https://')) {
+      return fileOrDataUrl; // Already a remote URL
+    }
+    // Base64 / dataURL
+    res = await fetch(`${API_BASE_URL}/upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ dataUrl: fileOrDataUrl, folder })
+    });
+  } else {
+    // File or Blob
+    const formData = new FormData();
+    formData.append('file', fileOrDataUrl);
+    formData.append('folder', folder);
+
+    res = await fetch(`${API_BASE_URL}/upload`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: formData
+    });
+  }
 
   const data = await res.json();
   if (!res.ok || data.status >= 300) {
     throw new Error(data.message || 'File upload to Cloudinary failed.');
   }
 
-  return data.data?.url || data.url;
+  return data.data?.url || data.url || data.data?.secure_url;
 }
 
 /* 10. MANIFESTO CMS API */

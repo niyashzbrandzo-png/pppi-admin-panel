@@ -1101,16 +1101,25 @@ function viewUserDetails(userId) {
   if (!content) return;
 
   const userAvatar = user.profile_image
-    ? `<img src="${user.profile_image}" class="user-avatar-small" style="width:60px; height:60px; object-fit:cover; border-radius:50%;" />`
-    : `<div class="user-avatar-small" style="width:60px; height:60px; font-size:24px;">${(user.name || 'U').charAt(0).toUpperCase()}</div>`;
+    ? `<img src="${user.profile_image}" id="user-avatar-preview-img" class="user-avatar-small" style="width:68px; height:68px; object-fit:cover; border-radius:50%; border:2px solid var(--primary);" />`
+    : `<div id="user-avatar-preview-placeholder" class="user-avatar-small" style="width:68px; height:68px; font-size:26px; border:2px solid var(--border-color);">${(user.name || 'U').charAt(0).toUpperCase()}</div>`;
 
   const formattedDate = user.createdat ? new Date(user.createdat).toLocaleString() : (user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A');
 
   content.innerHTML = `
-    <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border-color);">
-      ${userAvatar}
+    <div style="display:flex; align-items:center; gap:18px; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border-color);">
+      <div style="position:relative; cursor:pointer;" id="user-photo-upload-trigger" title="Upload New Profile Image to Cloudinary">
+        ${userAvatar}
+        <span style="position:absolute; bottom:0; right:0; background:var(--primary); color:#fff; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-size:11px; border:2px solid var(--bg-card); box-shadow:0 2px 4px rgba(0,0,0,0.2);">
+          <i class="fa-solid fa-camera"></i>
+        </span>
+        <input type="file" id="user-profile-file-input" accept="image/*" style="display:none;" />
+      </div>
       <div>
-        <h2 style="font-size:20px; font-weight:700; margin:0;">${user.name || 'Member'}</h2>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h2 style="font-size:20px; font-weight:700; margin:0;">${user.name || 'Member'}</h2>
+          <span id="user-photo-upload-status" style="font-size:11px; color:var(--accent-emerald); font-weight:700;"></span>
+        </div>
         <p style="color:var(--text-muted); font-size:13px; margin:4px 0 0 0;">${user.email || 'No Email'} • ${user.phone || 'No Phone'}</p>
         <div style="display:flex; gap:8px; margin-top:8px;">
           <span class="status-pill active">Role: ${user.role || 'USER'}</span>
@@ -1162,6 +1171,42 @@ function viewUserDetails(userId) {
       </div>
     </div>
   `;
+
+  // Bind Photo Upload to Cloudinary
+  const photoTrigger = document.getElementById('user-photo-upload-trigger');
+  const photoInput = document.getElementById('user-profile-file-input');
+  const photoStatus = document.getElementById('user-photo-upload-status');
+
+  if (photoTrigger && photoInput) {
+    photoTrigger.onclick = () => photoInput.click();
+    photoInput.onchange = async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      if (photoStatus) photoStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading to Cloudinary...';
+
+      try {
+        const uploadedUrl = await apiUploadMediaFile(file, 'users');
+        await apiUpdateUser(user.id, { profile_image: uploadedUrl });
+        user.profile_image = uploadedUrl;
+        if (photoStatus) photoStatus.innerHTML = '<i class="fa-solid fa-check-circle"></i> Photo Updated!';
+        
+        // Refresh users list
+        appData.users = await apiGetUsers();
+        renderUsers();
+
+        // Update preview in modal
+        const imgPrev = document.getElementById('user-avatar-preview-img');
+        if (imgPrev) {
+          imgPrev.src = uploadedUrl;
+        } else {
+          openUserDetailModal(user);
+        }
+      } catch (uploadErr) {
+        if (photoStatus) photoStatus.innerHTML = `<span style="color:var(--accent-rose);">Upload failed: ${uploadErr.message}</span>`;
+      }
+    };
+  }
 
   openModal('modal-user-detail');
 }
@@ -3383,12 +3428,23 @@ function openComplaintDossierModal(id) {
             <div style="background: var(--bg-main); border-left: 4px solid var(--primary); padding: 12px 16px; border-radius: 6px; font-size: 13px; line-height: 1.65; color: var(--text-main); text-align: justify; max-height: 220px; overflow-y: auto;">
               ${escapeHtml(item.description || '').replace(/\n/g, '<br/>')}
             </div>
-            ${item.evidence_urls ? `
-              <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border-color); display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 12px; font-weight: 700; color: var(--accent-emerald);"><i class="fa-solid fa-paperclip"></i> Supporting Evidence Files Attached</span>
-                <a href="${item.evidence_urls}" target="_blank" download class="btn btn-sm btn-outline" style="color: var(--accent-emerald); border-color: var(--accent-emerald); font-size: 11px;">Download Evidence</a>
+            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-color);">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <span style="font-size: 12px; font-weight: 700; color: var(--accent-emerald);"><i class="fa-solid fa-paperclip"></i> Supporting Evidence &amp; Documents</span>
+                <label class="btn btn-sm btn-outline" style="font-size: 11px; cursor: pointer; color: var(--primary); border-color: var(--primary); display: inline-flex; align-items: center; gap: 4px;">
+                  <i class="fa-solid fa-cloud-arrow-up"></i> Attach Document (Cloudinary)
+                  <input type="file" id="dossier-evidence-file-input" accept="image/*,.pdf,.doc,.docx" style="display: none;" />
+                </label>
               </div>
-            ` : ''}
+              <div id="dossier-evidence-status" style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 6px;"></div>
+              ${item.evidence_urls ? `
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <a href="${item.evidence_urls}" target="_blank" download class="btn btn-sm btn-outline" style="color: var(--accent-emerald); border-color: var(--accent-emerald); font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="fa-solid fa-file-arrow-down"></i> View / Download Evidence
+                  </a>
+                </div>
+              ` : '<div style="font-size: 12px; color: var(--text-muted);">No evidence attached yet. You can attach documents above.</div>'}
+            </div>
           </div>
 
           <!-- ADMIN CASE CONTROLS -->
@@ -3478,6 +3534,32 @@ function openComplaintDossierModal(id) {
           }
         }
       });
+    }
+
+    // Bind Evidence File Upload to Cloudinary
+    const evidenceInput = document.getElementById('dossier-evidence-file-input');
+    const evidenceStatus = document.getElementById('dossier-evidence-status');
+    if (evidenceInput) {
+      evidenceInput.onchange = async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        if (evidenceStatus) evidenceStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading document to Cloudinary...';
+
+        try {
+          const uploadedUrl = await apiUploadMediaFile(file, 'complaints');
+          const combinedUrls = item.evidence_urls ? `${item.evidence_urls}, ${uploadedUrl}` : uploadedUrl;
+          await apiUpdateComplaint(item.id, { evidence_urls: combinedUrls });
+          item.evidence_urls = combinedUrls;
+
+          if (evidenceStatus) evidenceStatus.innerHTML = '<i class="fa-solid fa-check-circle" style="color:var(--accent-emerald);"></i> Document attached to dossier!';
+          appData.complaints = await apiGetComplaints();
+          renderComplaintsTable();
+          openComplaintDetailModal(item);
+        } catch (uploadErr) {
+          if (evidenceStatus) evidenceStatus.innerHTML = `<span style="color:var(--accent-rose);">Upload failed: ${uploadErr.message}</span>`;
+        }
+      };
     }
   }
 
@@ -4159,6 +4241,11 @@ function openJobEditorModal(job = null) {
   document.getElementById('job-input-phone').value = job ? (job.contact_phone || '') : (user ? user.phone : '');
   document.getElementById('job-input-status').value = job ? (job.status || 'ACTIVE') : 'ACTIVE';
 
+  const logoUrlInp = document.getElementById('job-input-logo-url');
+  if (logoUrlInp) logoUrlInp.value = job ? (job.company_logo || '') : '';
+  const logoFileInp = document.getElementById('job-input-logo-file');
+  if (logoFileInp) logoFileInp.value = '';
+
   modal.classList.add('active');
 }
 
@@ -4309,6 +4396,17 @@ function setupJobModals() {
         contact_phone: document.getElementById('job-input-phone').value.trim(),
         status: document.getElementById('job-input-status').value
       };
+
+      const logoFile = document.getElementById('job-input-logo-file')?.files?.[0];
+      let company_logo = document.getElementById('job-input-logo-url')?.value || null;
+      if (logoFile) {
+        try {
+          company_logo = await apiUploadMediaFile(logoFile, 'jobs');
+        } catch (uploadErr) {
+          console.warn('Company logo upload note:', uploadErr.message);
+        }
+      }
+      payload.company_logo = company_logo;
 
       try {
         if (id) {
@@ -4912,17 +5010,26 @@ function openLawDossierModal(item) {
       </div>
     </div>
 
-    ${item.document_urls ? `
-      <div class="dossier-box" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+    <div class="dossier-box">
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
         <div>
           <h4 style="margin: 0 0 4px 0; color: var(--text-main); font-size: 13.5px; font-weight: 700;">Attached Court Documents:</h4>
-          <span style="font-size: 12px; color: var(--text-muted);">Verified petition memo or order sheets</span>
+          <span style="font-size: 12px; color: var(--text-muted);">Verified petition memo, FIR copy, or court order sheets</span>
         </div>
-        <a href="${item.document_urls}" target="_blank" class="btn btn-sm btn-outline" style="display: inline-flex; align-items: center; gap: 6px;">
-          <i class="fa-solid fa-file-pdf" style="color: var(--accent-rose);"></i> View Attached Document
-        </a>
+        <label class="btn btn-sm btn-outline" style="font-size: 11px; cursor: pointer; color: #0284c7; border-color: #0284c7; display: inline-flex; align-items: center; gap: 4px;">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Attach Document (Cloudinary)
+          <input type="file" id="law-doc-file-input" accept="image/*,.pdf,.doc,.docx" style="display: none;" />
+        </label>
       </div>
-    ` : ''}
+      <div id="law-doc-upload-status" style="font-size: 11.5px; margin-bottom: 6px;"></div>
+      ${item.document_urls ? `
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <a href="${item.document_urls}" target="_blank" download class="btn btn-sm btn-outline" style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px;">
+            <i class="fa-solid fa-file-pdf" style="color: var(--accent-rose);"></i> View Attached Document
+          </a>
+        </div>
+      ` : '<div style="font-size: 12px; color: var(--text-muted);">No documents uploaded yet. You can attach court papers above.</div>'}
+    </div>
 
     <!-- Admin Legal Action & Advocate Assignment Box -->
     <div class="dossier-box" style="border-left: 4px solid var(--primary); background: var(--bg-card);">
@@ -4961,6 +5068,32 @@ function openLawDossierModal(item) {
   `;
 
   modal.style.display = 'flex';
+
+  // Bind Law Document Upload to Cloudinary
+  const lawDocInput = document.getElementById('law-doc-file-input');
+  const lawDocStatus = document.getElementById('law-doc-upload-status');
+  if (lawDocInput) {
+    lawDocInput.onchange = async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      if (lawDocStatus) lawDocStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading document to Cloudinary...';
+
+      try {
+        const uploadedUrl = await apiUploadMediaFile(file, 'law');
+        const combinedUrls = item.document_urls ? `${item.document_urls}, ${uploadedUrl}` : uploadedUrl;
+        await apiUpdateLegalCase(item.id, { document_urls: combinedUrls });
+        item.document_urls = combinedUrls;
+
+        if (lawDocStatus) lawDocStatus.innerHTML = '<i class="fa-solid fa-check-circle" style="color:var(--accent-emerald);"></i> Document attached!';
+        appData.legalCases = await apiGetLegalCases();
+        renderLawView();
+        openLawDossierModal(item);
+      } catch (uploadErr) {
+        if (lawDocStatus) lawDocStatus.innerHTML = `<span style="color:var(--accent-rose);">Upload failed: ${uploadErr.message}</span>`;
+      }
+    };
+  }
 
   const form = document.getElementById('form-update-law-status');
   if (form) {
@@ -5321,6 +5454,27 @@ function openMarriageDossierModal(item) {
       </div>
     </div>
 
+    <!-- Verification Documents & Attachments -->
+    <div class="dossier-box">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h4 style="margin: 0; color: var(--text-main); font-size: 13.5px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+          <i class="fa-solid fa-file-shield" style="color: #db2777;"></i> Verification Documents &amp; Evidence:
+        </h4>
+        <label class="btn btn-sm btn-outline" style="font-size: 11px; cursor: pointer; color: #db2777; border-color: #db2777; display: inline-flex; align-items: center; gap: 4px;">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Attach Document (Cloudinary)
+          <input type="file" id="marriage-doc-file-input" accept="image/*,.pdf,.doc,.docx" style="display: none;" />
+        </label>
+      </div>
+      <div id="marriage-doc-upload-status" style="font-size: 11.5px; margin-bottom: 6px;"></div>
+      ${item.document_urls ? `
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <a href="${item.document_urls}" target="_blank" download class="btn btn-sm btn-outline" style="color: #db2777; border-color: #db2777; font-size: 11.5px; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-file-arrow-down"></i> View Attached Joint Document / Photo
+          </a>
+        </div>
+      ` : '<div style="font-size: 12px; color: var(--text-muted);">No documents uploaded yet. Counselors can upload verification proofs above.</div>'}
+    </div>
+
     <!-- Admin Action & Counselor Assignment -->
     <div class="dossier-box" style="border-left: 4px solid #db2777; background: var(--bg-card);">
       <h4 style="margin: 0 0 14px 0; color: var(--text-main); font-size: 14.5px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
@@ -5359,6 +5513,32 @@ function openMarriageDossierModal(item) {
   `;
 
   modal.style.display = 'flex';
+
+  // Bind Document Upload to Cloudinary
+  const docInput = document.getElementById('marriage-doc-file-input');
+  const docStatus = document.getElementById('marriage-doc-upload-status');
+  if (docInput) {
+    docInput.onchange = async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      if (docStatus) docStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading document to Cloudinary...';
+
+      try {
+        const uploadedUrl = await apiUploadMediaFile(file, 'marriages');
+        const combinedUrls = item.document_urls ? `${item.document_urls}, ${uploadedUrl}` : uploadedUrl;
+        await apiUpdateMarriageApplication(item.id, { document_urls: combinedUrls });
+        item.document_urls = combinedUrls;
+
+        if (docStatus) docStatus.innerHTML = '<i class="fa-solid fa-check-circle" style="color:var(--accent-emerald);"></i> Document attached!';
+        appData.marriageApplications = await apiGetMarriageApplications();
+        renderMarriagesView();
+        openMarriageDossierModal(item);
+      } catch (uploadErr) {
+        if (docStatus) docStatus.innerHTML = `<span style="color:var(--accent-rose);">Upload failed: ${uploadErr.message}</span>`;
+      }
+    };
+  }
 
   const form = document.getElementById('form-update-marriage-status');
   if (form) {
@@ -5823,14 +6003,21 @@ function openEmergencyDossierModal(item, initialTab = 'dossier') {
           </div>
         </div>
 
-        ${item.photo_url ? `
-          <div class="dossier-box">
-            <h4 style="margin: 0 0 10px 0; font-size: 13.5px; color: var(--text-main); font-weight: 700; display: flex; align-items: center; gap: 6px;">
+        <div class="dossier-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="margin: 0; font-size: 13.5px; color: var(--text-main); font-weight: 700; display: flex; align-items: center; gap: 6px;">
               <i class="fa-solid fa-camera"></i> Attached Incident Evidence Photo
             </h4>
-            <img src="${item.photo_url}" alt="Evidence" style="max-height: 240px; border-radius: 8px; border: 1px solid var(--border-color); object-fit: cover;" />
+            <label class="btn btn-sm btn-outline" style="font-size: 11px; cursor: pointer; color: var(--accent-rose); border-color: var(--accent-rose); display: inline-flex; align-items: center; gap: 4px;">
+              <i class="fa-solid fa-cloud-arrow-up"></i> ${item.photo_url ? 'Replace Photo (Cloudinary)' : 'Upload Incident Photo (Cloudinary)'}
+              <input type="file" id="emergency-photo-file-input" accept="image/*" style="display: none;" />
+            </label>
           </div>
-        ` : ''}
+          <div id="emergency-photo-upload-status" style="font-size: 11.5px; margin-bottom: 6px;"></div>
+          ${item.photo_url ? `
+            <img src="${item.photo_url}" alt="Evidence" style="max-height: 240px; border-radius: 8px; border: 1px solid var(--border-color); object-fit: cover;" />
+          ` : '<div style="padding: 12px; background: var(--bg-main); border-radius: 6px; font-size: 12px; color: var(--text-muted); text-align: center;">No ground photo uploaded yet. You can upload ground evidence above.</div>'}
+        </div>
 
         <div style="text-align: right; margin-top: 14px;">
           <button type="button" class="btn btn-primary" id="btn-goto-petition-tab" style="font-weight: 700;">
@@ -5838,6 +6025,30 @@ function openEmergencyDossierModal(item, initialTab = 'dossier') {
           </button>
         </div>
       `;
+
+      const photoInput = document.getElementById('emergency-photo-file-input');
+      const photoStatus = document.getElementById('emergency-photo-upload-status');
+      if (photoInput) {
+        photoInput.onchange = async (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+
+          if (photoStatus) photoStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading incident photo to Cloudinary...';
+
+          try {
+            const uploadedUrl = await apiUploadMediaFile(file, 'emergencies');
+            await apiUpdateEmergencyAlert(item.id, { photo_url: uploadedUrl });
+            item.photo_url = uploadedUrl;
+
+            if (photoStatus) photoStatus.innerHTML = '<i class="fa-solid fa-check-circle" style="color:var(--accent-emerald);"></i> Incident photo updated!';
+            appData.emergencyAlerts = await apiGetEmergencyAlerts();
+            renderEmergenciesView();
+            renderTab('dossier');
+          } catch (uploadErr) {
+            if (photoStatus) photoStatus.innerHTML = `<span style="color:var(--accent-rose);">Upload failed: ${uploadErr.message}</span>`;
+          }
+        };
+      }
 
       const btnGotoPetition = document.getElementById('btn-goto-petition-tab');
       if (btnGotoPetition) {
