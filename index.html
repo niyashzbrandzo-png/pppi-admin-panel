@@ -1742,20 +1742,36 @@
         <section id="view-elections" class="content-view" data-role="admin">
           <div class="view-header">
             <div>
-              <h1 class="view-title"><i class="fa-solid fa-check-to-slot" style="color:#2563eb;"></i> Elections &amp; Karnataka 224 Constituencies</h1>
-              <p class="view-subtitle">Oversee upcoming elections (2028 CM &amp; 2029 PM), manage all 224 Karnataka Assembly constituencies, and assign verified paid members as official party candidates.</p>
+              <h1 class="view-title"><i class="fa-solid fa-check-to-slot" style="color:#2563eb;"></i> Election Campaigns &amp; Candidates Directory</h1>
+              <p class="view-subtitle">Lead and oversee election campaigns (State Assembly CM Elections, National PM Lok Sabha, and Local Bodies). Click any campaign box below to inspect its live status, manage candidate nominations, and filter by state or district.</p>
             </div>
             <div class="view-actions" style="display:flex; gap:10px;">
               <button class="btn btn-outline" id="btn-refresh-elections">
                 <i class="fa-solid fa-rotate"></i> Refresh Directory
               </button>
               <button class="btn btn-primary" id="btn-open-create-election">
-                <i class="fa-solid fa-plus"></i> Create Election
+                <i class="fa-solid fa-plus"></i> Create Election Campaign
               </button>
             </div>
           </div>
 
-          <!-- KPI Metric Cards -->
+          <!-- Section Title for Campaigns -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+            <h3 style="font-size:16px; font-weight:800; color:var(--text-primary); margin:0; display:flex; align-items:center; gap:8px;">
+              <i class="fa-solid fa-boxes-stacked" style="color:#2563eb;"></i> Active &amp; Upcoming Election Campaigns
+              <span class="badge" id="badge-total-campaigns-count" style="background:#e0e7ff; color:#3730a3; font-size:11px; padding:3px 8px;">3</span>
+            </h3>
+            <span style="font-size:12px; color:var(--text-muted); font-weight:600;">
+              <i class="fa-solid fa-hand-pointer" style="color:#2563eb;"></i> Click any campaign box to activate &amp; view all constituencies
+            </span>
+          </div>
+
+          <!-- Election Campaigns Card Grid (Box Format) -->
+          <div class="election-campaigns-grid" id="election-campaigns-grid">
+            <!-- Dynamically populated campaign boxes (CM, PM, Local Body) -->
+          </div>
+
+          <!-- KPI Metric Cards for Active Campaign -->
           <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px;">
             <div class="stat-card" style="border-left: 4px solid #2563eb;">
               <div class="stat-icon" style="background: rgba(37,99,235,0.1); color: #2563eb;"><i class="fa-solid fa-landmark"></i></div>
@@ -1787,13 +1803,14 @@
             </div>
           </div>
 
-          <!-- Election Switcher & Election Profile Card -->
+          <!-- Active Election Profile Summary Banner -->
           <div class="card" style="margin-bottom: 20px; padding: 18px 22px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #ffffff; border-radius: 12px;">
             <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:16px;">
               <div>
                 <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
                   <span class="badge" style="background:#2563eb; color:white; font-size:11px; padding:4px 10px;" id="admin-election-code-badge">KA-2028-LA</span>
                   <span class="badge" style="background:#059669; color:white; font-size:11px; padding:4px 10px;" id="admin-election-status-badge">UPCOMING</span>
+                  <span class="badge" style="background:#7c3aed; color:white; font-size:11px; padding:4px 10px;" id="admin-election-type-badge">CM ELECTION</span>
                 </div>
                 <h2 id="admin-election-title-display" style="font-size:20px; font-weight:800; margin:0 0 6px 0; color:#ffffff;">
                   2028 Karnataka Legislative Assembly Election (CM Election)
@@ -1802,31 +1819,46 @@
                   General Assembly Election to the 16th Karnataka Legislative Assembly.
                 </p>
               </div>
-              <div style="min-width:260px;">
-                <label style="font-size:12px; font-weight:600; color:#cbd5e1; display:block; margin-bottom:6px;">Select Election Campaign:</label>
-                <select id="admin-select-election-switch" class="form-select" style="background:#0f172a; color:#f8fafc; border:1px solid #334155; padding:8px 12px; border-radius:8px; font-weight:600; width:100%;">
-                  <!-- Dynamically populated -->
-                </select>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:13px; color:#94a3b8;"><i class="fa-solid fa-bullseye" style="color:#f59e0b;"></i> Majority Target: <strong id="admin-election-target-seats" style="color:#ffffff;">113 Seats</strong></span>
               </div>
             </div>
           </div>
 
-          <!-- Filter & Search Controls -->
+          <!-- Dynamic Filter & Search Controls (State Filter for PM, District/City for CM) -->
           <div class="card" style="margin-bottom: 20px;">
-            <div class="card-body" style="display: flex; gap: 14px; flex-wrap: wrap; align-items: center;">
+            <div class="card-body" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
               <div style="flex: 2; min-width: 240px;">
                 <div class="search-box">
                   <i class="fa-solid fa-magnifying-glass"></i>
                   <input type="text" id="election-filter-search" class="form-control" placeholder="Search constituency number, name, district, or candidate..." />
                 </div>
               </div>
-              <div style="flex: 1; min-width: 180px;">
-                <select id="election-filter-district" class="form-select">
-                  <option value="ALL">All 31 Districts</option>
+              <!-- State Filter (Active for PM Election / Lok Sabha) -->
+              <div id="container-filter-state" style="flex: 1.2; min-width: 200px; display: none;">
+                <select id="election-filter-state" class="form-select">
+                  <option value="ALL">All States &amp; UTs (All India)</option>
                   <!-- Dynamically populated -->
                 </select>
               </div>
-              <div style="flex: 1; min-width: 160px;">
+              <!-- City / District Filter -->
+              <div id="container-filter-district" style="flex: 1.2; min-width: 180px;">
+                <select id="election-filter-district" class="form-select">
+                  <option value="ALL">All Districts / Cities</option>
+                  <!-- Dynamically populated -->
+                </select>
+              </div>
+              <!-- Category Filter -->
+              <div style="flex: 0.9; min-width: 140px;">
+                <select id="election-filter-category" class="form-select">
+                  <option value="ALL">All Categories</option>
+                  <option value="GEN">General (GEN)</option>
+                  <option value="SC">Scheduled Caste (SC)</option>
+                  <option value="ST">Scheduled Tribe (ST)</option>
+                </select>
+              </div>
+              <!-- Nomination Status Filter -->
+              <div style="flex: 1; min-width: 150px;">
                 <select id="election-filter-status" class="form-select">
                   <option value="ALL">All Nomination Statuses</option>
                   <option value="DECLARED">Declared / Nominated</option>
@@ -2806,63 +2838,143 @@
 
   <!-- MODAL: Create New Election Campaign -->
   <div class="modal-backdrop" id="modal-create-election">
-    <div class="modal-dialog modal-lg" style="max-width: 640px;">
+    <div class="modal-dialog modal-lg" style="max-width: 680px;">
       <div class="modal-header">
         <h3><i class="fa-solid fa-plus-circle" style="color:#2563eb;"></i> Create New Election Campaign</h3>
-        <button class="modal-close" data-close-modal="modal-create-election"><i class="fa-solid fa-xmark"></i></button>
+        <button type="button" class="modal-close" id="btn-close-create-election-modal" data-close-modal="modal-create-election"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="modal-body" style="padding: 22px;">
         <form id="form-create-election">
+
+          <!-- STEP 1: Select Election Level / Scope -->
+          <div style="margin-bottom: 18px;">
+            <label class="form-label" style="font-weight: 700; margin-bottom: 8px; display:block;">
+              Step 1: Choose Election Scope / Level *
+            </label>
+            <div class="election-level-selector" id="election-level-selector">
+              <div class="election-level-card selected" data-level="ASSEMBLY">
+                <span class="election-level-icon">🏛️</span>
+                <span class="election-level-title">CM Election</span>
+                <span class="election-level-sub">State Legislative Assembly (MLA)</span>
+              </div>
+              <div class="election-level-card" data-level="PARLIAMENTARY">
+                <span class="election-level-icon">🇮🇳</span>
+                <span class="election-level-title">PM Election</span>
+                <span class="election-level-sub">Indian Lok Sabha (543 MPs)</span>
+              </div>
+              <div class="election-level-card" data-level="LOCAL_BODY">
+                <span class="election-level-icon">🏢</span>
+                <span class="election-level-title">Local Body</span>
+                <span class="election-level-sub">City Corporation / Municipality</span>
+              </div>
+            </div>
+            <!-- Hidden input to store election_type -->
+            <input type="hidden" id="election-input-type" value="ASSEMBLY" />
+          </div>
+
+          <!-- STEP 2: Conditional Fields based on Election Level -->
+
+          <!-- CM Election: State Dropdown -->
+          <div id="wrapper-state-select" class="form-group" style="margin-bottom: 16px;">
+            <label class="form-label" style="font-weight: 700;">Select State / Union Territory *</label>
+            <select id="election-select-state" class="form-select" style="font-weight: 600;">
+              <option value="Tamil Nadu" selected>Tamil Nadu (234 Assembly Constituencies)</option>
+              <option value="Karnataka">Karnataka (224 Assembly Constituencies)</option>
+              <option value="Maharashtra">Maharashtra (288 Assembly Constituencies)</option>
+              <option value="Andhra Pradesh">Andhra Pradesh (175 Assembly Constituencies)</option>
+              <option value="Kerala">Kerala (140 Assembly Constituencies)</option>
+              <option value="Telangana">Telangana (119 Assembly Constituencies)</option>
+              <option value="Uttar Pradesh">Uttar Pradesh (403 Assembly Constituencies)</option>
+              <option value="West Bengal">West Bengal (294 Assembly Constituencies)</option>
+              <option value="Delhi">Delhi (70 Assembly Constituencies)</option>
+              <option value="Bihar">Bihar (243 Assembly Constituencies)</option>
+              <option value="Gujarat">Gujarat (182 Assembly Constituencies)</option>
+              <option value="Rajasthan">Rajasthan (200 Assembly Constituencies)</option>
+              <option value="Punjab">Punjab (117 Assembly Constituencies)</option>
+              <option value="Odisha">Odisha (147 Assembly Constituencies)</option>
+            </select>
+            <input type="hidden" id="election-input-state" value="Tamil Nadu" />
+          </div>
+
+          <!-- Local Body: Municipal Details -->
+          <div id="wrapper-local-body" style="display:none; margin-bottom: 16px;">
+            <div class="form-row" style="display:flex; gap:12px;">
+              <div class="form-group" style="flex:1;">
+                <label class="form-label" style="font-weight: 700;">Local Body State *</label>
+                <select id="election-local-body-state" class="form-select">
+                  <option value="Tamil Nadu">Tamil Nadu</option>
+                  <option value="Karnataka">Karnataka</option>
+                  <option value="Maharashtra">Maharashtra</option>
+                  <option value="Andhra Pradesh">Andhra Pradesh</option>
+                  <option value="Kerala">Kerala</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:1.5;">
+                <label class="form-label" style="font-weight: 700;">Corporation / Municipal Body Name *</label>
+                <input type="text" id="election-input-local-body-name" class="form-control" placeholder="e.g. Greater Chennai Corporation (GCC)" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Auto-Detection Notice Banner -->
+          <div class="election-auto-banner" id="election-auto-banner">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <div class="election-auto-banner-text">
+              <strong id="banner-auto-title">Auto-Detection Active for Tamil Nadu:</strong>
+              <span id="banner-auto-desc">Detected 234 assembly seats across 38 districts with ~250,000 electors each. ECI official code format: <code>TN-[Year]-LA</code>. All 234 constituencies will be automatically created.</span>
+            </div>
+          </div>
+
+          <!-- Auto-Filled & Editable Fields -->
           <div class="form-group" style="margin-bottom: 14px;">
             <label class="form-label" style="font-weight: 700;">Election Title *</label>
-            <input type="text" id="election-input-title" class="form-control" placeholder="e.g. 2028 Karnataka Legislative Assembly Election (CM Election)" required />
+            <input type="text" id="election-input-title" class="form-control" placeholder="e.g. 2026 Tamil Nadu Legislative Assembly Election (CM Election)" required />
           </div>
+
           <div class="form-row" style="display:flex; gap:12px; margin-bottom: 14px;">
             <div class="form-group" style="flex:1;">
-              <label class="form-label" style="font-weight: 700;">Election Code *</label>
-              <input type="text" id="election-input-code" class="form-control" placeholder="e.g. KA-2028-LA" required />
-            </div>
-            <div class="form-group" style="flex:1;">
-              <label class="form-label" style="font-weight: 700;">Election Type *</label>
-              <select id="election-input-type" class="form-select" required>
-                <option value="ASSEMBLY">Legislative Assembly (MLA / CM)</option>
-                <option value="PARLIAMENTARY">Parliamentary (Lok Sabha / PM)</option>
-                <option value="LOCAL_BODY">Local Body Election</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row" style="display:flex; gap:12px; margin-bottom: 14px;">
-            <div class="form-group" style="flex:1;">
-              <label class="form-label" style="font-weight: 700;">State / Jurisdiction *</label>
-              <input type="text" id="election-input-state" class="form-control" value="Karnataka" required />
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label class="form-label" style="font-weight: 700; margin:0;">Official Election Code *</label>
+                <span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:10px; padding:2px 6px;">
+                  <i class="fa-solid fa-bolt"></i> Auto (ECI Format)
+                </span>
+              </div>
+              <input type="text" id="election-input-code" class="form-control" placeholder="e.g. TN-2026-LA" required style="font-family:monospace; font-weight:700;" />
+              <span style="font-size:11px; color:var(--text-muted); margin-top:3px;">
+                Standard ECI convention: <code>[State]-[Year]-LA</code> or <code>IN-[Year]-LS</code>
+              </span>
             </div>
             <div class="form-group" style="flex:1;">
               <label class="form-label" style="font-weight: 700;">Election Year *</label>
-              <input type="number" id="election-input-year" class="form-control" value="2028" required />
+              <input type="number" id="election-input-year" class="form-control" value="2026" required />
             </div>
           </div>
+
           <div class="form-row" style="display:flex; gap:12px; margin-bottom: 14px;">
             <div class="form-group" style="flex:1;">
-              <label class="form-label" style="font-weight: 700;">Total Seats *</label>
-              <input type="number" id="election-input-total-seats" class="form-control" value="224" required />
+              <label class="form-label" style="font-weight: 700;">Total Seats * (Auto-detected)</label>
+              <input type="number" id="election-input-total-seats" class="form-control" value="234" required />
             </div>
             <div class="form-group" style="flex:1;">
-              <label class="form-label" style="font-weight: 700;">Target Majority Seats</label>
-              <input type="number" id="election-input-target-seats" class="form-control" value="113" />
+              <label class="form-label" style="font-weight: 700;">Target Majority Seats (Auto-calculated)</label>
+              <input type="number" id="election-input-target-seats" class="form-control" value="118" />
             </div>
           </div>
+
           <div class="form-group" style="margin-bottom: 14px;">
             <label class="form-label" style="font-weight: 700;">Manifesto Theme / Slogan</label>
-            <input type="text" id="election-input-theme" class="form-control" placeholder="e.g. People-Centric Governance, Free Healthcare & Zero Corruption" />
+            <input type="text" id="election-input-theme" class="form-control" placeholder="e.g. Dravidian Grassroots Renaissance, Free Education &amp; Agrarian Revival" />
           </div>
+
           <div class="form-group" style="margin-bottom: 20px;">
             <label class="form-label" style="font-weight: 700;">Full Campaign Description</label>
             <textarea id="election-input-desc" class="form-control" rows="3" placeholder="Strategic goals, leadership face, and campaign charter..."></textarea>
           </div>
+
           <div class="modal-footer" style="padding-top:14px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px;">
-            <button type="button" class="btn btn-outline" data-close-modal="modal-create-election">Cancel</button>
+            <button type="button" class="btn btn-outline" id="btn-cancel-create-election" data-close-modal="modal-create-election">Cancel</button>
             <button type="submit" class="btn btn-primary" id="btn-save-new-election">
-              <i class="fa-solid fa-plus"></i> Create Election
+              <i class="fa-solid fa-plus"></i> Create Election Campaign
             </button>
           </div>
         </form>

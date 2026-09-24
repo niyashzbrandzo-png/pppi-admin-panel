@@ -1739,7 +1739,9 @@ export async function apiGetConstituencies(params = {}) {
   try {
     const qs = new URLSearchParams();
     if (params.election_id) qs.append('election_id', params.election_id);
+    if (params.state && params.state !== 'ALL') qs.append('state', params.state);
     if (params.district && params.district !== 'ALL') qs.append('district', params.district);
+    if (params.category && params.category !== 'ALL') qs.append('category', params.category);
     if (params.status && params.status !== 'ALL') qs.append('status', params.status);
     if (params.search) qs.append('search', params.search);
     const query = qs.toString() ? `?${qs.toString()}` : '';
@@ -1747,7 +1749,7 @@ export async function apiGetConstituencies(params = {}) {
     return data;
   } catch (err) {
     console.warn('apiGetConstituencies error:', err.message);
-    return { success: false, data: [], districts: [] };
+    return { success: false, data: [], districts: [], states: [] };
   }
 }
 

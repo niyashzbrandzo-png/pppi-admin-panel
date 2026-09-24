@@ -1663,10 +1663,37 @@ function populateUserNotificationDropdown() {
 // Modal Handlers & Forms
 function setupModals() {
   document.querySelectorAll('[data-close-modal]').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
       const modalId = btn.getAttribute('data-close-modal');
       closeModal(modalId);
+      if (modalId === 'modal-create-election') {
+        const f = document.getElementById('form-create-election');
+        if (f) f.reset();
+      }
     });
+  });
+
+  // Close modals on backdrop click
+  document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) {
+        closeModal(backdrop.id);
+        if (backdrop.id === 'modal-create-election') {
+          const f = document.getElementById('form-create-election');
+          if (f) f.reset();
+        }
+      }
+    });
+  });
+
+  // Close modals on Escape key press
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-backdrop.active, .modal-backdrop[style*="display: flex"]').forEach(m => {
+        closeModal(m.id);
+      });
+    }
   });
 
   document.getElementById('btn-open-create-event-modal').addEventListener('click', () => {
@@ -1879,12 +1906,18 @@ function setupModals() {
 
 function openModal(id) {
   const el = document.getElementById(id);
-  if (el) el.classList.add('active');
+  if (el) {
+    el.classList.add('active');
+    el.style.display = 'flex';
+  }
 }
 
 function closeModal(id) {
   const el = document.getElementById(id);
-  if (el) el.classList.remove('active');
+  if (el) {
+    el.classList.remove('active');
+    el.style.display = 'none';
+  }
 }
 
 // System Settings Handler
@@ -6386,51 +6419,453 @@ function setupEmergencyAdminListeners() {
 
 
 /* ==========================================================================
-   PPPI Elections & Karnataka 224 Constituencies Directory Admin Controller
+   PPPI Elections & All-India Campaigns Directory Admin Controller
    ========================================================================== */
 
+const STATE_INTEL = {
+  'Tamil Nadu': {
+    code: 'TN',
+    total_seats: 234,
+    target: 118,
+    districtsCount: 38,
+    theme: 'Dravidian Grassroots Renaissance, Free Quality Education & Agrarian Revival',
+    desc: 'General Election to the Tamil Nadu Legislative Assembly across all 38 districts (234 Assembly Constituencies).'
+  },
+  'Karnataka': {
+    code: 'KA',
+    total_seats: 224,
+    target: 113,
+    districtsCount: 31,
+    theme: 'Kannada Swabhimana, Farmer Empowerment & Rural Infrastructure',
+    desc: 'General Assembly Election to the 16th Karnataka Legislative Assembly across all 31 districts (224 Assembly Constituencies).'
+  },
+  'Maharashtra': {
+    code: 'MH',
+    total_seats: 288,
+    target: 145,
+    districtsCount: 36,
+    theme: 'Maharashtra Vikas, Agro-Industrial Modernization & Youth Jobs',
+    desc: 'General Assembly Election to the Maharashtra Legislative Assembly across all 36 districts (288 Assembly Constituencies).'
+  },
+  'Andhra Pradesh': {
+    code: 'AP',
+    total_seats: 175,
+    target: 88,
+    districtsCount: 26,
+    theme: 'Navaratnalu Public Welfare, Amaravati Vision & Agro Revival',
+    desc: 'General Assembly Election to the Andhra Pradesh Legislative Assembly (175 Assembly Constituencies).'
+  },
+  'Kerala': {
+    code: 'KL',
+    total_seats: 140,
+    target: 71,
+    districtsCount: 14,
+    theme: 'Secular Social Democracy, Healthcare Excellence & Modern Knowledge Economy',
+    desc: 'General Assembly Election to the Kerala Legislative Assembly across all 14 districts (140 Assembly Constituencies).'
+  },
+  'Telangana': {
+    code: 'TG',
+    total_seats: 119,
+    target: 60,
+    districtsCount: 33,
+    theme: 'Bangaru Telangana, Irrigation Expansion & Youth Employment Guarantee',
+    desc: 'General Assembly Election to the Telangana Legislative Assembly (119 Assembly Constituencies).'
+  },
+  'Uttar Pradesh': {
+    code: 'UP',
+    total_seats: 403,
+    target: 202,
+    districtsCount: 75,
+    theme: 'Kisan Kalyan, Rule of Law & Grassroots Industrial Transformation',
+    desc: 'General Assembly Election to the Uttar Pradesh Legislative Assembly across 75 districts (403 Assembly Constituencies).'
+  },
+  'West Bengal': {
+    code: 'WB',
+    total_seats: 294,
+    target: 148,
+    districtsCount: 23,
+    theme: 'Democratic Renewal, Cultural Pride & Rural Employment Guarantee',
+    desc: 'General Assembly Election to the West Bengal Legislative Assembly (294 Assembly Constituencies).'
+  },
+  'Delhi': {
+    code: 'DL',
+    total_seats: 70,
+    target: 36,
+    districtsCount: 11,
+    theme: 'Citizen Welfare, Clean Air, World-Class Public Schools & Hospitals',
+    desc: 'General Election to the Legislative Assembly of NCT of Delhi (70 Assembly Constituencies).'
+  },
+  'Bihar': {
+    code: 'BR',
+    total_seats: 243,
+    target: 122,
+    districtsCount: 38,
+    theme: 'Social Justice, Agro-Processing Industrialization & 10 Lakh Youth Jobs',
+    desc: 'General Assembly Election to the Bihar Legislative Assembly (243 Assembly Constituencies).'
+  },
+  'Gujarat': {
+    code: 'GJ',
+    total_seats: 182,
+    target: 92,
+    districtsCount: 33,
+    theme: 'Grassroots Prosperity, Transparent Public Services & Farmer Relief',
+    desc: 'General Assembly Election to the Gujarat Legislative Assembly (182 Assembly Constituencies).'
+  },
+  'Rajasthan': {
+    code: 'RJ',
+    total_seats: 200,
+    target: 101,
+    districtsCount: 50,
+    theme: 'Marwar & Mewar Agrarian Revival, Right to Health & Youth Employment',
+    desc: 'General Assembly Election to the Rajasthan Legislative Assembly (200 Assembly Constituencies).'
+  },
+  'Punjab': {
+    code: 'PB',
+    total_seats: 117,
+    target: 59,
+    districtsCount: 23,
+    theme: 'Inquilab, Farm Debt Relief & Youth Empowerment Against Addiction',
+    desc: 'General Assembly Election to the Punjab Legislative Assembly (117 Assembly Constituencies).'
+  },
+  'Odisha': {
+    code: 'OD',
+    total_seats: 147,
+    target: 74,
+    districtsCount: 30,
+    theme: 'Utkala Pride, Disaster Resilience & Coastal Industrial Corridors',
+    desc: 'General Assembly Election to the Odisha Legislative Assembly (147 Assembly Constituencies).'
+  }
+};
+
+/**
+ * Dynamically updates fields in Create Election modal based on chosen level, state, and year
+ */
+function updateCreateElectionModalFields() {
+  const typeInput = document.getElementById('election-input-type');
+  const level = typeInput ? typeInput.value : 'ASSEMBLY';
+  const stateSelect = document.getElementById('election-select-state');
+  const stateVal = stateSelect ? stateSelect.value : 'Tamil Nadu';
+  const yearInput = document.getElementById('election-input-year');
+  const year = parseInt(yearInput ? yearInput.value : 2026, 10) || 2026;
+
+  const titleInput = document.getElementById('election-input-title');
+  const codeInput = document.getElementById('election-input-code');
+  const seatsInput = document.getElementById('election-input-total-seats');
+  const targetInput = document.getElementById('election-input-target-seats');
+  const themeInput = document.getElementById('election-input-theme');
+  const descInput = document.getElementById('election-input-desc');
+  const stateInput = document.getElementById('election-input-state');
+
+  const wrapperState = document.getElementById('wrapper-state-select');
+  const wrapperLocal = document.getElementById('wrapper-local-body');
+  const bannerAuto = document.getElementById('election-auto-banner');
+  const bannerTitle = document.getElementById('banner-auto-title');
+  const bannerDesc = document.getElementById('banner-auto-desc');
+
+  if (level === 'PARLIAMENTARY') {
+    // PM Election - Lok Sabha
+    if (wrapperState) wrapperState.style.display = 'none';
+    if (wrapperLocal) wrapperLocal.style.display = 'none';
+    if (stateInput) stateInput.value = 'All India';
+
+    if (titleInput) titleInput.value = `${year} Indian Parliamentary General Election (PM Lok Sabha)`;
+    if (codeInput) codeInput.value = `IN-${year}-LS`;
+    if (seatsInput) seatsInput.value = 543;
+    if (targetInput) targetInput.value = 272;
+    if (themeInput) themeInput.value = 'National Democratic Renaissance, Constitutional Rights & Equitable Wealth Distribution';
+    if (descInput) descInput.value = 'National Parliamentary General Election across all 543 Lok Sabha Constituencies spanning 28 States and 8 Union Territories.';
+
+    if (bannerAuto && bannerTitle && bannerDesc) {
+      bannerAuto.style.display = 'flex';
+      bannerTitle.textContent = 'Auto-Detection Active for All India Lok Sabha (PM Election):';
+      bannerDesc.innerHTML = `All <strong>543 Parliamentary Constituencies</strong> across 28 States &amp; 8 UTs with official categories (GEN, SC, ST) and elector counts will be automatically loaded. Official ECI code: <code>IN-${year}-LS</code>. Majority target: <strong>272 seats</strong>.`;
+    }
+  } else if (level === 'LOCAL_BODY') {
+    // Local Body - Municipal / Corporation
+    if (wrapperState) wrapperState.style.display = 'none';
+    if (wrapperLocal) wrapperLocal.style.display = 'block';
+
+    const localState = document.getElementById('election-local-body-state')?.value || 'Tamil Nadu';
+    const localName = document.getElementById('election-input-local-body-name')?.value || 'Greater Chennai Corporation (GCC)';
+    const intel = STATE_INTEL[localState] || { code: 'LB' };
+
+    if (stateInput) stateInput.value = localState;
+    if (titleInput) titleInput.value = `${year} ${localName} Civic Election (Local Body)`;
+    if (codeInput) codeInput.value = `${intel.code}-CORP-${year}`;
+    if (seatsInput) seatsInput.value = 200;
+    if (targetInput) targetInput.value = 101;
+    if (themeInput) themeInput.value = 'Clean Governance, Pothole-Free Roads & Modern Urban Drainage';
+    if (descInput) descInput.value = `Municipal Corporation Ward Elections for ${localName} across all metropolitan zones.`;
+
+    if (bannerAuto && bannerTitle && bannerDesc) {
+      bannerAuto.style.display = 'flex';
+      bannerTitle.textContent = `Auto-Configured for ${localName}:`;
+      bannerDesc.innerHTML = `Municipal civic election for <strong>${localState}</strong>. Code convention: <code>${intel.code}-CORP-${year}</code>. Majority target: <strong>101 wards</strong>.`;
+    }
+  } else {
+    // CM Election - State Legislative Assembly
+    if (wrapperState) wrapperState.style.display = 'block';
+    if (wrapperLocal) wrapperLocal.style.display = 'none';
+    if (stateInput) stateInput.value = stateVal;
+
+    const intel = STATE_INTEL[stateVal] || {
+      code: 'ST',
+      total_seats: 200,
+      target: 101,
+      districtsCount: 30,
+      theme: 'Grassroots Transformation & People-First Welfare',
+      desc: `General Election to the ${stateVal} Legislative Assembly.`
+    };
+
+    if (titleInput) titleInput.value = `${year} ${stateVal} Legislative Assembly Election (CM Election)`;
+    if (codeInput) codeInput.value = `${intel.code}-${year}-LA`;
+    if (seatsInput) seatsInput.value = intel.total_seats;
+    if (targetInput) targetInput.value = intel.target;
+    if (themeInput) themeInput.value = intel.theme || '';
+    if (descInput) descInput.value = intel.desc || '';
+
+    if (bannerAuto && bannerTitle && bannerDesc) {
+      bannerAuto.style.display = 'flex';
+      bannerTitle.textContent = `Auto-Detection Active for ${stateVal} (CM Election):`;
+      bannerDesc.innerHTML = `Official Assembly size: <strong>${intel.total_seats} Constituencies</strong> across <strong>${intel.districtsCount} Districts</strong>. Official ECI code: <code>${intel.code}-${year}-LA</code>. Clear majority benchmark: <strong>${intel.target} seats</strong>. All constituencies will be auto-generated.`;
+    }
+  }
+}
+
+/**
+ * Main renderer for the Election Campaigns CMS View
+ */
 function renderElectionsView() {
   const tbody = document.getElementById('tbody-election-constituencies');
   if (!tbody) return;
 
-  const elections = appData.elections || [];
-  const selectedElectionId = Number(appData.selectedElectionId || 1);
-  const selectedElection = elections.find(e => e.id === selectedElectionId) || elections[0] || {
-    id: 1,
-    title: '2028 Karnataka Legislative Assembly Election (CM Election)',
-    code: 'KA-2028-LA',
-    status: 'UPCOMING',
-    total_seats: 224,
-    description: 'General Assembly Election to the 16th Karnataka Legislative Assembly.'
-  };
+  const elections = appData.elections && appData.elections.length > 0 ? appData.elections : [
+    {
+      id: 1,
+      title: '2028 Karnataka Legislative Assembly Election (CM Election)',
+      code: 'KA-2028-LA',
+      election_type: 'ASSEMBLY',
+      state: 'Karnataka',
+      year: 2028,
+      status: 'UPCOMING',
+      total_seats: 224,
+      target_seats: 113,
+      description: 'General Assembly Election to the 16th Karnataka Legislative Assembly across all 31 districts.'
+    },
+    {
+      id: 2,
+      title: '2029 Indian Parliamentary General Election (PM Lok Sabha)',
+      code: 'IN-2029-LS',
+      election_type: 'PARLIAMENTARY',
+      state: 'All India',
+      year: 2029,
+      status: 'UPCOMING',
+      total_seats: 543,
+      target_seats: 272,
+      description: 'National Parliamentary General Election across all 543 Lok Sabha Constituencies across 28 States and 8 Union Territories.'
+    },
+    {
+      id: 3,
+      title: '2026 Tamil Nadu Legislative Assembly Election (CM Election)',
+      code: 'TN-2026-LA',
+      election_type: 'ASSEMBLY',
+      state: 'Tamil Nadu',
+      year: 2026,
+      status: 'UPCOMING',
+      total_seats: 234,
+      target_seats: 118,
+      description: 'General Election to the Tamil Nadu Legislative Assembly across all 38 districts (234 Assembly Constituencies).'
+    }
+  ];
 
-  // 1. Update Election Switcher Dropdown
-  const selectSwitch = document.getElementById('admin-select-election-switch');
-  if (selectSwitch && elections.length > 0) {
-    selectSwitch.innerHTML = elections.map(e => `
-      <option value="${e.id}" ${e.id === selectedElectionId ? 'selected' : ''}>
-        ${e.code} - ${e.title}
-      </option>
-    `).join('');
+  // 1. Determine Selected Election
+  let selectedElectionId = Number(appData.selectedElectionId);
+  let selectedElection = elections.find(e => e.id === selectedElectionId);
+  if (!selectedElection) {
+    selectedElection = elections[0];
+    selectedElectionId = selectedElection.id;
+    appData.selectedElectionId = selectedElectionId;
   }
 
-  // 2. Update Election Profile Card
+  // Update total campaigns count badge
+  const badgeCampaigns = document.getElementById('badge-total-campaigns-count');
+  if (badgeCampaigns) badgeCampaigns.textContent = elections.length;
+
+  // 2. Render Election Campaigns Card Grid (Box Format)
+  const campaignsGrid = document.getElementById('election-campaigns-grid');
+  if (campaignsGrid) {
+    campaignsGrid.innerHTML = elections.map(el => {
+      const isSelected = el.id === selectedElectionId;
+      const isPM = el.election_type === 'PARLIAMENTARY' || (el.code && el.code.includes('-LS')) || el.total_seats > 300;
+      const isLocal = el.election_type === 'LOCAL_BODY' || (el.code && el.code.includes('CORP'));
+
+      let tagLabel = 'CM ELECTION';
+      let tagClass = 'tag-cm';
+      let icon = '🏛️';
+      let scopeLabel = `${el.state || 'State'} Assembly`;
+
+      if (isPM) {
+        tagLabel = 'PM ELECTION';
+        tagClass = 'tag-pm';
+        icon = '🇮🇳';
+        scopeLabel = 'Lok Sabha · All India (543 MPs)';
+      } else if (isLocal) {
+        tagLabel = 'LOCAL BODY';
+        tagClass = 'tag-local';
+        icon = '🏢';
+        scopeLabel = `${el.state || ''} Municipal Corporation`;
+      }
+
+      // Calculate seats & candidates for this card
+      const cList = (appData.selectedElectionId === el.id && appData.constituencies) ? appData.constituencies : [];
+      const declared = el.id === selectedElectionId
+        ? cList.filter(c => c.candidate_name).length
+        : (el.declared_candidates_count || 0);
+      const totalSeats = el.total_seats || 224;
+      const targetSeats = el.target_seats || Math.floor(totalSeats / 2) + 1;
+      const pct = Math.round((declared / totalSeats) * 100) || 0;
+
+      return `
+        <div class="election-campaign-card ${isSelected ? 'active' : ''}" data-election-id="${el.id}">
+          <div class="election-card-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="election-card-icon">${icon}</span>
+              <span class="election-type-tag ${tagClass}">${tagLabel}</span>
+            </div>
+            <span class="badge" style="background:${isSelected ? '#2563eb' : '#f1f5f9'}; color:${isSelected ? '#ffffff' : '#475569'}; font-size:11px; font-weight:700;">
+              ${el.status || 'UPCOMING'}
+            </span>
+          </div>
+
+          <h4 class="election-card-title">${el.title}</h4>
+          <p class="election-card-sub">${scopeLabel}</p>
+
+          <div style="margin-bottom:12px;">
+            <span class="badge" style="background:#e0f2fe; color:#0369a1; font-family:monospace; font-weight:800; font-size:11px; padding:3px 8px;">
+              <i class="fa-solid fa-barcode"></i> ${el.code || 'CODE'}
+            </span>
+          </div>
+
+          <div class="election-card-stats-grid">
+            <div class="election-card-stat">
+              <span class="stat-num">${totalSeats}</span>
+              <span class="stat-lbl">Total Seats</span>
+            </div>
+            <div class="election-card-stat">
+              <span class="stat-num" style="color:#059669;">${declared}</span>
+              <span class="stat-lbl">Nominated</span>
+            </div>
+            <div class="election-card-stat">
+              <span class="stat-num" style="color:#f59e0b;">${targetSeats}</span>
+              <span class="stat-lbl">Majority Target</span>
+            </div>
+          </div>
+
+          <div class="election-card-progress">
+            <div class="election-card-progress-bar" style="width: ${Math.max(pct, 2)}%;"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); margin-bottom:12px; font-weight:600;">
+            <span>Candidate Readiness</span>
+            <span>${pct}% (${declared}/${totalSeats})</span>
+          </div>
+
+          <div class="election-card-footer">
+            <span class="election-card-click-hint">
+              <i class="fa-solid ${isSelected ? 'fa-circle-check' : 'fa-hand-pointer'}"></i>
+              ${isSelected ? 'Active Campaign Loaded' : 'Click to inspect full campaign'}
+            </span>
+            <span class="election-card-active-pill">
+              <i class="fa-solid fa-arrow-right"></i>
+            </span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Attach click listeners to campaign cards
+    campaignsGrid.querySelectorAll('.election-campaign-card').forEach(card => {
+      card.onclick = async () => {
+        const elId = Number(card.getAttribute('data-election-id'));
+        if (elId === appData.selectedElectionId) return;
+
+        appData.selectedElectionId = elId;
+        showTopLoader();
+        try {
+          const cRes = await apiGetConstituencies({ election_id: elId });
+          if (cRes && cRes.data) {
+            appData.constituencies = cRes.data;
+          }
+          // Reset filters
+          appData.electionStateFilter = 'ALL';
+          appData.electionDistrictFilter = 'ALL';
+          appData.electionCategoryFilter = 'ALL';
+          appData.electionStatusFilter = 'ALL';
+          appData.electionSearchQuery = '';
+
+          const searchEl = document.getElementById('election-filter-search');
+          if (searchEl) searchEl.value = '';
+          const stateEl = document.getElementById('election-filter-state');
+          if (stateEl) stateEl.value = 'ALL';
+          const distEl = document.getElementById('election-filter-district');
+          if (distEl) distEl.value = 'ALL';
+          const catEl = document.getElementById('election-filter-category');
+          if (catEl) catEl.value = 'ALL';
+          const statEl = document.getElementById('election-filter-status');
+          if (statEl) statEl.value = 'ALL';
+
+          renderElectionsView();
+        } catch (err) {
+          alert('Failed to switch election: ' + err.message);
+        } finally {
+          hideTopLoader();
+        }
+      };
+    });
+  }
+
+  // 3. Update Election Profile Banner Details
+  const isSelectedPM = selectedElection.election_type === 'PARLIAMENTARY' ||
+                       (selectedElection.code && selectedElection.code.includes('-LS')) ||
+                       selectedElection.total_seats > 300;
+
   const codeBadge = document.getElementById('admin-election-code-badge');
-  if (codeBadge) codeBadge.textContent = selectedElection.code || 'KA-2028-LA';
+  if (codeBadge) codeBadge.textContent = selectedElection.code || 'CODE';
 
   const statusBadge = document.getElementById('admin-election-status-badge');
   if (statusBadge) statusBadge.textContent = selectedElection.status || 'UPCOMING';
+
+  const typeBadge = document.getElementById('admin-election-type-badge');
+  if (typeBadge) {
+    if (isSelectedPM) {
+      typeBadge.textContent = 'PM ELECTION (LOK SABHA)';
+      typeBadge.style.background = '#0284c7';
+    } else if (selectedElection.election_type === 'LOCAL_BODY') {
+      typeBadge.textContent = 'LOCAL BODY ELECTION';
+      typeBadge.style.background = '#059669';
+    } else {
+      typeBadge.textContent = 'CM ELECTION (ASSEMBLY)';
+      typeBadge.style.background = '#7c3aed';
+    }
+  }
 
   const titleDisplay = document.getElementById('admin-election-title-display');
   if (titleDisplay) titleDisplay.textContent = selectedElection.title;
 
   const descDisplay = document.getElementById('admin-election-desc-display');
-  if (descDisplay) descDisplay.textContent = selectedElection.description || selectedElection.manifesto_theme || '';
+  if (descDisplay) {
+    descDisplay.textContent = selectedElection.description || selectedElection.manifesto_theme || 'Active Election Campaign Strategy & Ground Operation.';
+  }
 
-  // 3. Update KPI Metrics
+  const targetSeatsDisplay = document.getElementById('admin-election-target-seats');
+  if (targetSeatsDisplay) {
+    const tgt = selectedElection.target_seats || Math.floor((selectedElection.total_seats || 224) / 2) + 1;
+    targetSeatsDisplay.textContent = `${tgt} Seats for Victory`;
+  }
+
+  // 4. Update KPI Metrics
   const constituencies = appData.constituencies || [];
   const declaredCount = constituencies.filter(c => c.candidate_name).length;
-  const vacantCount = constituencies.length - declaredCount;
+  const vacantCount = Math.max(0, constituencies.length - declaredCount);
   const eligibleCount = (appData.eligibleCandidates || []).length;
 
   const kpiTotal = document.getElementById('kpi-elections-total-seats');
@@ -6445,26 +6880,71 @@ function renderElectionsView() {
   const kpiEligible = document.getElementById('kpi-elections-eligible-members');
   if (kpiEligible) kpiEligible.textContent = eligibleCount;
 
-  // 4. Update District Filter Dropdown (populate if only default option exists)
+  // 5. Dynamic State and City/District Filters
+  const stateContainer = document.getElementById('container-filter-state');
+  const stateSelect = document.getElementById('election-filter-state');
   const districtSelect = document.getElementById('election-filter-district');
-  if (districtSelect && districtSelect.options.length <= 1) {
-    const districts = [...new Set(constituencies.map(c => c.district).filter(Boolean))].sort();
-    districtSelect.innerHTML = '<option value="ALL">All 31 Districts</option>' +
-      districts.map(d => `<option value="${d}">${d}</option>`).join('');
-    if (appData.electionDistrictFilter) {
-      districtSelect.value = appData.electionDistrictFilter;
+
+  if (isSelectedPM) {
+    // PM Election: Display State Filter
+    if (stateContainer) stateContainer.style.display = 'block';
+
+    if (stateSelect) {
+      const distinctStates = [...new Set(constituencies.map(c => c.state).filter(Boolean))].sort();
+      const currentSelectedState = appData.electionStateFilter || 'ALL';
+
+      stateSelect.innerHTML = '<option value="ALL">All States &amp; UTs (All India)</option>' +
+        distinctStates.map(s => {
+          const countInState = constituencies.filter(c => c.state === s).length;
+          return `<option value="${s}" ${s === currentSelectedState ? 'selected' : ''}>${s} (${countInState} Seats)</option>`;
+        }).join('');
+    }
+
+    // Populate District Filter based on selected state (or all districts)
+    if (districtSelect) {
+      const activeState = stateSelect ? stateSelect.value : (appData.electionStateFilter || 'ALL');
+      const filteredByState = activeState === 'ALL'
+        ? constituencies
+        : constituencies.filter(c => c.state === activeState);
+
+      const distinctDistricts = [...new Set(filteredByState.map(c => c.district).filter(Boolean))].sort();
+      const currentDistrict = appData.electionDistrictFilter || 'ALL';
+
+      districtSelect.innerHTML = `<option value="ALL">All Districts / Cities ${activeState !== 'ALL' ? 'in ' + activeState : ''}</option>` +
+        distinctDistricts.map(d => `<option value="${d}" ${d === currentDistrict ? 'selected' : ''}>${d}</option>`).join('');
+    }
+  } else {
+    // CM Election or Local Body: Hide State Filter, District is City/District Filter
+    if (stateContainer) stateContainer.style.display = 'none';
+
+    if (districtSelect) {
+      const distinctDistricts = [...new Set(constituencies.map(c => c.district).filter(Boolean))].sort();
+      const currentDistrict = appData.electionDistrictFilter || 'ALL';
+
+      districtSelect.innerHTML = `<option value="ALL">All Districts / Cities (${distinctDistricts.length})</option>` +
+        distinctDistricts.map(d => `<option value="${d}" ${d === currentDistrict ? 'selected' : ''}>${d}</option>`).join('');
     }
   }
 
-  // 5. Filter Table Data
+  // 6. Filter Table Data
   const searchVal = (document.getElementById('election-filter-search')?.value || appData.electionSearchQuery || '').toLowerCase().trim();
-  const districtVal = document.getElementById('election-filter-district')?.value || appData.electionDistrictFilter || 'ALL';
+  const stateVal = (isSelectedPM && stateSelect) ? stateSelect.value : 'ALL';
+  const districtVal = districtSelect ? districtSelect.value : (appData.electionDistrictFilter || 'ALL');
+  const catVal = document.getElementById('election-filter-category')?.value || appData.electionCategoryFilter || 'ALL';
   const statusVal = document.getElementById('election-filter-status')?.value || appData.electionStatusFilter || 'ALL';
 
   let list = [...constituencies];
 
+  if (isSelectedPM && stateVal !== 'ALL') {
+    list = list.filter(c => (c.state || '').toLowerCase() === stateVal.toLowerCase());
+  }
+
   if (districtVal !== 'ALL') {
     list = list.filter(c => (c.district || '').toLowerCase() === districtVal.toLowerCase());
+  }
+
+  if (catVal !== 'ALL') {
+    list = list.filter(c => (c.category || 'GEN').toUpperCase() === catVal.toUpperCase());
   }
 
   if (statusVal === 'DECLARED') {
@@ -6478,6 +6958,7 @@ function renderElectionsView() {
       (c.constituency_no || '').toString().includes(searchVal) ||
       (c.name || '').toLowerCase().includes(searchVal) ||
       (c.district || '').toLowerCase().includes(searchVal) ||
+      (c.state || '').toLowerCase().includes(searchVal) ||
       (c.candidate_name || '').toLowerCase().includes(searchVal)
     );
   }
@@ -6492,7 +6973,7 @@ function renderElectionsView() {
         <td colspan="7" style="text-align:center; padding: 48px 20px; color: var(--text-muted);">
           <div style="font-size:36px; margin-bottom:12px; color:#cbd5e1;"><i class="fa-solid fa-filter-circle-xmark"></i></div>
           <div style="font-size:16px; font-weight:700; color:var(--text-primary); margin-bottom:6px;">No Constituencies Found</div>
-          <div style="font-size:13px;">No assembly constituencies match the current filter or search criteria.</div>
+          <div style="font-size:13px;">No constituencies match the current search or filter criteria. Try resetting the filters.</div>
         </td>
       </tr>
     `;
@@ -6505,6 +6986,11 @@ function renderElectionsView() {
     const catBadgeStyle = c.category === 'SC'
       ? 'background:#fef3c7; color:#92400e;'
       : (c.category === 'ST' ? 'background:#ede9fe; color:#5b21b6;' : 'background:#e0e7ff; color:#3730a3;');
+
+    // For PM election, show State alongside District
+    const locationDisplay = isSelectedPM && c.state
+      ? `<div style="font-weight: 700; color: #1e293b;">${c.district}</div><div style="font-size:11px; color:#64748b; font-weight:600;"><i class="fa-solid fa-location-dot" style="font-size:10px; color:#2563eb;"></i> ${c.state}</div>`
+      : `<div style="font-weight: 600; color: #334155;">${c.district}</div>`;
 
     return `
       <tr>
@@ -6522,7 +7008,7 @@ function renderElectionsView() {
           </div>
         </td>
         <td>
-          <div style="font-weight: 600; color: #334155;">${c.district}</div>
+          ${locationDisplay}
         </td>
         <td>
           <span style="font-size: 13px; color: var(--text-muted);">${electorsStr} Electors</span>
@@ -6596,7 +7082,6 @@ function renderElectionsView() {
       try {
         await apiRemoveCandidate(cId);
         alert(`Candidate removed from constituency ${name}.`);
-        // Refresh constituencies
         const cRes = await apiGetConstituencies({ election_id: appData.selectedElectionId || 1 });
         if (cRes && cRes.data) {
           appData.constituencies = cRes.data;
@@ -6626,9 +7111,9 @@ function openAssignCandidateModal(cId) {
 
   // Set Constituency Banner
   document.getElementById('nominate-input-const-id').value = constituency.id;
-  document.getElementById('nominate-banner-sub').textContent = `AC #${constituency.constituency_no} Nomination`;
-  document.getElementById('nominate-banner-title').textContent = `AC #${constituency.constituency_no} - ${constituency.name} (${constituency.category || 'GEN'})`;
-  document.getElementById('nominate-banner-district').textContent = `${constituency.district} District · ${Number(constituency.total_electors || 0).toLocaleString('en-IN')} Registered Electors`;
+  document.getElementById('nominate-banner-sub').textContent = `Constituency #${constituency.constituency_no} Nomination`;
+  document.getElementById('nominate-banner-title').textContent = `#${constituency.constituency_no} - ${constituency.name} (${constituency.category || 'GEN'})`;
+  document.getElementById('nominate-banner-district').textContent = `${constituency.district}${constituency.state ? ', ' + constituency.state : ''} · ${Number(constituency.total_electors || 0).toLocaleString('en-IN')} Registered Electors`;
 
   document.getElementById('nominate-input-vision').value = constituency.campaign_vision || '';
   document.getElementById('nominate-input-bio').value = constituency.candidate_bio || '';
@@ -6654,7 +7139,6 @@ function openAssignCandidateModal(cId) {
       </option>
     `).join('');
 
-  // If candidate is already nominated and was not in the eligible list (e.g. pre-seeded Pasha), include them
   if (constituency.candidate_id && !eligible.find(u => u.id === constituency.candidate_id)) {
     const opt = document.createElement('option');
     opt.value = constituency.candidate_id;
@@ -6668,7 +7152,6 @@ function openAssignCandidateModal(cId) {
     selectMember.appendChild(opt);
   }
 
-  // Preview Box
   const previewBox = document.getElementById('nominate-candidate-preview');
   function updateCandidatePreview() {
     const selectedOpt = selectMember.selectedOptions[0];
@@ -6690,17 +7173,16 @@ function openAssignCandidateModal(cId) {
   selectMember.onchange = updateCandidatePreview;
   updateCandidatePreview();
 
-  // Remove Candidate button in modal
   const btnRemoveModal = document.getElementById('btn-nominate-remove-candidate');
   if (btnRemoveModal) {
     if (constituency.candidate_name) {
       btnRemoveModal.style.display = 'inline-block';
       btnRemoveModal.onclick = async () => {
-        const ok = confirm(`Are you sure you want to remove ${constituency.candidate_name} as the candidate for ${constituency.name}?`);
+        const ok = confirm(`Are you sure you want to remove ${constituency.candidate_name} as candidate for ${constituency.name}?`);
         if (!ok) return;
         try {
           await apiRemoveCandidate(constituency.id);
-          modal.style.display = 'none';
+          closeModal('modal-assign-candidate');
           alert('Candidate removed successfully.');
           const cRes = await apiGetConstituencies({ election_id: appData.selectedElectionId || 1 });
           if (cRes && cRes.data) {
@@ -6716,7 +7198,7 @@ function openAssignCandidateModal(cId) {
     }
   }
 
-  modal.style.display = 'flex';
+  openModal('modal-assign-candidate');
 }
 
 // Open Edit Constituency Modal
@@ -6734,7 +7216,7 @@ function openEditConstituencyModal(cId) {
   document.getElementById('edit-const-category').value = constituency.category || 'GEN';
   document.getElementById('edit-const-electors').value = constituency.total_electors || '';
 
-  modal.style.display = 'flex';
+  openModal('modal-edit-constituency');
 }
 
 // Setup Event Listeners for Elections Admin
@@ -6748,7 +7230,18 @@ function setupElectionAdminListeners() {
     };
   }
 
-  // 2. District Filter
+  // 2. State Filter (PM Election)
+  const stateSelect = document.getElementById('election-filter-state');
+  if (stateSelect) {
+    stateSelect.onchange = () => {
+      appData.electionStateFilter = stateSelect.value;
+      // Reset district filter on state change
+      appData.electionDistrictFilter = 'ALL';
+      renderElectionsView();
+    };
+  }
+
+  // 3. District / City Filter
   const districtSelect = document.getElementById('election-filter-district');
   if (districtSelect) {
     districtSelect.onchange = () => {
@@ -6757,7 +7250,16 @@ function setupElectionAdminListeners() {
     };
   }
 
-  // 3. Status Filter
+  // 4. Category Filter
+  const categorySelect = document.getElementById('election-filter-category');
+  if (categorySelect) {
+    categorySelect.onchange = () => {
+      appData.electionCategoryFilter = categorySelect.value;
+      renderElectionsView();
+    };
+  }
+
+  // 5. Status Filter
   const statusSelect = document.getElementById('election-filter-status');
   if (statusSelect) {
     statusSelect.onchange = () => {
@@ -6766,21 +7268,26 @@ function setupElectionAdminListeners() {
     };
   }
 
-  // 4. Reset Filters Button
+  // 6. Reset Filters Button
   const btnReset = document.getElementById('btn-reset-election-filter');
   if (btnReset) {
     btnReset.onclick = () => {
       if (searchInp) searchInp.value = '';
+      if (stateSelect) stateSelect.value = 'ALL';
       if (districtSelect) districtSelect.value = 'ALL';
+      if (categorySelect) categorySelect.value = 'ALL';
       if (statusSelect) statusSelect.value = 'ALL';
+
       appData.electionSearchQuery = '';
+      appData.electionStateFilter = 'ALL';
       appData.electionDistrictFilter = 'ALL';
+      appData.electionCategoryFilter = 'ALL';
       appData.electionStatusFilter = 'ALL';
       renderElectionsView();
     };
   }
 
-  // 5. Refresh Elections Directory
+  // 7. Refresh Elections Directory
   const btnRefresh = document.getElementById('btn-refresh-elections');
   if (btnRefresh) {
     btnRefresh.onclick = async () => {
@@ -6804,76 +7311,142 @@ function setupElectionAdminListeners() {
     };
   }
 
-  // 6. Switch Election Campaign Dropdown
-  const selectSwitch = document.getElementById('admin-select-election-switch');
-  if (selectSwitch) {
-    selectSwitch.onchange = async (e) => {
-      const elId = Number(e.target.value);
-      appData.selectedElectionId = elId;
-      showTopLoader();
-      try {
-        const cRes = await apiGetConstituencies({ election_id: elId });
-        if (cRes && cRes.data) {
-          appData.constituencies = cRes.data;
-        }
-        renderElectionsView();
-      } catch (err) {
-        alert('Failed to switch election: ' + err.message);
-      } finally {
-        hideTopLoader();
-      }
-    };
-  }
-
-  // 7. Open Create Election Modal
+  // 8. Open Create Election Modal
   const btnOpenCreate = document.getElementById('btn-open-create-election');
-  const modalCreateEl = document.getElementById('modal-create-election');
-  if (btnOpenCreate && modalCreateEl) {
+  if (btnOpenCreate) {
     btnOpenCreate.onclick = () => {
-      modalCreateEl.style.display = 'flex';
+      updateCreateElectionModalFields();
+      openModal('modal-create-election');
     };
   }
 
-  // 8. Create Election Form Submit
+  // 9. Close Create Election Modal Buttons
+  const btnCloseModal = document.getElementById('btn-close-create-election-modal');
+  if (btnCloseModal) {
+    btnCloseModal.onclick = () => {
+      closeModal('modal-create-election');
+    };
+  }
+
+  const btnCancelModal = document.getElementById('btn-cancel-create-election');
+  if (btnCancelModal) {
+    btnCancelModal.onclick = () => {
+      closeModal('modal-create-election');
+    };
+  }
+
+  // 10. Election Level Selector Cards (Step 1: CM, PM, Local Body)
+  const levelCards = document.querySelectorAll('#election-level-selector .election-level-card');
+  levelCards.forEach(card => {
+    card.onclick = () => {
+      levelCards.forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      const level = card.getAttribute('data-level');
+      const typeInput = document.getElementById('election-input-type');
+      if (typeInput) typeInput.value = level;
+      updateCreateElectionModalFields();
+    };
+  });
+
+  // 11. State Selection in Create Modal (Auto re-calculates for CM Election)
+  const modalStateSelect = document.getElementById('election-select-state');
+  if (modalStateSelect) {
+    modalStateSelect.onchange = () => {
+      updateCreateElectionModalFields();
+    };
+  }
+
+  // 12. Local Body State Selection
+  const modalLocalState = document.getElementById('election-local-body-state');
+  if (modalLocalState) {
+    modalLocalState.onchange = () => {
+      updateCreateElectionModalFields();
+    };
+  }
+
+  // 13. Election Year Change in Create Modal (Auto-updates code & title)
+  const modalYearInput = document.getElementById('election-input-year');
+  if (modalYearInput) {
+    modalYearInput.oninput = () => {
+      updateCreateElectionModalFields();
+    };
+  }
+
+  // 14. Create Election Form Submit
   const formCreateElection = document.getElementById('form-create-election');
   if (formCreateElection) {
     formCreateElection.onsubmit = async (e) => {
       e.preventDefault();
+
+      const typeInput = document.getElementById('election-input-type');
+      const level = typeInput ? typeInput.value : 'ASSEMBLY';
+      const year = parseInt(document.getElementById('election-input-year').value, 10);
+      const totalSeats = parseInt(document.getElementById('election-input-total-seats').value, 10);
+      const targetSeats = parseInt(document.getElementById('election-input-target-seats').value, 10) || Math.floor(totalSeats / 2) + 1;
+
+      let state = 'Tamil Nadu';
+      if (level === 'PARLIAMENTARY') {
+        state = 'All India';
+      } else if (level === 'LOCAL_BODY') {
+        state = document.getElementById('election-local-body-state')?.value || 'Tamil Nadu';
+      } else {
+        state = document.getElementById('election-select-state')?.value || 'Tamil Nadu';
+      }
+
       const payload = {
         title: document.getElementById('election-input-title').value.trim(),
         code: document.getElementById('election-input-code').value.trim(),
-        election_type: document.getElementById('election-input-type').value,
-        state: document.getElementById('election-input-state').value.trim(),
-        year: parseInt(document.getElementById('election-input-year').value, 10),
-        total_seats: parseInt(document.getElementById('election-input-total-seats').value, 10),
-        target_seats: parseInt(document.getElementById('election-input-target-seats').value, 10) || null,
+        election_type: level,
+        state: state,
+        year: year,
+        total_seats: totalSeats,
+        target_seats: targetSeats,
         manifesto_theme: document.getElementById('election-input-theme').value.trim(),
         description: document.getElementById('election-input-desc').value.trim()
       };
 
+      const btnSubmit = document.getElementById('btn-save-new-election');
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating Campaign & Constituencies...';
+      }
+
       try {
         const newEl = await apiCreateElection(payload);
-        alert(`Election "${payload.title}" created successfully!`);
+        alert(`Election Campaign "${payload.title}" created successfully with ${totalSeats} auto-generated constituencies!`);
         formCreateElection.reset();
-        modalCreateEl.style.display = 'none';
+        closeModal('modal-create-election');
 
         appData.elections = await apiGetElections();
         appData.selectedElectionId = newEl.id || appData.elections[appData.elections.length - 1]?.id;
+
         const cRes = await apiGetConstituencies({ election_id: appData.selectedElectionId });
         if (cRes && cRes.data) {
           appData.constituencies = cRes.data;
         }
+
+        // Reset filters
+        appData.electionStateFilter = 'ALL';
+        appData.electionDistrictFilter = 'ALL';
+        appData.electionCategoryFilter = 'ALL';
+        appData.electionStatusFilter = 'ALL';
+        appData.electionSearchQuery = '';
+
         renderElectionsView();
       } catch (err) {
-        alert('Failed to create election: ' + err.message);
+        alert('Failed to create election campaign: ' + err.message);
+      } finally {
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.innerHTML = '<i class="fa-solid fa-plus"></i> Create Election Campaign';
+        }
       }
     };
   }
 
-  // 9. Candidate Nomination Form Submit (Paid Members Only)
+  // 15. Candidate Nomination Form Submit (Paid Members Only)
   const formNominate = document.getElementById('form-nominate-candidate');
-  const modalNominate = document.getElementById('modal-assign-candidate');
-  if (formNominate && modalNominate) {
+  if (formNominate) {
     formNominate.onsubmit = async (e) => {
       e.preventDefault();
       const constId = parseInt(document.getElementById('nominate-input-const-id').value, 10);
@@ -6887,8 +7460,10 @@ function setupElectionAdminListeners() {
       }
 
       const saveBtn = document.getElementById('btn-save-nomination');
-      saveBtn.disabled = true;
-      saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Validating & Nominating...';
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Validating & Nominating...';
+      }
 
       try {
         const res = await apiAssignCandidate(constId, {
@@ -6899,8 +7474,7 @@ function setupElectionAdminListeners() {
 
         if (res && (res.success || res.status === 200)) {
           alert('Party Candidate nominated successfully for the constituency!');
-          modalNominate.style.display = 'none';
-          // Refresh constituencies
+          closeModal('modal-assign-candidate');
           const cRes = await apiGetConstituencies({ election_id: appData.selectedElectionId || 1 });
           if (cRes && cRes.data) {
             appData.constituencies = cRes.data;
@@ -6912,16 +7486,17 @@ function setupElectionAdminListeners() {
       } catch (err) {
         alert('Candidate Nomination Error: ' + err.message);
       } finally {
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Confirm Nomination';
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Confirm Nomination';
+        }
       }
     };
   }
 
-  // 10. Edit Constituency Form Submit
+  // 16. Edit Constituency Form Submit
   const formEditConst = document.getElementById('form-edit-constituency');
-  const modalEditConst = document.getElementById('modal-edit-constituency');
-  if (formEditConst && modalEditConst) {
+  if (formEditConst) {
     formEditConst.onsubmit = async (e) => {
       e.preventDefault();
       const constId = parseInt(document.getElementById('edit-const-id').value, 10);
@@ -6935,7 +7510,7 @@ function setupElectionAdminListeners() {
       try {
         await apiUpdateConstituency(constId, payload);
         alert('Constituency information updated successfully!');
-        modalEditConst.style.display = 'none';
+        closeModal('modal-edit-constituency');
 
         const cRes = await apiGetConstituencies({ election_id: appData.selectedElectionId || 1 });
         if (cRes && cRes.data) {
@@ -6948,3 +7523,4 @@ function setupElectionAdminListeners() {
     };
   }
 }
+
