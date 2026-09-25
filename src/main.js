@@ -6544,9 +6544,9 @@ function updateCreateElectionModalFields() {
   const typeInput = document.getElementById('election-input-type');
   const level = typeInput ? typeInput.value : 'ASSEMBLY';
   const stateSelect = document.getElementById('election-select-state');
-  const stateVal = stateSelect ? stateSelect.value : 'Tamil Nadu';
+  const stateVal = stateSelect ? stateSelect.value : 'Uttar Pradesh';
   const yearInput = document.getElementById('election-input-year');
-  const year = parseInt(yearInput ? yearInput.value : 2026, 10) || 2026;
+  const year = parseInt(yearInput ? yearInput.value : 2027, 10) || 2027;
 
   const titleInput = document.getElementById('election-input-title');
   const codeInput = document.getElementById('election-input-code');
@@ -6585,22 +6585,22 @@ function updateCreateElectionModalFields() {
     if (wrapperState) wrapperState.style.display = 'none';
     if (wrapperLocal) wrapperLocal.style.display = 'block';
 
-    const localState = document.getElementById('election-local-body-state')?.value || 'Tamil Nadu';
-    const localName = document.getElementById('election-input-local-body-name')?.value || 'Greater Chennai Corporation (GCC)';
+    const localState = document.getElementById('election-local-body-state')?.value || 'Uttar Pradesh';
+    const localName = document.getElementById('election-input-local-body-name')?.value || 'Lucknow Municipal Corporation (LMC)';
     const intel = STATE_INTEL[localState] || { code: 'LB' };
 
     if (stateInput) stateInput.value = localState;
     if (titleInput) titleInput.value = `${year} ${localName} Civic Election (Local Body)`;
     if (codeInput) codeInput.value = `${intel.code}-CORP-${year}`;
-    if (seatsInput) seatsInput.value = 200;
-    if (targetInput) targetInput.value = 101;
+    if (seatsInput) seatsInput.value = 110;
+    if (targetInput) targetInput.value = 56;
     if (themeInput) themeInput.value = 'Clean Governance, Pothole-Free Roads & Modern Urban Drainage';
     if (descInput) descInput.value = `Municipal Corporation Ward Elections for ${localName} across all metropolitan zones.`;
 
     if (bannerAuto && bannerTitle && bannerDesc) {
       bannerAuto.style.display = 'flex';
       bannerTitle.textContent = `Auto-Configured for ${localName}:`;
-      bannerDesc.innerHTML = `Municipal civic election for <strong>${localState}</strong>. Code convention: <code>${intel.code}-CORP-${year}</code>. Majority target: <strong>101 wards</strong>.`;
+      bannerDesc.innerHTML = `Municipal civic election for <strong>${localState}</strong>. Code convention: <code>${intel.code}-CORP-${year}</code>. Majority target: <strong>56 wards</strong>.`;
     }
   } else {
     // CM Election - State Legislative Assembly
@@ -6666,15 +6666,15 @@ function renderElectionsView() {
     },
     {
       id: 3,
-      title: '2026 Tamil Nadu Legislative Assembly Election (CM Election)',
-      code: 'TN-2026-LA',
+      title: '2027 Uttar Pradesh Legislative Assembly Election (UP CM Election)',
+      code: 'UP-2027-LA',
       election_type: 'ASSEMBLY',
-      state: 'Tamil Nadu',
-      year: 2026,
+      state: 'Uttar Pradesh',
+      year: 2027,
       status: 'UPCOMING',
-      total_seats: 234,
-      target_seats: 118,
-      description: 'General Election to the Tamil Nadu Legislative Assembly across all 38 districts (234 Assembly Constituencies).'
+      total_seats: 403,
+      target_seats: 202,
+      description: 'General Assembly Election to the 19th Uttar Pradesh Legislative Assembly across all 75 districts (403 Assembly Constituencies).'
     }
   ];
 
@@ -6691,18 +6691,18 @@ function renderElectionsView() {
   const badgeCampaigns = document.getElementById('badge-total-campaigns-count');
   if (badgeCampaigns) badgeCampaigns.textContent = elections.length;
 
-  // 2. Render Election Campaigns Card Grid (Box Format)
+  // 2. Render Election Campaigns Card Grid (Box Format) - High Visibility Dark/Light
   const campaignsGrid = document.getElementById('election-campaigns-grid');
   if (campaignsGrid) {
     campaignsGrid.innerHTML = elections.map(el => {
       const isSelected = el.id === selectedElectionId;
-      const isPM = el.election_type === 'PARLIAMENTARY' || (el.code && el.code.includes('-LS')) || el.total_seats > 300;
-      const isLocal = el.election_type === 'LOCAL_BODY' || (el.code && el.code.includes('CORP'));
+      const isPM = el.election_type === 'PARLIAMENTARY' || (el.code && el.code.includes('-LS'));
+      const isLocal = el.election_type === 'LOCAL_BODY' || (el.code && (el.code.includes('CORP') || el.code.includes('MUN')));
 
       let tagLabel = 'CM ELECTION';
       let tagClass = 'tag-cm';
       let icon = '🏛️';
-      let scopeLabel = `${el.state || 'State'} Assembly`;
+      let scopeLabel = `${el.state || 'State'} Assembly (${el.total_seats || 224} ACs)`;
 
       if (isPM) {
         tagLabel = 'PM ELECTION';
@@ -6727,23 +6727,27 @@ function renderElectionsView() {
 
       return `
         <div class="election-campaign-card ${isSelected ? 'active' : ''}" data-election-id="${el.id}">
-          <div class="election-card-header">
+          <div class="election-campaign-card-header">
             <div style="display:flex; align-items:center; gap:8px;">
               <span class="election-card-icon">${icon}</span>
               <span class="election-type-tag ${tagClass}">${tagLabel}</span>
             </div>
-            <span class="badge" style="background:${isSelected ? '#2563eb' : '#f1f5f9'}; color:${isSelected ? '#ffffff' : '#475569'}; font-size:11px; font-weight:700;">
-              ${el.status || 'UPCOMING'}
-            </span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="badge" style="background:${isSelected ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.06)'}; color:${isSelected ? '#a5b4fc' : 'var(--text-muted)'}; font-size:11px; font-weight:700; border:1px solid ${isSelected ? 'rgba(99,102,241,0.4)' : 'transparent'};">
+                ${el.status || 'UPCOMING'}
+              </span>
+              ${isSelected ? `<span class="badge" style="background:#10b981; color:#ffffff; font-size:10px; font-weight:800; padding:2px 7px;"><i class="fa-solid fa-check"></i> ACTIVE</span>` : ''}
+            </div>
           </div>
 
           <h4 class="election-card-title">${el.title}</h4>
-          <p class="election-card-sub">${scopeLabel}</p>
+          <p class="election-card-sub"><i class="fa-solid fa-location-dot" style="font-size:11px; color:#818cf8;"></i> ${scopeLabel}</p>
 
-          <div style="margin-bottom:12px;">
-            <span class="badge" style="background:#e0f2fe; color:#0369a1; font-family:monospace; font-weight:800; font-size:11px; padding:3px 8px;">
+          <div style="margin-bottom:12px; display:flex; align-items:center; justify-content:space-between;">
+            <span class="election-code-badge">
               <i class="fa-solid fa-barcode"></i> ${el.code || 'CODE'}
             </span>
+            <span style="font-size:11.5px; font-weight:700; color:var(--text-muted);"><i class="fa-solid fa-calendar-days"></i> Year ${el.year}</span>
           </div>
 
           <div class="election-card-stats-grid">
@@ -6752,27 +6756,27 @@ function renderElectionsView() {
               <span class="stat-lbl">Total Seats</span>
             </div>
             <div class="election-card-stat">
-              <span class="stat-num" style="color:#059669;">${declared}</span>
+              <span class="stat-num" style="color:#34d399;">${declared}</span>
               <span class="stat-lbl">Nominated</span>
             </div>
             <div class="election-card-stat">
-              <span class="stat-num" style="color:#f59e0b;">${targetSeats}</span>
-              <span class="stat-lbl">Majority Target</span>
+              <span class="stat-num" style="color:#fbbf24;">${targetSeats}</span>
+              <span class="stat-lbl">Target</span>
             </div>
           </div>
 
           <div class="election-card-progress">
             <div class="election-card-progress-bar" style="width: ${Math.max(pct, 2)}%;"></div>
           </div>
-          <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); margin-bottom:12px; font-weight:600;">
+          <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-muted); margin-bottom:12px; font-weight:700;">
             <span>Candidate Readiness</span>
-            <span>${pct}% (${declared}/${totalSeats})</span>
+            <span style="color:${pct > 0 ? '#34d399' : 'var(--text-muted)'};">${pct}% (${declared}/${totalSeats})</span>
           </div>
 
           <div class="election-card-footer">
             <span class="election-card-click-hint">
               <i class="fa-solid ${isSelected ? 'fa-circle-check' : 'fa-hand-pointer'}"></i>
-              ${isSelected ? 'Active Campaign Loaded' : 'Click to inspect full campaign'}
+              ${isSelected ? 'Active Campaign Loaded' : 'Click to inspect campaign'}
             </span>
             <span class="election-card-active-pill">
               <i class="fa-solid fa-arrow-right"></i>
@@ -6825,8 +6829,7 @@ function renderElectionsView() {
 
   // 3. Update Election Profile Banner Details
   const isSelectedPM = selectedElection.election_type === 'PARLIAMENTARY' ||
-                       (selectedElection.code && selectedElection.code.includes('-LS')) ||
-                       selectedElection.total_seats > 300;
+                       (selectedElection.code && selectedElection.code.includes('-LS'));
 
   const codeBadge = document.getElementById('admin-election-code-badge');
   if (codeBadge) codeBadge.textContent = selectedElection.code || 'CODE';
@@ -6982,25 +6985,25 @@ function renderElectionsView() {
 
   tbody.innerHTML = list.map(c => {
     const isDeclared = Boolean(c.candidate_name);
-    const electorsStr = Number(c.total_electors || 0).toLocaleString('en-IN');
+    const electorsStr = Number(c.total_electors || c.total_voters || 0).toLocaleString('en-IN');
     const catBadgeStyle = c.category === 'SC'
-      ? 'background:#fef3c7; color:#92400e;'
-      : (c.category === 'ST' ? 'background:#ede9fe; color:#5b21b6;' : 'background:#e0e7ff; color:#3730a3;');
+      ? 'background:rgba(245,158,11,0.15); color:#fbbf24; border:1px solid rgba(245,158,11,0.3);'
+      : (c.category === 'ST' ? 'background:rgba(168,85,247,0.15); color:#c084fc; border:1px solid rgba(168,85,247,0.3);' : 'background:rgba(99,102,241,0.15); color:#818cf8; border:1px solid rgba(99,102,241,0.3);');
 
     // For PM election, show State alongside District
     const locationDisplay = isSelectedPM && c.state
-      ? `<div style="font-weight: 700; color: #1e293b;">${c.district}</div><div style="font-size:11px; color:#64748b; font-weight:600;"><i class="fa-solid fa-location-dot" style="font-size:10px; color:#2563eb;"></i> ${c.state}</div>`
-      : `<div style="font-weight: 600; color: #334155;">${c.district}</div>`;
+      ? `<div style="font-weight: 700; color: var(--text-main);">${c.district}</div><div style="font-size:11px; color:#818cf8; font-weight:600;"><i class="fa-solid fa-location-dot" style="font-size:10px;"></i> ${c.state}</div>`
+      : `<div style="font-weight: 600; color: var(--text-main);">${c.district}</div>`;
 
     return `
       <tr>
         <td>
-          <span style="font-weight: 800; font-size: 13px; color: #2563eb; background: #eff6ff; padding: 4px 8px; border-radius: 6px;">
+          <span style="font-weight: 800; font-size: 13px; color: #818cf8; background: rgba(99,102,241,0.12); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(99,102,241,0.25);">
             #${c.constituency_no}
           </span>
         </td>
         <td>
-          <div style="font-weight: 700; font-size: 14px; color: var(--text-primary);">${c.name}</div>
+          <div style="font-weight: 700; font-size: 14px; color: var(--text-main);">${c.name}</div>
           <div style="margin-top: 3px;">
             <span class="badge" style="${catBadgeStyle} font-size: 10px; padding: 2px 7px;">
               ${c.category || 'GEN'}
@@ -7011,35 +7014,35 @@ function renderElectionsView() {
           ${locationDisplay}
         </td>
         <td>
-          <span style="font-size: 13px; color: var(--text-muted);">${electorsStr} Electors</span>
+          <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">${electorsStr} Voters</span>
         </td>
         <td>
           ${isDeclared ? `
             <div style="display:flex; align-items:center; gap:10px;">
               <img src="${c.candidate_photo || '/images/founder.jpg'}" 
-                   style="width:38px; height:38px; border-radius:50%; object-fit:cover; border:2px solid #2563eb;" 
+                   style="width:38px; height:38px; border-radius:50%; object-fit:cover; border:2px solid #6366f1;" 
                    onerror="this.src='/images/founder.jpg'" />
               <div>
-                <div style="font-weight: 700; font-size: 13px; color: var(--text-primary);">${c.candidate_name}</div>
-                <div style="font-size: 11px; color: #2563eb; font-weight: 600;">
+                <div style="font-weight: 700; font-size: 13px; color: var(--text-main);">${c.candidate_name}</div>
+                <div style="font-size: 11px; color: #818cf8; font-weight: 600;">
                   <i class="fa-solid fa-crown" style="font-size:10px;"></i> ${c.candidate_plan || 'Paid Member'}
                 </div>
                 ${c.candidate_phone ? `<div style="font-size: 11px; color: var(--text-muted);">${c.candidate_phone}</div>` : ''}
               </div>
             </div>
           ` : `
-            <span style="color: #94a3b8; font-size: 12px; font-style: italic; display:inline-flex; align-items:center; gap:5px;">
+            <span style="color: var(--text-muted); font-size: 12px; font-style: italic; display:inline-flex; align-items:center; gap:5px;">
               <i class="fa-regular fa-circle-question"></i> No Candidate Nominated
             </span>
           `}
         </td>
         <td>
           ${isDeclared ? `
-            <span class="badge" style="background:#d1fae5; color:#065f46; font-weight: 700; padding: 5px 10px;">
+            <span class="badge" style="background:rgba(16,185,129,0.18); color:#34d399; font-weight: 700; padding: 5px 10px; border:1px solid rgba(16,185,129,0.35);">
               <i class="fa-solid fa-circle-check"></i> DECLARED
             </span>
           ` : `
-            <span class="badge" style="background:#fef3c7; color:#92400e; font-weight: 600; padding: 5px 10px;">
+            <span class="badge" style="background:rgba(245,158,11,0.18); color:#fbbf24; font-weight: 600; padding: 5px 10px; border:1px solid rgba(245,158,11,0.35);">
               <i class="fa-solid fa-clock"></i> OPEN
             </span>
           `}
@@ -7050,7 +7053,7 @@ function renderElectionsView() {
               <i class="fa-solid ${isDeclared ? 'fa-user-pen' : 'fa-user-plus'}"></i> ${isDeclared ? 'Change' : 'Nominate'}
             </button>
             ${isDeclared ? `
-              <button class="btn btn-sm btn-outline btn-remove-candidate" data-cid="${c.id}" title="Remove Candidate" style="color:#dc2626; border-color:#fca5a5; padding: 4px 8px;">
+              <button class="btn btn-sm btn-outline btn-remove-candidate" data-cid="${c.id}" title="Remove Candidate" style="color:#f43f5e; border-color:rgba(244,63,94,0.4); padding: 4px 8px;">
                 <i class="fa-solid fa-user-xmark"></i>
               </button>
             ` : ''}
@@ -7101,6 +7104,29 @@ function renderElectionsView() {
   });
 }
 
+// Open Edit Election Campaign Modal
+function openEditElectionModal(electionId) {
+  const modal = document.getElementById('modal-edit-election');
+  if (!modal) return;
+
+  const election = (appData.elections || []).find(e => e.id === Number(electionId));
+  if (!election) {
+    alert('Election campaign not found.');
+    return;
+  }
+
+  document.getElementById('edit-election-id').value = election.id;
+  document.getElementById('edit-election-title').value = election.title || '';
+  document.getElementById('edit-election-code').value = election.code || '';
+  document.getElementById('edit-election-status').value = election.status || 'UPCOMING';
+  document.getElementById('edit-election-total-seats').value = election.total_seats || 224;
+  document.getElementById('edit-election-target-seats').value = election.target_seats || Math.floor((election.total_seats || 224) / 2) + 1;
+  document.getElementById('edit-election-theme').value = election.manifesto_theme || '';
+  document.getElementById('edit-election-desc').value = election.description || '';
+
+  openModal('modal-edit-election');
+}
+
 // Open Assign/Nominate Candidate Modal
 function openAssignCandidateModal(cId) {
   const modal = document.getElementById('modal-assign-candidate');
@@ -7113,7 +7139,7 @@ function openAssignCandidateModal(cId) {
   document.getElementById('nominate-input-const-id').value = constituency.id;
   document.getElementById('nominate-banner-sub').textContent = `Constituency #${constituency.constituency_no} Nomination`;
   document.getElementById('nominate-banner-title').textContent = `#${constituency.constituency_no} - ${constituency.name} (${constituency.category || 'GEN'})`;
-  document.getElementById('nominate-banner-district').textContent = `${constituency.district}${constituency.state ? ', ' + constituency.state : ''} · ${Number(constituency.total_electors || 0).toLocaleString('en-IN')} Registered Electors`;
+  document.getElementById('nominate-banner-district').textContent = `${constituency.district}${constituency.state ? ', ' + constituency.state : ''} · ${Number(constituency.total_electors || constituency.total_voters || 0).toLocaleString('en-IN')} Registered Electors`;
 
   document.getElementById('nominate-input-vision').value = constituency.campaign_vision || '';
   document.getElementById('nominate-input-bio').value = constituency.candidate_bio || '';
@@ -7214,7 +7240,7 @@ function openEditConstituencyModal(cId) {
   document.getElementById('edit-const-name').value = constituency.name;
   document.getElementById('edit-const-district').value = constituency.district;
   document.getElementById('edit-const-category').value = constituency.category || 'GEN';
-  document.getElementById('edit-const-electors').value = constituency.total_electors || '';
+  document.getElementById('edit-const-electors').value = constituency.total_electors || constituency.total_voters || '';
 
   openModal('modal-edit-constituency');
 }
@@ -7384,13 +7410,13 @@ function setupElectionAdminListeners() {
       const totalSeats = parseInt(document.getElementById('election-input-total-seats').value, 10);
       const targetSeats = parseInt(document.getElementById('election-input-target-seats').value, 10) || Math.floor(totalSeats / 2) + 1;
 
-      let state = 'Tamil Nadu';
+      let state = 'Uttar Pradesh';
       if (level === 'PARLIAMENTARY') {
         state = 'All India';
       } else if (level === 'LOCAL_BODY') {
-        state = document.getElementById('election-local-body-state')?.value || 'Tamil Nadu';
+        state = document.getElementById('election-local-body-state')?.value || 'Uttar Pradesh';
       } else {
-        state = document.getElementById('election-select-state')?.value || 'Tamil Nadu';
+        state = document.getElementById('election-select-state')?.value || 'Uttar Pradesh';
       }
 
       const payload = {
@@ -7444,7 +7470,108 @@ function setupElectionAdminListeners() {
     };
   }
 
-  // 15. Candidate Nomination Form Submit (Paid Members Only)
+  // 15. Edit Selected Election Action Button
+  const btnEditSelected = document.getElementById('btn-edit-selected-election');
+  if (btnEditSelected) {
+    btnEditSelected.onclick = () => {
+      if (!appData.selectedElectionId) {
+        alert('Please select an election campaign to edit.');
+        return;
+      }
+      openEditElectionModal(appData.selectedElectionId);
+    };
+  }
+
+  // 16. Edit Election Form Submit
+  const formEditElection = document.getElementById('form-edit-election');
+  if (formEditElection) {
+    formEditElection.onsubmit = async (e) => {
+      e.preventDefault();
+      const elId = Number(document.getElementById('edit-election-id').value);
+      if (!elId) return;
+
+      const payload = {
+        title: document.getElementById('edit-election-title').value.trim(),
+        code: document.getElementById('edit-election-code').value.trim().toUpperCase(),
+        status: document.getElementById('edit-election-status').value,
+        target_seats: parseInt(document.getElementById('edit-election-target-seats').value, 10),
+        manifesto_theme: document.getElementById('edit-election-theme').value.trim(),
+        description: document.getElementById('edit-election-desc').value.trim()
+      };
+
+      const saveBtn = document.getElementById('btn-save-edit-election');
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+      }
+
+      try {
+        await apiUpdateElection(elId, payload);
+        alert('Election campaign updated successfully!');
+        closeModal('modal-edit-election');
+
+        appData.elections = await apiGetElections();
+        renderElectionsView();
+      } catch (err) {
+        alert('Failed to update election campaign: ' + err.message);
+      } finally {
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save Campaign Changes';
+        }
+      }
+    };
+  }
+
+  // 17. Delete Selected Election Action Button
+  const btnDeleteSelected = document.getElementById('btn-delete-selected-election');
+  if (btnDeleteSelected) {
+    btnDeleteSelected.onclick = async () => {
+      const elId = Number(appData.selectedElectionId);
+      const election = (appData.elections || []).find(e => e.id === elId);
+      if (!election) {
+        alert('Please select an election campaign to delete.');
+        return;
+      }
+
+      const totalSeats = election.total_seats || 224;
+      const ok = confirm(`Are you sure you want to delete campaign "${election.title}" (${election.code})?\n\nAll ${totalSeats} constituencies associated with this campaign will be permanently removed.`);
+      if (!ok) return;
+
+      showTopLoader();
+      try {
+        await apiDeleteElection(elId);
+        alert(`Election Campaign "${election.title}" was deleted successfully.`);
+
+        appData.elections = await apiGetElections();
+        if (appData.elections && appData.elections.length > 0) {
+          appData.selectedElectionId = appData.elections[0].id;
+          const cRes = await apiGetConstituencies({ election_id: appData.selectedElectionId });
+          if (cRes && cRes.data) {
+            appData.constituencies = cRes.data;
+          }
+        } else {
+          appData.selectedElectionId = null;
+          appData.constituencies = [];
+        }
+
+        // Reset filters
+        appData.electionStateFilter = 'ALL';
+        appData.electionDistrictFilter = 'ALL';
+        appData.electionCategoryFilter = 'ALL';
+        appData.electionStatusFilter = 'ALL';
+        appData.electionSearchQuery = '';
+
+        renderElectionsView();
+      } catch (err) {
+        alert('Failed to delete election campaign: ' + err.message);
+      } finally {
+        hideTopLoader();
+      }
+    };
+  }
+
+  // 18. Candidate Nomination Form Submit (Paid Members Only)
   const formNominate = document.getElementById('form-nominate-candidate');
   if (formNominate) {
     formNominate.onsubmit = async (e) => {
@@ -7494,7 +7621,7 @@ function setupElectionAdminListeners() {
     };
   }
 
-  // 16. Edit Constituency Form Submit
+  // 19. Edit Constituency Form Submit
   const formEditConst = document.getElementById('form-edit-constituency');
   if (formEditConst) {
     formEditConst.onsubmit = async (e) => {
@@ -7523,4 +7650,5 @@ function setupElectionAdminListeners() {
     };
   }
 }
+
 
