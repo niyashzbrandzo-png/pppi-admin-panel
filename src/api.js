@@ -244,27 +244,39 @@ const MOCK_DONATIONS = [
 
 /* Helper HTTP Request wrapper */
 async function request(endpoint, options = {}) {
-  const url = `${API_BASE_URL}${endpoint}`;
-  try {
-    const token = getAdminToken();
-    const { headers: optHeaders, ...restOptions } = options;
-    const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        ...(optHeaders || {})
-      },
-      ...restOptions
-    });
-    if (!res.ok) {
-      throw new Error(`HTTP Error ${res.status}`);
-    }
-    return await res.json();
-  } catch (err) {
-    console.warn(`[API Call Failed: ${endpoint}] Falling back to mock/demo handler`, err);
-    return null;
+  const token = getAdminToken();
+  const { headers: optHeaders, ...restOptions } = options;
+  const reqHeaders = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(optHeaders || {})
+  };
+
+  const urlsToTry = [API_BASE_URL];
+  if (!urlsToTry.includes(REMOTE_API_URL)) {
+    urlsToTry.push(REMOTE_API_URL);
   }
+
+  let lastError = null;
+  for (const base of urlsToTry) {
+    try {
+      const res = await fetch(`${base}${endpoint}`, {
+        headers: reqHeaders,
+        ...restOptions
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      const errorJson = await res.json().catch(() => null);
+      if (errorJson) return errorJson;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  console.warn(`[API Call Failed: ${endpoint}]`, lastError);
+  return null;
 }
 
 /* 1. USERS API */
@@ -773,42 +785,55 @@ export async function apiDeleteJoinRequest(id) {
 /* 9. CLOUDINARY FILE UPLOAD API */
 export async function apiUploadMediaFile(fileOrDataUrl, folder = 'pppi_uploads') {
   const token = getAdminToken();
-  let res;
+  const urlsToTry = [API_BASE_URL];
+  if (!urlsToTry.includes(REMOTE_API_URL)) {
+    urlsToTry.push(REMOTE_API_URL);
+  }
 
-  if (typeof fileOrDataUrl === 'string') {
-    if (fileOrDataUrl.startsWith('http://') || fileOrDataUrl.startsWith('https://')) {
-      return fileOrDataUrl; // Already a remote URL
+  let lastError = null;
+  for (const base of urlsToTry) {
+    try {
+      let res;
+      if (typeof fileOrDataUrl === 'string') {
+        if (fileOrDataUrl.startsWith('http://') || fileOrDataUrl.startsWith('https://')) {
+          return fileOrDataUrl; // Already a remote URL
+        }
+        res = await fetch(`${base}/upload`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ dataUrl: fileOrDataUrl, folder })
+        });
+      } else {
+        const formData = new FormData();
+        formData.append('file', fileOrDataUrl);
+        formData.append('folder', folder);
+
+        res = await fetch(`${base}/upload`, {
+          method: 'POST',
+          headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: formData
+        });
+      }
+
+      if (res.ok) {
+        const data = await res.json();
+        const url = data.data?.url || data.url || data.data?.secure_url;
+        if (url) return url;
+      } else {
+        const data = await res.json().catch(() => ({}));
+        lastError = new Error(data.message || `Upload failed with status ${res.status}`);
+      }
+    } catch (err) {
+      lastError = err;
     }
-    // Base64 / dataURL
-    res = await fetch(`${API_BASE_URL}/upload`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify({ dataUrl: fileOrDataUrl, folder })
-    });
-  } else {
-    // File or Blob
-    const formData = new FormData();
-    formData.append('file', fileOrDataUrl);
-    formData.append('folder', folder);
-
-    res = await fetch(`${API_BASE_URL}/upload`, {
-      method: 'POST',
-      headers: {
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      },
-      body: formData
-    });
   }
 
-  const data = await res.json();
-  if (!res.ok || data.status >= 300) {
-    throw new Error(data.message || 'File upload to Cloudinary failed.');
-  }
-
-  return data.data?.url || data.url || data.data?.secure_url;
+  throw lastError || new Error('File upload to Cloudinary failed.');
 }
 
 /* 10. MANIFESTO CMS API */
@@ -971,117 +996,49 @@ export async function apiUpdateSettings(payload) {
 }
 
 /* ==========================================================================
-   14. NEWSLETTER & FOUNDER PRESS MEET API
+   14. NEWSLETTER & FOUNDER PRESS MEET API (100% Live DB Sync)
    ========================================================================== */
-const LOCAL_NEWSLETTERS_KEY = 'pppi_newsletters_data';
-
-const DEFAULT_NEWSLETTERS = [
-  {
-    id: 1,
-    title: 'Historic Press Meet of Founder President Mr. B S Vahid Pasha on National Integration',
-    subtitle: 'Official Press Declaration from DALASANUR Central Secretariat',
-    description: `During the special press meet conducted at Dalasanur Headquarters, Founder & National President Mr. B S Vahid Pasha unveiled the sacred mission of the Pasha People Party of India (PPPI CONNECT). Addressing journalists, editors, and party delegates from across India, the President emphasized that political power is not an instrument of luxury, but a sacred covenant to protect the farmer, feed every starving family before sunset, and establish global natural disaster rescue forces.
-
-"Our mission is simple and pure: Food, shelter, security, and health are fundamental rights for everyone on or off this planet. We are marching forward with the Pineapple emblem to restore truth and dignity to the common citizen."
-
-The official press meet communique and charter document are published herewith for full public inspection and worldwide circulation.`,
-    media_type: 'image',
-    media_url: '/images/banner.jpg',
-    doc_url: '/images/pppi_preamble_banner.jpg',
-    doc_name: 'PPPI_Official_Press_Declaration_2026.pdf',
-    category: 'Press Meet',
-    author: 'Mr. B S Vahid Pasha - Founder & National President',
-    publish_date: new Date('2026-09-01T10:00:00Z').toISOString(),
-    status: true,
-    created_at: new Date('2026-09-01T10:00:00Z').toISOString()
-  },
-  {
-    id: 2,
-    title: 'Special Press Conference: Unveiling the Pineapple Emblem & Uttar Pradesh Electoral Vision',
-    subtitle: 'Keynote Address by National Leadership & Announcement of State Leadership',
-    description: `At a landmark press briefing, the Central Executive Committee of Pasha People Party of India officially launched its state-wide democratic outreach program. The National President highlighted the historical significance of the Pineapple symbol as an emblem of resilience, sweet prosperity, and collective power for working families, small business owners, and rural farmers.
-
-Key topics addressed during the press meet included:
-1. Zero tolerance for corruption and extortion in public administration.
-2. Immediate relief measures and direct financial security for agricultural laborers.
-3. Rapid expansion of the party's mobile governance network (PPPI CONNECT).
-
-The full resolution passed during the press meet is available for public download.`,
-    media_type: 'image',
-    media_url: '/images/up_cm_irshad_khan_banner.jpg',
-    doc_url: '/images/vote_pineapple_card.jpg',
-    doc_name: 'Pineapple_Electoral_Charter_UP.pdf',
-    category: 'Press Meet',
-    author: 'National Working Committee • PPPI Central Headquarters',
-    publish_date: new Date('2026-09-08T11:30:00Z').toISOString(),
-    status: true,
-    created_at: new Date('2026-09-08T11:30:00Z').toISOString()
-  }
-];
+if (typeof window !== 'undefined') {
+  try { localStorage.removeItem('pppi_newsletters_data'); } catch (e) {}
+}
 
 export async function apiGetNewsletters() {
   try {
     const data = await request('/newsletters');
-    if (data && Array.isArray(data.data) && data.data.length > 0) {
-      localStorage.setItem(LOCAL_NEWSLETTERS_KEY, JSON.stringify(data.data));
+    if (data && Array.isArray(data.data)) {
       return data.data;
     }
   } catch (err) {
-    console.warn('apiGetNewsletters remote fetch error, using local/fallback:', err.message);
+    console.error('apiGetNewsletters remote fetch error:', err.message);
   }
-  const cached = localStorage.getItem(LOCAL_NEWSLETTERS_KEY);
-  if (cached) {
-    try { return JSON.parse(cached); } catch (e) {}
-  }
-  return DEFAULT_NEWSLETTERS;
+  return [];
 }
 
 export async function apiCreateNewsletter(payload) {
-  let createdItem = null;
-  try {
-    const data = await request('/newsletters', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-    if (data && data.data) {
-      createdItem = data.data;
-    }
-  } catch (err) {
-    console.warn('apiCreateNewsletter remote error, creating locally:', err.message);
+  const data = await request('/newsletters', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+  if (data && data.data) {
+    return data.data;
   }
-  if (!createdItem) {
-    createdItem = {
-      id: Date.now(),
-      title: payload.title,
-      subtitle: payload.subtitle || '',
-      description: payload.description,
-      media_type: payload.media_type || 'image',
-      media_url: payload.media_url || '',
-      doc_url: payload.doc_url || '',
-      doc_name: payload.doc_name || (payload.doc_url ? 'newsletter_document.pdf' : null),
-      category: payload.category || 'Press Meet',
-      author: payload.author || 'Mr. B S Vahid Pasha - Founder & National President',
-      publish_date: payload.publish_date || new Date().toISOString(),
-      status: true,
-      created_at: new Date().toISOString()
-    };
+  throw new Error((data && data.message) || 'Failed to publish news letter to live database.');
+}
+
+export async function apiUpdateNewsletter(id, payload) {
+  const data = await request(`/newsletters/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+  if (data && data.data) {
+    return data.data;
   }
-  const current = await apiGetNewsletters();
-  const updated = [createdItem, ...current.filter(x => x.id !== createdItem.id)];
-  localStorage.setItem(LOCAL_NEWSLETTERS_KEY, JSON.stringify(updated));
-  return createdItem;
+  throw new Error((data && data.message) || 'Failed to update news letter in live database.');
 }
 
 export async function apiDeleteNewsletter(id) {
-  try {
-    await request(`/newsletters/${id}`, { method: 'DELETE' });
-  } catch (err) {
-    console.warn('apiDeleteNewsletter remote error, deleting locally:', err.message);
-  }
-  const current = await apiGetNewsletters();
-  const updated = current.filter(item => String(item.id) !== String(id));
-  localStorage.setItem(LOCAL_NEWSLETTERS_KEY, JSON.stringify(updated));
-  return { success: true, id };
+  const data = await request(`/newsletters/${id}`, { method: 'DELETE' });
+  return data;
 }
 
 /* ==========================================================================

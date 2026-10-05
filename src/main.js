@@ -610,6 +610,13 @@ function dispatchViewRender(viewName) {
         break;
       case 'newsletter':
         renderNewsletterGrid();
+        apiGetNewsletters().then(items => {
+          appData.newsletters = items || [];
+          updateBadges();
+          renderNewsletterGrid();
+        }).catch(err => {
+          console.error('Error fetching live newsletters:', err);
+        });
         break;
       case 'publicity':
         renderPublicityGrid();
@@ -2770,13 +2777,13 @@ function renderNewsletterGrid() {
       try {
         if (mediaFileInput && mediaFileInput.files.length > 0) {
           if (statusDiv) statusDiv.innerHTML = `<span class="upload-status-pill"><i class="fa-solid fa-spinner fa-spin"></i> Uploading Media to Cloudinary...</span>`;
-          finalMediaUrl = await apiUploadMediaFile(mediaFileInput.files[0]);
+          finalMediaUrl = await apiUploadMediaFile(mediaFileInput.files[0], 'newsletters');
         }
 
         if (docFileInput && docFileInput.files.length > 0) {
           if (statusDiv) statusDiv.innerHTML = `<span class="upload-status-pill"><i class="fa-solid fa-spinner fa-spin"></i> Uploading Document/PDF...</span>`;
           finalDocName = docFileInput.files[0].name;
-          finalDocUrl = await apiUploadMediaFile(docFileInput.files[0]);
+          finalDocUrl = await apiUploadMediaFile(docFileInput.files[0], 'newsletters');
         }
 
         if (statusDiv) statusDiv.innerHTML = `<span class="upload-status-pill" style="color:var(--accent-emerald);"><i class="fa-solid fa-circle-check"></i> Files Uploaded!</span>`;
@@ -2894,6 +2901,13 @@ function renderNewsletterGrid() {
           </div>
         `;
       }
+    } else {
+      mediaHtml = `
+        <div class="media-preview-container" style="height:140px; background:linear-gradient(135deg, rgba(2,132,199,0.15), rgba(16,185,129,0.15)); display:flex; align-items:center; justify-content:center;">
+          <img src="/images/banner.jpg" style="width:100%; height:100%; object-fit:cover; opacity:0.8;" alt="PPPI Banner" onError="this.style.display='none';" />
+          <span class="media-badge-tag"><i class="fa-solid fa-bullhorn"></i> Official Release</span>
+        </div>
+      `;
     }
 
     card.innerHTML = `
@@ -2946,6 +2960,8 @@ function renderNewsletterGrid() {
           appData.newsletters = await apiGetNewsletters();
           updateBadges();
           renderNewsletterGrid();
+        } catch (err) {
+          alert('Error deleting newsletter: ' + err.message);
         } finally {
           setBtnLoading(targetBtn, false);
         }
