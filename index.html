@@ -963,19 +963,21 @@
           </div>
 
           <!-- SEARCH & CATEGORY FILTER BAR -->
-          <div class="filters-bar" style="margin-bottom: 20px; display:flex; gap:12px; flex-wrap:wrap;">
-            <div class="search-input-wrapper" style="flex:1; min-width:260px;">
-              <i class="fa-solid fa-magnifying-glass search-icon"></i>
-              <input type="text" id="input-search-newsletter" class="search-input" placeholder="Search by title, speech excerpt, founder statement, or keywords..." />
+          <div class="filters-bar" style="margin-bottom: 24px; display:flex; gap:16px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+            <div class="search-input-wrapper" style="flex:1; min-width:280px; max-width:600px; position:relative;">
+              <i class="fa-solid fa-magnifying-glass search-icon" style="position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:14px; pointer-events:none;"></i>
+              <input type="text" id="input-search-newsletter" class="search-input" placeholder="Search by title, speech excerpt, founder statement, or keywords..." style="width:100%; padding:12px 16px 12px 46px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:var(--radius-md); color:var(--text-main); font-size:13.5px; outline:none; transition:border-color 0.2s, box-shadow 0.2s;" />
             </div>
-            <select id="filter-newsletter-category" class="form-select" style="width:auto; min-width:180px;">
-              <option value="ALL">All Categories</option>
-              <option value="Official Press Meet">Official Press Meet</option>
-              <option value="Party Gazette">Party Gazette</option>
-              <option value="Manifesto Bulletin">Manifesto Bulletin</option>
-              <option value="Founder Statement">Founder Statement</option>
-              <option value="Policy Briefing">Policy Briefing</option>
-            </select>
+            <div style="display:flex; gap:12px; align-items:center;">
+              <select id="filter-newsletter-category" class="form-select" style="min-width:220px; padding:11px 16px; font-size:13px; font-weight:600; cursor:pointer;">
+                <option value="ALL">All Categories</option>
+                <option value="Press Meet">Press Meets &amp; Conferences</option>
+                <option value="Official Bulletin">Official Bulletins &amp; Gazettes</option>
+                <option value="Special Address">Special Addresses</option>
+                <option value="Electoral Vision">Electoral Vision</option>
+                <option value="Press Statement">Press Statements</option>
+              </select>
+            </div>
           </div>
 
           <div class="posts-grid" id="newsletter-grid-container" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:22px;">

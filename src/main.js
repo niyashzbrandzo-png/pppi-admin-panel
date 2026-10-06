@@ -89,6 +89,17 @@ import {
   setApiBaseUrl
 } from './api.js';
 
+// HTML Escape Helper for Safe String Rendering
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // Application State
 let appData = {
   users: [],
@@ -2850,7 +2861,11 @@ function renderNewsletterGrid() {
 
   let filtered = [...newsletters];
   if (selectedCat !== 'ALL') {
-    filtered = filtered.filter(n => (n.category || '').toLowerCase() === selectedCat.toLowerCase());
+    filtered = filtered.filter(n => {
+      const itemCat = (n.category || '').toLowerCase();
+      const targetCat = selectedCat.toLowerCase();
+      return itemCat === targetCat || itemCat.includes(targetCat) || targetCat.includes(itemCat);
+    });
   }
   if (query) {
     filtered = filtered.filter(n =>

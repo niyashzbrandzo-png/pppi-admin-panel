@@ -1698,6 +1698,61 @@ button:disabled, .btn:disabled {
   word-break: break-word;
 }
 
+/* Filters & Search Input Styles */
+.filters-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 280px;
+}
+
+.search-input-wrapper .search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 14px;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.search-input {
+  width: 100%;
+  padding: 11px 16px 11px 44px;
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--text-main) !important;
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+.search-input:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2) !important;
+  background-color: var(--bg-card) !important;
+}
+
+.search-input-wrapper:focus-within .search-icon {
+  color: var(--primary);
+}
+
 /* Media Cards for Publicity & Newsletters */
 .media-admin-card {
   background-color: var(--bg-card);
