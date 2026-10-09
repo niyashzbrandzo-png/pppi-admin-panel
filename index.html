@@ -199,8 +199,26 @@
           <span>System Settings</span>
         </a>
 
-
-
+        <!-- SELLER MARKETPLACE PORTAL (For Sellers & Super Admin) -->
+        <div class="menu-label" id="menu-label-marketplace">Seller Marketplace</div>
+        <a href="#" class="nav-item" data-view="seller-dashboard" id="nav-seller-dashboard">
+          <i class="fa-solid fa-store" style="color:#16a34a;"></i>
+          <span>Seller Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" data-view="seller-products" id="nav-seller-products">
+          <i class="fa-solid fa-boxes-stacked" style="color:#0284c7;"></i>
+          <span>My Products &amp; Stock</span>
+          <span class="badge" id="badge-seller-products-count" style="background:#0284c7; color:white;">0</span>
+        </a>
+        <a href="#" class="nav-item" data-view="seller-orders" id="nav-seller-orders">
+          <i class="fa-solid fa-truck-fast" style="color:#ea580c;"></i>
+          <span>Orders &amp; Courier</span>
+          <span class="badge" id="badge-seller-orders-count" style="background:#ea580c; color:white;">0</span>
+        </a>
+        <a href="#" class="nav-item" data-view="seller-payouts" id="nav-seller-payouts">
+          <i class="fa-solid fa-sack-dollar" style="color:#10b981;"></i>
+          <span>Earnings &amp; Payouts</span>
+        </a>
       </nav>
 
       <div class="sidebar-footer">
@@ -2054,6 +2072,324 @@
             <button class="btn btn-primary" id="btn-save-settings">Save Settings</button>
           </div>
         </section>
+
+        <!-- =========================================================================
+             SELLER MARKETPLACE PORTAL - 4 DEDICATED SELLER VIEWS
+             ========================================================================= -->
+
+        <!-- 1. SELLER DASHBOARD VIEW -->
+        <section id="view-seller-dashboard" class="content-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">
+                <i class="fa-solid fa-store" style="color:#16a34a;"></i>
+                <span id="seller-dash-store-name">Seller Store Dashboard</span>
+              </h2>
+              <p class="view-subtitle" id="seller-dash-subtitle">Verified Green Card Seller Management Portal</p>
+            </div>
+            <div class="view-actions">
+              <button class="btn btn-primary" id="btn-seller-dash-add-product">
+                <i class="fa-solid fa-plus"></i> Add New Product
+              </button>
+              <button class="btn btn-outline" id="btn-seller-dash-refresh">
+                <i class="fa-solid fa-arrows-rotate"></i> Refresh
+              </button>
+            </div>
+          </div>
+
+          <!-- Banner Notice -->
+          <div style="background: linear-gradient(135deg, rgba(22, 163, 74, 0.12), rgba(2, 132, 199, 0.08)); border: 1px solid rgba(22, 163, 74, 0.25); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <div style="width: 44px; height: 44px; border-radius: 10px; background: #16a34a; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                <i class="fa-solid fa-hand-holding-heart"></i>
+              </div>
+              <div>
+                <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary);">PPPI Member Marketplace Partnership</h4>
+                <p style="margin: 3px 0 0; font-size: 13px; color: var(--text-muted);">
+                  20% of sales automatically contributes to the Party Welfare &amp; Farmer Support Fund. Weekly payouts are credited every Monday.
+                </p>
+              </div>
+            </div>
+            <span class="badge" style="background:#16a34a; color:white; font-size:12px; padding:6px 12px; border-radius:20px;">
+              <i class="fa-solid fa-circle-check"></i> Green Card Active
+            </span>
+          </div>
+
+          <!-- Metric Stat Cards -->
+          <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 24px;">
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(22, 163, 74, 0.15); color: #16a34a;">
+                <i class="fa-solid fa-indian-rupee-sign"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-label">Total Revenue</span>
+                <h3 class="stat-value" id="seller-dash-revenue">₹0</h3>
+                <span class="stat-trend positive"><i class="fa-solid fa-arrow-up"></i> Gross sales</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(2, 132, 199, 0.15); color: #0284c7;">
+                <i class="fa-solid fa-cart-shopping"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-label">Total Orders</span>
+                <h3 class="stat-value" id="seller-dash-orders-count">0</h3>
+                <span class="stat-trend" style="color:var(--text-muted);"><i class="fa-solid fa-box"></i> Buyer orders</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(234, 88, 12, 0.15); color: #ea580c;">
+                <i class="fa-solid fa-truck-ramp-box"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-label">Pending Shipments</span>
+                <h3 class="stat-value" id="seller-dash-pending-count">0</h3>
+                <span class="stat-trend" style="color:#ea580c;"><i class="fa-solid fa-clock"></i> Action required</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+                <i class="fa-solid fa-building-columns"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-label">Weekly Payout Balance</span>
+                <h3 class="stat-value" id="seller-dash-payout-balance">₹0</h3>
+                <span class="stat-trend positive"><i class="fa-solid fa-shield"></i> Ready for transfer</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dual Column: Recent Orders & Bank Profile -->
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; align-items: start;">
+            <!-- Recent Orders Requiring Dispatch -->
+            <div class="card" style="padding: 20px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+                <h3 style="margin:0; font-size: 16px; font-weight: 700; color:var(--text-primary);">
+                  <i class="fa-solid fa-truck-fast" style="color:#ea580c;"></i> Recent Orders for Courier Dispatch
+                </h3>
+                <button class="btn btn-outline btn-sm" id="btn-seller-view-all-orders">View All Orders</button>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Order No</th>
+                      <th>Customer &amp; Shipping Address</th>
+                      <th>Items</th>
+                      <th>Total</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="seller-dash-recent-orders-tbody">
+                    <tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">Loading recent seller orders...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Seller Store & Bank Particulars -->
+            <div class="card" style="padding: 20px;">
+              <h3 style="margin: 0 0 16px; font-size: 16px; font-weight: 700; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-building-columns" style="color:#16a34a;"></i> Bank Details for Weekly Payouts
+              </h3>
+              <div id="seller-dash-bank-card" style="background: var(--bg-hover); border-radius: 12px; padding: 16px;">
+                <div style="margin-bottom: 10px;">
+                  <span style="font-size:11px; text-transform:uppercase; color:var(--text-muted); font-weight:600;">Store Name</span>
+                  <div id="seller-info-store-name" style="font-size:14px; font-weight:700; color:var(--text-primary);">Kolar Agro &amp; Organic Store</div>
+                </div>
+                <div style="margin-bottom: 10px;">
+                  <span style="font-size:11px; text-transform:uppercase; color:var(--text-muted); font-weight:600;">Bank Name</span>
+                  <div id="seller-info-bank-name" style="font-size:14px; font-weight:600; color:var(--text-primary);">State Bank of India</div>
+                </div>
+                <div style="margin-bottom: 10px;">
+                  <span style="font-size:11px; text-transform:uppercase; color:var(--text-muted); font-weight:600;">Account Holder</span>
+                  <div id="seller-info-account-holder" style="font-size:14px; font-weight:600; color:var(--text-primary);">Ramesh Patel</div>
+                </div>
+                <div style="margin-bottom: 10px;">
+                  <span style="font-size:11px; text-transform:uppercase; color:var(--text-muted); font-weight:600;">Account Number</span>
+                  <div id="seller-info-account-no" style="font-size:14px; font-weight:700; font-family:monospace; color:var(--text-primary);">••••••••9876</div>
+                </div>
+                <div>
+                  <span style="font-size:11px; text-transform:uppercase; color:var(--text-muted); font-weight:600;">IFSC Code</span>
+                  <div id="seller-info-ifsc" style="font-size:14px; font-weight:700; font-family:monospace; color:#16a34a;">SBIN0004123</div>
+                </div>
+              </div>
+              <p style="font-size: 11px; color:var(--text-muted); margin-top: 12px; line-height: 1.4;">
+                <i class="fa-solid fa-lock"></i> Bank accounts submitted during Green Card Plan registration are verified by party treasury for weekly earnings transfers.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. SELLER PRODUCTS & STOCK MANAGEMENT VIEW -->
+        <section id="view-seller-products" class="content-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">
+                <i class="fa-solid fa-boxes-stacked" style="color:#0284c7;"></i> My Products &amp; Stock Management
+              </h2>
+              <p class="view-subtitle">Manage inventory, stock quantities, and availability for all mobile app members</p>
+            </div>
+            <div class="view-actions">
+              <button class="btn btn-primary" id="btn-seller-add-product">
+                <i class="fa-solid fa-plus"></i> Add New Product
+              </button>
+            </div>
+          </div>
+
+          <!-- Search & Filter Controls -->
+          <div class="table-controls" style="margin-bottom: 18px; display:flex; gap:12px; flex-wrap:wrap;">
+            <div class="search-box" style="flex:1; min-width:240px;">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="seller-products-search" class="form-control" placeholder="Search by title or category..." />
+            </div>
+            <select id="seller-products-stock-filter" class="form-control" style="width:180px;">
+              <option value="ALL">All Stock Status</option>
+              <option value="IN_STOCK">In Stock Only</option>
+              <option value="OUT_OF_STOCK">Out of Stock Only</option>
+            </select>
+          </div>
+
+          <!-- Products Table -->
+          <div class="card" style="padding:0;">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Stock Qty</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="seller-products-tbody">
+                  <tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">Loading products...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. SELLER ORDERS & COURIER DISPATCH VIEW -->
+        <section id="view-seller-orders" class="content-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">
+                <i class="fa-solid fa-truck-fast" style="color:#ea580c;"></i> Orders &amp; Courier Shipping
+              </h2>
+              <p class="view-subtitle">View customer delivery addresses, pack parcels, assign courier tracking, and update status</p>
+            </div>
+            <div class="view-actions">
+              <button class="btn btn-outline" id="btn-seller-orders-refresh">
+                <i class="fa-solid fa-arrows-rotate"></i> Refresh Orders
+              </button>
+            </div>
+          </div>
+
+          <!-- Order Filter Tabs -->
+          <div style="display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap;">
+            <button class="btn btn-sm btn-primary filter-order-btn" data-filter="ALL">All Orders</button>
+            <button class="btn btn-sm btn-outline filter-order-btn" data-filter="ORDER_ACCEPTED">Action Required (Accepted)</button>
+            <button class="btn btn-sm btn-outline filter-order-btn" data-filter="SHIPPED">Shipped</button>
+            <button class="btn btn-sm btn-outline filter-order-btn" data-filter="DELIVERED">Delivered</button>
+            <button class="btn btn-sm btn-outline filter-order-btn" data-filter="OUT_OF_STOCK">Out of Stock</button>
+          </div>
+
+          <!-- Orders List Container -->
+          <div id="seller-orders-list-container">
+            <div style="text-align:center; padding:40px; color:var(--text-muted);">Loading orders...</div>
+          </div>
+        </section>
+
+        <!-- 4. SELLER EARNINGS & WEEKLY PAYOUTS VIEW -->
+        <section id="view-seller-payouts" class="content-view">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">
+                <i class="fa-solid fa-sack-dollar" style="color:#10b981;"></i> Seller Earnings &amp; Weekly Payouts
+              </h2>
+              <p class="view-subtitle">Track net earnings, 20% party fund deductions, and weekly bank payouts</p>
+            </div>
+            <div class="view-actions">
+              <button class="btn btn-primary" id="btn-admin-transfer-payout" style="display:none;">
+                <i class="fa-solid fa-money-bill-transfer"></i> Record Weekly Bank Transfer
+              </button>
+            </div>
+          </div>
+
+          <!-- Payout Summary Cards -->
+          <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 24px;">
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(22, 163, 74, 0.15); color: #16a34a;">
+                <i class="fa-solid fa-coins"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-label">Gross Sales Total</span>
+                <h3 class="stat-value" id="payout-gross-sales">₹0</h3>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">
+                <i class="fa-solid fa-hand-holding-heart"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-label">Party Fund (20%)</span>
+                <h3 class="stat-value" id="payout-party-fund">₹0</h3>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+                <i class="fa-solid fa-wallet"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-label">Net Seller Earnings</span>
+                <h3 class="stat-value" id="payout-net-earnings">₹0</h3>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon" style="background: rgba(2, 132, 199, 0.15); color: #0284c7;">
+                <i class="fa-solid fa-calendar-check"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-label">Payout Schedule</span>
+                <h3 class="stat-value" style="font-size:18px;">Every Monday</h3>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payout History Table -->
+          <div class="card" style="padding:20px;">
+            <h3 style="margin: 0 0 16px; font-size: 16px; font-weight: 700; color:var(--text-primary);">
+              <i class="fa-solid fa-clock-rotate-left"></i> Weekly Payout Transfers
+            </h3>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Payout Ref</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Bank Account</th>
+                    <th>Transaction UTR</th>
+                    <th>Transferred Date</th>
+                  </tr>
+                </thead>
+                <tbody id="seller-payouts-tbody">
+                  <tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">Loading payout records...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   </div>
@@ -3087,6 +3423,167 @@
             <button type="button" class="btn btn-outline" data-close-modal="modal-edit-constituency">Cancel</button>
             <button type="submit" class="btn btn-primary" id="btn-save-constituency-edit">
               <i class="fa-solid fa-check"></i> Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Add Seller Product -->
+  <div class="modal-backdrop" id="modal-add-seller-product">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-cart-plus" style="color:#16a34a;"></i> Add Product to Marketplace</h3>
+        <button class="modal-close" data-close-modal="modal-add-seller-product"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <form id="form-add-seller-product">
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="font-weight: 700;">Product Title *</label>
+            <input type="text" id="seller-prod-title" class="form-control" placeholder="e.g. Organic Kolar Neelam Mangoes (5kg Box)" required />
+          </div>
+          <div class="form-row" style="display:flex; gap:12px; margin-bottom: 14px;">
+            <div class="form-group" style="flex:1;">
+              <label class="form-label" style="font-weight: 700;">Category *</label>
+              <select id="seller-prod-category" class="form-control" required>
+                <option value="Agriculture & Organics">Agriculture &amp; Organics</option>
+                <option value="Party Merchandise">Party Merchandise</option>
+                <option value="Handicrafts & Souvenirs">Handicrafts &amp; Souvenirs</option>
+                <option value="Books & Literature">Books &amp; Literature</option>
+                <option value="Clothing & Accessories">Clothing &amp; Accessories</option>
+                <option value="Khadi & Handloom">Khadi &amp; Handloom</option>
+                <option value="General Goods">General Goods</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label class="form-label" style="font-weight: 700;">Price (₹) *</label>
+              <input type="number" id="seller-prod-price" class="form-control" placeholder="650" min="1" required />
+            </div>
+          </div>
+          <div class="form-row" style="display:flex; gap:12px; margin-bottom: 14px;">
+            <div class="form-group" style="flex:1;">
+              <label class="form-label" style="font-weight: 700;">Initial Stock Quantity *</label>
+              <input type="number" id="seller-prod-stock" class="form-control" placeholder="25" min="0" required />
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label class="form-label" style="font-weight: 700;">Product Image URL</label>
+              <input type="url" id="seller-prod-image" class="form-control" placeholder="https://images.unsplash.com/..." />
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label class="form-label" style="font-weight: 700;">Description *</label>
+            <textarea id="seller-prod-desc" class="form-control" rows="3" placeholder="Describe quality, harvest, specifications, or packaging details..." required></textarea>
+          </div>
+          <div class="modal-footer" style="padding-top:14px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-add-seller-product">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-add-product">
+              <i class="fa-solid fa-cloud-arrow-up"></i> Publish Product
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Update Order Status & Courier Tracking -->
+  <div class="modal-backdrop" id="modal-update-order-status">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-truck-ramp-box" style="color:#ea580c;"></i> Update Courier &amp; Order Status</h3>
+        <button class="modal-close" data-close-modal="modal-update-order-status"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <form id="form-update-order-status">
+          <input type="hidden" id="update-order-id" />
+          <div style="background:var(--bg-hover); padding:12px 16px; border-radius:10px; margin-bottom:16px;">
+            <div style="font-size:14px; font-weight:700;" id="update-order-header">Order #ORD-90210041</div>
+            <div style="font-size:12px; color:var(--text-muted);" id="update-order-buyer">Buyer: Mohamed Niyas</div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="font-weight: 700;">Order Status *</label>
+            <select id="update-order-status-select" class="form-control" required>
+              <option value="ORDER_ACCEPTED">Order Accepted (Packing Parcel)</option>
+              <option value="OUT_OF_STOCK">Temporarily Out of Stock</option>
+              <option value="SHIPPED">Shipped (Dispatched to Courier)</option>
+              <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
+              <option value="DELIVERED">Delivered to Customer</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+          </div>
+
+          <div class="form-row" style="display:flex; gap:12px; margin-bottom: 14px;">
+            <div class="form-group" style="flex:1;">
+              <label class="form-label" style="font-weight: 700;">Courier Partner</label>
+              <input type="text" id="update-order-courier" class="form-control" placeholder="DTDC / India Post Speed Post" />
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label class="form-label" style="font-weight: 700;">Tracking / AWB Number</label>
+              <input type="text" id="update-order-tracking" class="form-control" placeholder="TRK-982147" />
+            </div>
+          </div>
+
+          <div class="form-group" id="group-out-of-stock-reason" style="display:none; margin-bottom: 16px;">
+            <label class="form-label" style="font-weight: 700; color:#ef4444;">Out of Stock Reason / Buyer Notice</label>
+            <input type="text" id="update-order-stock-reason" class="form-control" placeholder="Batch sold out, expected restock in 3 days..." />
+          </div>
+
+          <div class="modal-footer" style="padding-top:14px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-update-order-status">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-order-status">
+              <i class="fa-solid fa-check"></i> Update Order Status
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: View Customer Delivery Proof Photo -->
+  <div class="modal-backdrop" id="modal-view-delivery-proof">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-camera" style="color:#16a34a;"></i> Customer Delivery Proof Photo</h3>
+        <button class="modal-close" data-close-modal="modal-view-delivery-proof"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 20px; text-align:center;">
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">
+          Customer verified the received parcel in good condition upon delivery.
+        </p>
+        <img id="img-delivery-proof-modal" src="" alt="Delivery Proof" style="max-width:100%; max-height:400px; border-radius:12px; object-fit:cover; border:1px solid #e2e8f0;" />
+        <div style="margin-top:12px; font-size:12px; color:#16a34a; font-weight:700;">
+          <i class="fa-solid fa-circle-check"></i> Delivery Verified &amp; Condition Confirmed Good
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Super Admin Transfer Weekly Payout -->
+  <div class="modal-backdrop" id="modal-admin-transfer-payout">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-building-columns" style="color:#10b981;"></i> Record Weekly Bank Transfer</h3>
+        <button class="modal-close" data-close-modal="modal-admin-transfer-payout"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <form id="form-admin-transfer-payout">
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="font-weight: 700;">Transfer Amount (₹) *</label>
+            <input type="number" id="payout-transfer-amount" class="form-control" required />
+          </div>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="font-weight: 700;">Bank Transaction UTR / Ref *</label>
+            <input type="text" id="payout-transfer-utr" class="form-control" placeholder="e.g. UTR-202610091482" required />
+          </div>
+          <div class="form-group" style="margin-bottom: 18px;">
+            <label class="form-label" style="font-weight: 700;">Notes</label>
+            <input type="text" id="payout-transfer-notes" class="form-control" placeholder="Weekly earnings payout transfer via NEFT/IMPS" />
+          </div>
+          <div class="modal-footer" style="padding-top:14px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" class="btn btn-outline" data-close-modal="modal-admin-transfer-payout">Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              <i class="fa-solid fa-paper-plane"></i> Confirm &amp; Mark Transferred
             </button>
           </div>
         </form>

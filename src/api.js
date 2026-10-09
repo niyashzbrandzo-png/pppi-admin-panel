@@ -1760,3 +1760,73 @@ export async function apiGetEligibleCandidates() {
   return [];
 }
 
+/* ==========================================================================
+   MARKETPLACE & SELLER PORTAL API
+   ========================================================================== */
+
+export async function apiGetSellerDashboard(sellerId) {
+  const query = sellerId ? `?seller_id=${sellerId}` : '';
+  const res = await request(`/marketplace/seller/dashboard${query}`);
+  return res?.data || null;
+}
+
+export async function apiGetSellerProducts(sellerId) {
+  const query = sellerId ? `?seller_id=${sellerId}` : '';
+  const res = await request(`/marketplace/seller/products${query}`);
+  return res?.data || [];
+}
+
+export async function apiGetSellerOrders(sellerId) {
+  const query = sellerId ? `?seller_id=${sellerId}` : '';
+  const res = await request(`/marketplace/seller/orders${query}`);
+  return res?.data || [];
+}
+
+export async function apiUpdateOrderStatus(orderId, payload) {
+  const res = await request(`/marketplace/seller/orders/${orderId}/status`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+  return res;
+}
+
+export async function apiCreateSellerProduct(productData) {
+  const res = await request('/marketplace/products', {
+    method: 'POST',
+    body: JSON.stringify(productData)
+  });
+  return res?.data || null;
+}
+
+export async function apiUpdateProductStock(productId, stockQuantity, status) {
+  const res = await request(`/marketplace/products/${productId}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      stock_quantity: stockQuantity,
+      status: status || (stockQuantity > 0 ? 'IN_STOCK' : 'OUT_OF_STOCK')
+    })
+  });
+  return res?.data || null;
+}
+
+export async function apiDeleteSellerProduct(productId) {
+  const res = await request(`/marketplace/products/${productId}`, {
+    method: 'DELETE'
+  });
+  return res;
+}
+
+export async function apiGetSellerPayouts(sellerId) {
+  const query = sellerId ? `?seller_id=${sellerId}` : '';
+  const res = await request(`/marketplace/seller/payouts${query}`);
+  return res?.data || null;
+}
+
+export async function apiAdminTransferPayout(sellerId, payload) {
+  const res = await request(`/marketplace/admin/payouts/${sellerId}/transfer`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+  return res;
+}
+

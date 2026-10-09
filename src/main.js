@@ -86,7 +86,16 @@ import {
   apiLogoutAdmin,
   getAdminToken,
   getApiBaseUrl,
-  setApiBaseUrl
+  setApiBaseUrl,
+  apiGetSellerDashboard,
+  apiGetSellerProducts,
+  apiGetSellerOrders,
+  apiUpdateOrderStatus,
+  apiCreateSellerProduct,
+  apiUpdateProductStock,
+  apiDeleteSellerProduct,
+  apiGetSellerPayouts,
+  apiAdminTransferPayout
 } from './api.js';
 
 // HTML Escape Helper for Safe String Rendering
@@ -673,6 +682,18 @@ function dispatchViewRender(viewName) {
         break;
       case 'notifications':
         renderNotificationsTable();
+        break;
+      case 'seller-dashboard':
+        renderSellerDashboard();
+        break;
+      case 'seller-products':
+        renderSellerProducts();
+        break;
+      case 'seller-orders':
+        renderSellerOrders();
+        break;
+      case 'seller-payouts':
+        renderSellerPayouts();
         break;
     }
   } catch (err) {
@@ -3847,7 +3868,7 @@ function promptMaintenanceConfirmation() {
 
 
 /* ==========================================================================
-   ROLE ACCESS CONTROL (ADMIN vs EMPLOYER)
+   ROLE ACCESS CONTROL (ADMIN vs EMPLOYER vs SELLER)
    ========================================================================== */
 function applyRoleAccessControl() {
   let user = null;
@@ -3855,14 +3876,61 @@ function applyRoleAccessControl() {
     user = JSON.parse(localStorage.getItem('pppi_admin_user') || '{}');
   } catch (e) {}
 
+  const isSeller = user && (user.role === 'SELLER' || user.is_seller === true);
   const isEmployer = user && user.role === 'EMPLOYER';
   const roleBadge = document.getElementById('employer-mode-badge');
   const userProfileRole = document.querySelector('.user-profile-role');
+  const userProfileName = document.querySelector('.user-profile-name');
 
-  if (isEmployer) {
+  if (isSeller) {
+    // Hide ALL general admin-only and non-seller navigation links & headers
+    document.querySelectorAll('[data-role="admin"]').forEach(el => {
+      el.style.setProperty('display', 'none', 'important');
+    });
+    // Hide non-seller menu items
+    const nonSellerViews = ['employment', 'complaints', 'activity', 'notifications', 'settings'];
+    nonSellerViews.forEach(v => {
+      const el = document.querySelector(`[data-view="${v}"]`);
+      if (el) el.style.setProperty('display', 'none', 'important');
+    });
+
+    // Make sure Seller Marketplace navigation is fully visible
+    const mktLabel = document.getElementById('menu-label-marketplace');
+    if (mktLabel) mktLabel.style.display = 'block';
+    ['seller-dashboard', 'seller-products', 'seller-orders', 'seller-payouts'].forEach(v => {
+      const el = document.querySelector(`[data-view="${v}"]`);
+      if (el) el.style.display = 'flex';
+    });
+
+    if (roleBadge) {
+      roleBadge.textContent = user.store_name ? `${user.store_name} • SELLER` : 'VERIFIED SELLER';
+      roleBadge.style.background = '#16a34a';
+      roleBadge.style.color = '#ffffff';
+    }
+    if (userProfileRole) {
+      userProfileRole.textContent = 'Green Card Seller';
+    }
+    if (userProfileName && (user.name || user.store_name)) {
+      userProfileName.textContent = user.name || user.store_name;
+    }
+
+    // Automatically activate dedicated Seller Dashboard view
+    setTimeout(() => {
+      const sellerNav = document.getElementById('nav-seller-dashboard');
+      if (sellerNav) sellerNav.click();
+    }, 50);
+
+  } else if (isEmployer) {
     // Hide admin-only navigation links & section headers
     document.querySelectorAll('[data-role="admin"]').forEach(el => {
       el.style.setProperty('display', 'none', 'important');
+    });
+    // Hide seller menu for employer
+    const mktLabel = document.getElementById('menu-label-marketplace');
+    if (mktLabel) mktLabel.style.display = 'none';
+    ['seller-dashboard', 'seller-products', 'seller-orders', 'seller-payouts'].forEach(v => {
+      const el = document.querySelector(`[data-view="${v}"]`);
+      if (el) el.style.display = 'none';
     });
 
     if (roleBadge) {
@@ -3877,11 +3945,27 @@ function applyRoleAccessControl() {
       const empNav = document.querySelector('[data-view="employment"]');
       if (empNav) empNav.click();
     }, 50);
+
   } else {
     // Show all modules for full ADMIN
     document.querySelectorAll('[data-role="admin"]').forEach(el => {
       el.style.removeProperty('display');
     });
+    const nonSellerViews = ['employment', 'complaints', 'activity', 'notifications', 'settings'];
+    nonSellerViews.forEach(v => {
+      const el = document.querySelector(`[data-view="${v}"]`);
+      if (el) el.style.removeProperty('display');
+    });
+    // Show seller marketplace for admin as well
+    const mktLabel = document.getElementById('menu-label-marketplace');
+    if (mktLabel) mktLabel.style.display = 'block';
+    ['seller-dashboard', 'seller-products', 'seller-orders', 'seller-payouts'].forEach(v => {
+      const el = document.querySelector(`[data-view="${v}"]`);
+      if (el) el.style.display = 'flex';
+    });
+    const btnAdminTransfer = document.getElementById('btn-admin-transfer-payout');
+    if (btnAdminTransfer) btnAdminTransfer.style.display = 'inline-flex';
+
     if (roleBadge) {
       roleBadge.textContent = 'MASTER ADMIN';
     }
@@ -7679,6 +7763,628 @@ function setupElectionAdminListeners() {
         alert('Failed to update constituency: ' + err.message);
       }
     };
+  }
+}
+
+/* ==========================================================================
+   SELLER MARKETPLACE PORTAL CONTROLLER LOGIC
+   ========================================================================== */
+
+let activeSellerOrderFilter = 'ALL';
+
+function getCurrentSellerUser() {
+  try {
+    return JSON.parse(localStorage.getItem('pppi_admin_user') || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+// 1. Render Seller Dashboard
+async function renderSellerDashboard() {
+  const user = getCurrentSellerUser();
+  const sellerId = user.id || 888;
+
+  // Set store title
+  const storeTitle = document.getElementById('seller-dash-store-name');
+  if (storeTitle) storeTitle.textContent = user.store_name || 'Kolar Agro & Organic Store';
+  const subtitle = document.getElementById('seller-dash-subtitle');
+  if (subtitle) subtitle.textContent = `Seller ID #${sellerId} • Verified Green Card Member Store`;
+
+  // Set Bank Details Card
+  const elStore = document.getElementById('seller-info-store-name');
+  if (elStore) elStore.textContent = user.store_name || 'Kolar Agro & Organic Store';
+  const elBank = document.getElementById('seller-info-bank-name');
+  if (elBank) elBank.textContent = user.bank_name || 'State Bank of India';
+  const elHolder = document.getElementById('seller-info-account-holder');
+  if (elHolder) elHolder.textContent = user.account_holder_name || user.name || 'Ramesh Patel';
+  const elAcc = document.getElementById('seller-info-account-no');
+  if (elAcc) elAcc.textContent = user.account_number ? `••••••••${user.account_number.slice(-4)}` : '••••••••9876';
+  const elIfsc = document.getElementById('seller-info-ifsc');
+  if (elIfsc) elIfsc.textContent = user.ifsc_code || 'SBIN0004123';
+
+  try {
+    const data = await apiGetSellerDashboard(sellerId);
+    if (!data) return;
+
+    // Update Stats
+    const elRev = document.getElementById('seller-dash-revenue');
+    if (elRev) elRev.textContent = `₹${(data.total_revenue || 0).toLocaleString('en-IN')}`;
+    const elOrders = document.getElementById('seller-dash-orders-count');
+    if (elOrders) elOrders.textContent = data.orders_count || 0;
+    const elPending = document.getElementById('seller-dash-pending-count');
+    if (elPending) elPending.textContent = data.pending_shipments || 0;
+    const elPayout = document.getElementById('seller-dash-payout-balance');
+    if (elPayout) elPayout.textContent = `₹${(data.available_payout || 0).toLocaleString('en-IN')}`;
+
+    // Badges in sidebar
+    const badgeOrders = document.getElementById('badge-seller-orders-count');
+    if (badgeOrders) badgeOrders.textContent = data.pending_shipments || data.orders_count || 0;
+
+    // Render Recent Orders in Table
+    const tbody = document.getElementById('seller-dash-recent-orders-tbody');
+    if (tbody && data.recent_orders) {
+      if (data.recent_orders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">No orders received yet.</td></tr>`;
+      } else {
+        tbody.innerHTML = data.recent_orders.map(order => {
+          const addr = order.shipping_address || {};
+          const fullAddr = `${addr.recipient_name || order.buyer_name} (${addr.phone || order.buyer_phone})<br/><span style="font-size:11.5px; color:var(--text-muted);">${addr.address_line1 || ''}, ${addr.city || ''} - ${addr.pincode || ''}</span>`;
+          const itemsSummary = (order.items || []).map(i => `${i.title} (x${i.quantity})`).join(', ');
+
+          let statusClass = 'badge-warning';
+          if (order.order_status === 'DELIVERED') statusClass = 'badge-success';
+          else if (order.order_status === 'SHIPPED') statusClass = 'badge-info';
+          else if (order.order_status === 'OUT_OF_STOCK' || order.order_status === 'CANCELLED') statusClass = 'badge-danger';
+
+          return `
+            <tr>
+              <td style="font-weight:700; font-family:monospace;">${escapeHtml(order.order_no)}</td>
+              <td>${fullAddr}</td>
+              <td style="font-size:12px; max-width:180px;">${escapeHtml(itemsSummary)}</td>
+              <td style="font-weight:700; color:#16a34a;">₹${order.total_amount}</td>
+              <td><span class="badge ${statusClass}">${escapeHtml(order.order_status)}</span></td>
+              <td>
+                <button class="btn btn-sm btn-outline btn-quick-dispatch" data-order-id="${order.id}">
+                  <i class="fa-solid fa-truck"></i> Dispatch
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        // Dispatch button clicks
+        tbody.querySelectorAll('.btn-quick-dispatch').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const ordId = e.currentTarget.getAttribute('data-order-id');
+            const ord = (data.recent_orders || []).find(o => String(o.id) === String(ordId));
+            if (ord) openOrderStatusModal(ord);
+          });
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error rendering seller dashboard:', err);
+  }
+}
+
+// 2. Render Seller Products & Stock Management
+async function renderSellerProducts() {
+  const user = getCurrentSellerUser();
+  const sellerId = user.id || 888;
+  const tbody = document.getElementById('seller-products-tbody');
+  if (!tbody) return;
+
+  try {
+    const products = await apiGetSellerProducts(sellerId);
+    const searchVal = (document.getElementById('seller-products-search')?.value || '').toLowerCase();
+    const stockFilter = document.getElementById('seller-products-stock-filter')?.value || 'ALL';
+
+    const filtered = (products || []).filter(p => {
+      const matchSearch = !searchVal || (p.title || '').toLowerCase().includes(searchVal) || (p.category || '').toLowerCase().includes(searchVal);
+      const matchStock = stockFilter === 'ALL' || p.status === stockFilter;
+      return matchSearch && matchStock;
+    });
+
+    const badgeProd = document.getElementById('badge-seller-products-count');
+    if (badgeProd) badgeProd.textContent = products.length;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--text-muted);">No products found matching criteria.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(p => {
+      const isOut = p.status === 'OUT_OF_STOCK' || p.stock_quantity <= 0;
+      const statusBadge = isOut
+        ? `<span class="badge" style="background:#ef4444; color:white;"><i class="fa-solid fa-circle-xmark"></i> OUT OF STOCK</span>`
+        : `<span class="badge" style="background:#16a34a; color:white;"><i class="fa-solid fa-circle-check"></i> IN STOCK</span>`;
+
+      return `
+        <tr>
+          <td>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <img src="${escapeHtml(p.image_url || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80')}" alt="${escapeHtml(p.title)}" style="width:48px; height:48px; border-radius:8px; object-fit:cover; border:1px solid #e2e8f0;" />
+              <div>
+                <div style="font-weight:700; font-size:14px; color:var(--text-primary);">${escapeHtml(p.title)}</div>
+                <div style="font-size:12px; color:var(--text-muted);">${escapeHtml(p.store_name || user.store_name || 'Member Store')}</div>
+              </div>
+            </div>
+          </td>
+          <td><span class="pill-tag" style="font-size:12px;">${escapeHtml(p.category)}</span></td>
+          <td style="font-weight:700; color:#16a34a; font-size:15px;">₹${p.price}</td>
+          <td style="font-weight:700;">
+            <span style="font-size:15px; color:${isOut ? '#ef4444' : 'inherit'};">${p.stock_quantity}</span> units
+          </td>
+          <td>${statusBadge}</td>
+          <td>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-sm ${isOut ? 'btn-primary' : 'btn-outline'} btn-toggle-stock" data-id="${p.id}" data-current="${p.status}">
+                ${isOut ? '<i class="fa-solid fa-check"></i> Mark In Stock' : '<i class="fa-solid fa-ban"></i> Mark Out of Stock'}
+              </button>
+              <button class="btn btn-sm btn-outline btn-edit-stock" data-id="${p.id}" data-qty="${p.stock_quantity}">
+                <i class="fa-solid fa-pen"></i> Edit Qty
+              </button>
+              <button class="btn btn-sm btn-danger-outline btn-delete-product" data-id="${p.id}">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Wire action buttons
+    tbody.querySelectorAll('.btn-toggle-stock').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const pId = e.currentTarget.getAttribute('data-id');
+        const curr = e.currentTarget.getAttribute('data-current');
+        const nextStatus = curr === 'OUT_OF_STOCK' ? 'IN_STOCK' : 'OUT_OF_STOCK';
+        const nextQty = nextStatus === 'IN_STOCK' ? 25 : 0;
+        await apiUpdateProductStock(pId, nextQty, nextStatus);
+        renderSellerProducts();
+        renderSellerDashboard();
+      });
+    });
+
+    tbody.querySelectorAll('.btn-edit-stock').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const pId = e.currentTarget.getAttribute('data-id');
+        const currentQty = e.currentTarget.getAttribute('data-qty');
+        const newQtyStr = prompt('Enter new stock quantity for this product:', currentQty);
+        if (newQtyStr !== null && newQtyStr.trim() !== '') {
+          const num = parseInt(newQtyStr.trim(), 10);
+          if (!isNaN(num) && num >= 0) {
+            await apiUpdateProductStock(pId, num, num > 0 ? 'IN_STOCK' : 'OUT_OF_STOCK');
+            renderSellerProducts();
+            renderSellerDashboard();
+          }
+        }
+      });
+    });
+
+    tbody.querySelectorAll('.btn-delete-product').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const pId = e.currentTarget.getAttribute('data-id');
+        if (confirm('Are you sure you want to remove this product from the Member Marketplace?')) {
+          await apiDeleteSellerProduct(pId);
+          renderSellerProducts();
+          renderSellerDashboard();
+        }
+      });
+    });
+
+  } catch (err) {
+    console.error('Error rendering seller products:', err);
+  }
+}
+
+// 3. Render Seller Orders & Courier Shipping
+async function renderSellerOrders() {
+  const user = getCurrentSellerUser();
+  const sellerId = user.id || 888;
+  const container = document.getElementById('seller-orders-list-container');
+  if (!container) return;
+
+  try {
+    const orders = await apiGetSellerOrders(sellerId);
+
+    const filtered = (orders || []).filter(o => {
+      if (activeSellerOrderFilter === 'ALL') return true;
+      return o.order_status === activeSellerOrderFilter;
+    });
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:48px 20px; background:var(--bg-card); border-radius:16px; border:1px solid #e2e8f0;">
+          <i class="fa-solid fa-box-open" style="font-size:48px; color:var(--text-muted); margin-bottom:14px;"></i>
+          <h4 style="margin:0 0 6px;">No Orders in This Status</h4>
+          <p style="color:var(--text-muted); font-size:13px;">Check other filter tabs to view active orders.</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = filtered.map(order => {
+      const addr = order.shipping_address || {};
+      const fullAddressText = `${addr.recipient_name || order.buyer_name}, Phone: ${addr.phone || order.buyer_phone}, Address: ${addr.address_line1 || ''} ${addr.address_line2 || ''}, ${addr.city || ''}, ${addr.district || ''}, ${addr.state || ''} - ${addr.pincode || ''}`;
+
+      let statusColor = '#f59e0b';
+      let statusLabel = order.order_status;
+      if (order.order_status === 'DELIVERED') {
+        statusColor = '#16a34a';
+        statusLabel = 'Delivered to Customer';
+      } else if (order.order_status === 'SHIPPED') {
+        statusColor = '#0284c7';
+        statusLabel = 'Dispatched / In Transit';
+      } else if (order.order_status === 'OUT_FOR_DELIVERY') {
+        statusColor = '#8b5cf6';
+        statusLabel = 'Out for Delivery';
+      } else if (order.order_status === 'OUT_OF_STOCK') {
+        statusColor = '#ef4444';
+        statusLabel = 'Out of Stock - Notice Sent';
+      } else if (order.order_status === 'ORDER_ACCEPTED') {
+        statusColor = '#ea580c';
+        statusLabel = 'Order Accepted (Prepare Courier)';
+      }
+
+      const itemsHtml = (order.items || []).map(i => `
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+          <img src="${escapeHtml(i.image_url || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80')}" style="width:40px; height:40px; border-radius:8px; object-fit:cover;" />
+          <div style="flex:1;">
+            <div style="font-weight:600; font-size:13px;">${escapeHtml(i.title)}</div>
+            <div style="font-size:12px; color:var(--text-muted);">Qty: ${i.quantity} × ₹${i.price}</div>
+          </div>
+          <div style="font-weight:700;">₹${i.price * i.quantity}</div>
+        </div>
+      `).join('');
+
+      // Delivery Proof Badge
+      const deliveryProofHtml = order.delivery_proof_photo ? `
+        <div style="margin-top:14px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <i class="fa-solid fa-circle-check" style="color:#16a34a; font-size:20px;"></i>
+            <div>
+              <div style="font-weight:700; font-size:13px; color:#15803d;">Customer Delivery Proof Photo Uploaded</div>
+              <div style="font-size:12px; color:#166534;">Customer verified parcel received in good condition.</div>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline btn-view-proof-photo" data-img="${escapeHtml(order.delivery_proof_photo)}" style="border-color:#16a34a; color:#16a34a;">
+            <i class="fa-solid fa-image"></i> View Customer Photo
+          </button>
+        </div>
+      ` : '';
+
+      // Complaint Ticket Box
+      const complaintHtml = order.complaint_ticket ? `
+        <div style="margin-top:14px; background:#fffbeb; border:1px solid #fcd34d; border-radius:10px; padding:12px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+            <div style="font-weight:700; color:#b45309; font-size:13px; display:flex; align-items:center; gap:6px;">
+              <i class="fa-solid fa-triangle-exclamation"></i> 24-Hour Return Complaint Filed (${escapeHtml(order.complaint_ticket.ticket_no)})
+            </div>
+            <span class="badge" style="background:#f59e0b; color:white;">${escapeHtml(order.complaint_ticket.status)}</span>
+          </div>
+          <div style="font-size:12.5px; color:#92400e;"><strong>Reason:</strong> ${escapeHtml(order.complaint_ticket.reason)}</div>
+          <div style="font-size:12px; color:#78350f; margin-top:2px;"><strong>Details:</strong> ${escapeHtml(order.complaint_ticket.description)}</div>
+        </div>
+      ` : '';
+
+      return `
+        <div class="card" style="padding:22px; margin-bottom:18px;">
+          <!-- Top Row: Order Header & Status -->
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:1px solid #e2e8f0; padding-bottom:14px; margin-bottom:16px;">
+            <div>
+              <span style="font-size:17px; font-weight:800; font-family:monospace; color:var(--text-primary);">${escapeHtml(order.order_no)}</span>
+              <span style="font-size:12px; color:var(--text-muted); margin-left:12px;">${new Date(order.created_at).toLocaleString()}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="badge" style="background:${statusColor}; color:white; font-size:12.5px; padding:6px 14px; border-radius:20px; font-weight:700;">
+                ${escapeHtml(statusLabel)}
+              </span>
+              <button class="btn btn-sm btn-primary btn-edit-order-status" data-order='${JSON.stringify(order).replace(/'/g, "&apos;")}'>
+                <i class="fa-solid fa-truck-ramp-box"></i> Update Status &amp; Courier
+              </button>
+            </div>
+          </div>
+
+          <!-- Body: Customer Delivery Address for Courier & Order Items -->
+          <div style="display:grid; grid-template-columns: 1.2fr 1fr; gap:20px; align-items:start;">
+            <!-- Customer Shipping Address Card -->
+            <div style="background:var(--bg-hover); border:1px dashed #cbd5e1; border-radius:12px; padding:16px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+                  <i class="fa-solid fa-location-dot" style="color:#ea580c;"></i> Customer Courier Delivery Address
+                </span>
+                <button class="btn btn-sm btn-outline btn-copy-address" data-address="${escapeHtml(fullAddressText)}" style="padding:3px 8px; font-size:11px;">
+                  <i class="fa-solid fa-copy"></i> Copy Address
+                </button>
+              </div>
+              <div style="font-size:14px; font-weight:700; color:var(--text-primary);">${escapeHtml(addr.recipient_name || order.buyer_name)}</div>
+              <div style="font-size:13px; color:var(--text-primary); margin-top:4px; line-height:1.5;">
+                ${escapeHtml(addr.address_line1 || '')}${addr.address_line2 ? ', ' + escapeHtml(addr.address_line2) : ''}<br/>
+                ${escapeHtml(addr.city || '')}, ${escapeHtml(addr.district || '')}, ${escapeHtml(addr.state || '')} - <strong>${escapeHtml(addr.pincode || '')}</strong>
+              </div>
+              <div style="font-size:13px; color:#0284c7; font-weight:600; margin-top:8px;">
+                <i class="fa-solid fa-phone"></i> Mobile: ${escapeHtml(addr.phone || order.buyer_phone)}
+              </div>
+
+              <!-- Courier tracking info if shipped -->
+              <div style="margin-top:12px; padding-top:10px; border-top:1px solid #cbd5e1; font-size:12.5px; display:flex; justify-content:space-between;">
+                <span><strong>Courier:</strong> ${escapeHtml(order.courier_partner || 'Speed Post / DTDC')}</span>
+                <span><strong>AWB / Tracking:</strong> <code style="color:#16a34a; font-weight:700;">${escapeHtml(order.tracking_number || 'TRK-982147')}</code></span>
+              </div>
+            </div>
+
+            <!-- Ordered Items & Payment -->
+            <div>
+              <div style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">
+                Order Items (${(order.items || []).length})
+              </div>
+              ${itemsHtml}
+              <div style="border-top:1px solid #e2e8f0; padding-top:10px; margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:13px; color:var(--text-muted);">Total Order Amount (incl. delivery):</span>
+                <span style="font-size:18px; font-weight:800; color:#16a34a;">₹${order.total_amount}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Customer Delivery Proof Photo & Complaints -->
+          ${deliveryProofHtml}
+          ${complaintHtml}
+        </div>
+      `;
+    }).join('');
+
+    // Wire Copy Address buttons
+    container.querySelectorAll('.btn-copy-address').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const text = e.currentTarget.getAttribute('data-address');
+        navigator.clipboard.writeText(text);
+        alert('Customer courier delivery address copied to clipboard!');
+      });
+    });
+
+    // Wire Update Status modal openers
+    container.querySelectorAll('.btn-edit-order-status').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const ord = JSON.parse(e.currentTarget.getAttribute('data-order'));
+        openOrderStatusModal(ord);
+      });
+    });
+
+    // Wire View Customer Delivery Proof Photo
+    container.querySelectorAll('.btn-view-proof-photo').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const imgUrl = e.currentTarget.getAttribute('data-img');
+        const imgEl = document.getElementById('img-delivery-proof-modal');
+        if (imgEl) imgEl.src = imgUrl;
+        openModal('modal-view-delivery-proof');
+      });
+    });
+
+  } catch (err) {
+    console.error('Error rendering seller orders:', err);
+  }
+}
+
+// 4. Render Seller Earnings & Payouts
+async function renderSellerPayouts() {
+  const user = getCurrentSellerUser();
+  const sellerId = user.id || 888;
+  const tbody = document.getElementById('seller-payouts-tbody');
+
+  try {
+    const data = await apiGetSellerPayouts(sellerId);
+    if (!data) return;
+
+    const elGross = document.getElementById('payout-gross-sales');
+    if (elGross) elGross.textContent = `₹${(data.gross_sales || 0).toLocaleString('en-IN')}`;
+    const elFund = document.getElementById('payout-party-fund');
+    if (elFund) elFund.textContent = `₹${(data.party_fund_deduction || 0).toLocaleString('en-IN')}`;
+    const elNet = document.getElementById('payout-net-earnings');
+    if (elNet) elNet.textContent = `₹${(data.net_earnings || 0).toLocaleString('en-IN')}`;
+
+    if (tbody && data.payout_history) {
+      if (data.payout_history.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">No payout records yet.</td></tr>`;
+      } else {
+        tbody.innerHTML = data.payout_history.map(p => `
+          <tr>
+            <td style="font-weight:700; font-family:monospace;">${escapeHtml(p.payout_ref)}</td>
+            <td style="font-weight:700; color:#16a34a; font-size:15px;">₹${(p.amount || 0).toLocaleString('en-IN')}</td>
+            <td><span class="badge" style="background:#16a34a; color:white;"><i class="fa-solid fa-check"></i> ${escapeHtml(p.status)}</span></td>
+            <td>${escapeHtml(p.bank_name || 'SBI')} (${escapeHtml(p.account_number || '••••9876')})</td>
+            <td><code style="font-weight:700; color:#0284c7;">${escapeHtml(p.transaction_utr || 'UTR-98214')}</code></td>
+            <td style="font-size:12.5px; color:var(--text-muted);">${new Date(p.transferred_at).toLocaleString()}</td>
+          </tr>
+        `).join('');
+      }
+    }
+  } catch (err) {
+    console.error('Error rendering seller payouts:', err);
+  }
+}
+
+// Open Order Status Modal
+function openOrderStatusModal(order) {
+  const idInput = document.getElementById('update-order-id');
+  if (idInput) idInput.value = order.id;
+
+  const header = document.getElementById('update-order-header');
+  if (header) header.textContent = `Order #${order.order_no} • Total: ₹${order.total_amount}`;
+
+  const buyer = document.getElementById('update-order-buyer');
+  if (buyer) buyer.textContent = `Customer: ${order.buyer_name} (${order.buyer_phone})`;
+
+  const statusSel = document.getElementById('update-order-status-select');
+  if (statusSel) statusSel.value = order.order_status;
+
+  const courierInput = document.getElementById('update-order-courier');
+  if (courierInput) courierInput.value = order.courier_partner || 'Speed Post / DTDC Express';
+
+  const trackInput = document.getElementById('update-order-tracking');
+  if (trackInput) trackInput.value = order.tracking_number || `TRK-${Math.floor(100000 + Math.random() * 900000)}`;
+
+  openModal('modal-update-order-status');
+}
+
+// Wire Event Listeners for Marketplace Portal
+function setupMarketplaceEventListeners() {
+  // Add Product button triggers
+  const btnDashAdd = document.getElementById('btn-seller-dash-add-product');
+  if (btnDashAdd) btnDashAdd.addEventListener('click', () => openModal('modal-add-seller-product'));
+
+  const btnProdAdd = document.getElementById('btn-seller-add-product');
+  if (btnProdAdd) btnProdAdd.addEventListener('click', () => openModal('modal-add-seller-product'));
+
+  const btnDashRef = document.getElementById('btn-seller-dash-refresh');
+  if (btnDashRef) btnDashRef.addEventListener('click', () => renderSellerDashboard());
+
+  const btnOrdRef = document.getElementById('btn-seller-orders-refresh');
+  if (btnOrdRef) btnOrdRef.addEventListener('click', () => renderSellerOrders());
+
+  const btnViewAllOrd = document.getElementById('btn-seller-view-all-orders');
+  if (btnViewAllOrd) {
+    btnViewAllOrd.addEventListener('click', () => {
+      const ordNav = document.getElementById('nav-seller-orders');
+      if (ordNav) ordNav.click();
+    });
+  }
+
+  // Filter tabs on seller orders
+  document.querySelectorAll('.filter-order-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.filter-order-btn').forEach(b => {
+        b.classList.remove('btn-primary');
+        b.classList.add('btn-outline');
+      });
+      e.currentTarget.classList.remove('btn-outline');
+      e.currentTarget.classList.add('btn-primary');
+      activeSellerOrderFilter = e.currentTarget.getAttribute('data-filter');
+      renderSellerOrders();
+    });
+  });
+
+  // Search & Filter on products
+  const prodSearch = document.getElementById('seller-products-search');
+  if (prodSearch) prodSearch.addEventListener('input', () => renderSellerProducts());
+  const prodFilter = document.getElementById('seller-products-stock-filter');
+  if (prodFilter) prodFilter.addEventListener('change', () => renderSellerProducts());
+
+  // Out of stock toggle in modal
+  const statusSel = document.getElementById('update-order-status-select');
+  const reasonGroup = document.getElementById('group-out-of-stock-reason');
+  if (statusSel && reasonGroup) {
+    statusSel.addEventListener('change', () => {
+      reasonGroup.style.display = statusSel.value === 'OUT_OF_STOCK' ? 'block' : 'none';
+    });
+  }
+
+  // Submit Add Product Form
+  const formAddProd = document.getElementById('form-add-seller-product');
+  if (formAddProd) {
+    formAddProd.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const user = getCurrentSellerUser();
+      const title = document.getElementById('seller-prod-title').value.trim();
+      const category = document.getElementById('seller-prod-category').value;
+      const price = parseFloat(document.getElementById('seller-prod-price').value);
+      const stock = parseInt(document.getElementById('seller-prod-stock').value, 10);
+      const image = document.getElementById('seller-prod-image').value.trim() || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80';
+      const desc = document.getElementById('seller-prod-desc').value.trim();
+
+      const payload = {
+        seller_id: user.id || 888,
+        seller_name: user.name || 'Verified Member Seller',
+        store_name: user.store_name || 'Kolar Agro & Organic Store',
+        seller_phone: user.phone || '9876509999',
+        title,
+        category,
+        price,
+        stock_quantity: stock,
+        image_url: image,
+        description: desc
+      };
+
+      try {
+        await apiCreateSellerProduct(payload);
+        alert(`Product "${title}" added to Member Marketplace successfully! It will now be visible to all mobile app members.`);
+        closeModal('modal-add-seller-product');
+        formAddProd.reset();
+        renderSellerProducts();
+        renderSellerDashboard();
+      } catch (err) {
+        alert('Failed to publish product: ' + err.message);
+      }
+    });
+  }
+
+  // Submit Update Order Status Form
+  const formUpdateOrd = document.getElementById('form-update-order-status');
+  if (formUpdateOrd) {
+    formUpdateOrd.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const orderId = document.getElementById('update-order-id').value;
+      const order_status = document.getElementById('update-order-status-select').value;
+      const courier_partner = document.getElementById('update-order-courier').value.trim();
+      const tracking_number = document.getElementById('update-order-tracking').value.trim();
+      const out_of_stock_reason = document.getElementById('update-order-stock-reason')?.value?.trim();
+
+      try {
+        await apiUpdateOrderStatus(orderId, {
+          order_status,
+          courier_partner,
+          tracking_number,
+          out_of_stock_reason
+        });
+        alert(`Order status updated to ${order_status}! Live updates synced with customer's mobile app.`);
+        closeModal('modal-update-order-status');
+        renderSellerOrders();
+        renderSellerDashboard();
+      } catch (err) {
+        alert('Failed to update order status: ' + err.message);
+      }
+    });
+  }
+
+  // Admin Payout Transfer
+  const btnAdminPayout = document.getElementById('btn-admin-transfer-payout');
+  if (btnAdminPayout) {
+    btnAdminPayout.addEventListener('click', () => {
+      openModal('modal-admin-transfer-payout');
+    });
+  }
+
+  const formAdminPayout = document.getElementById('form-admin-transfer-payout');
+  if (formAdminPayout) {
+    formAdminPayout.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const user = getCurrentSellerUser();
+      const sellerId = user.id || 888;
+      const amount = parseFloat(document.getElementById('payout-transfer-amount').value);
+      const transaction_ref = document.getElementById('payout-transfer-utr').value.trim();
+      const notes = document.getElementById('payout-transfer-notes').value.trim();
+
+      try {
+        await apiAdminTransferPayout(sellerId, { amount, transaction_ref, notes });
+        alert('Weekly earnings payout recorded and transferred successfully!');
+        closeModal('modal-admin-transfer-payout');
+        formAdminPayout.reset();
+        renderSellerPayouts();
+        renderSellerDashboard();
+      } catch (err) {
+        alert('Failed to transfer payout: ' + err.message);
+      }
+    });
+  }
+}
+
+// Call listener setup once DOM ready
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupMarketplaceEventListeners);
+  } else {
+    setupMarketplaceEventListeners();
   }
 }
 
